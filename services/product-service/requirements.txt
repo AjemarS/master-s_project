@@ -1,8 +1,0 @@
-Django>=4.2
-djangorestframework
-django-filter
-gunicorn
-psycopg2-binary
-python-dotenv
-Pillow
-django-cors-headers
