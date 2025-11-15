@@ -1,0 +1,86 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: products_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices_network
+
+  # Django Product Service
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product_service
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/products_db
+      DJANGO_SETTINGS_MODULE: product_service.settings
+      DJANGO_SECRET_KEY: your-secret-key-change-in-production
+    volumes:
+      - ./product-service:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - microservices_network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # API Gateway (FastAPI)
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: api_gateway
+    environment:
+      - PRODUCT_SERVICE_URL=http://product-service:8000
+      - FRONTEND_SERVICE_URL=http://frontend:3000
+    ports:
+      - "80:8080"
+    depends_on:
+      - product-service
+      - frontend
+    networks:
+      - microservices_network
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend_app
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    networks:
+      - microservices_network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+
+networks:
+  microservices_network:
+    driver: bridge
