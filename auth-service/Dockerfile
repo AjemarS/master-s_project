@@ -12,4 +12,6 @@ RUN npm install
 COPY . .
 
 # Відкриття порту
-EXPOSE 3000
+EXPOSE 3001
+
+# Команда запуску буде в docker-compose.yml

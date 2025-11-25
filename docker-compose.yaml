@@ -29,6 +29,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/products_db
       DJANGO_SETTINGS_MODULE: product_service.settings
       DJANGO_SECRET_KEY: your-secret-key-change-in-production
+      ALLOWED_HOSTS: localhost, 127.0.0.1, product-service, gateway, frontend
+      CORS_ALLOWED_ORIGINS: http://localhost, http://localhost:3000
     volumes:
       - ./product-service:/app
     ports:
@@ -42,6 +44,31 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
 
+  # Auth Service (Better Auth)
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth_service
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/products_db
+      BETTER_AUTH_SECRET: CRaoTYODSDKtVmxosfiHkjUjFbIlrVeY
+      BETTER_AUTH_URL: http://localhost:3001/auth
+      GOOGLE_CLIENT_ID: 354897909540-bv2ig1tu2p8eesihk3m7um7eqtfg82gl.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: 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
+    volumes:
+      - ./auth-service:/app
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npm run dev
+    networks:
+      - microservices_network
+
   # API Gateway (FastAPI)
   gateway:
     build:
@@ -51,11 +78,14 @@ services:
     environment:
       - PRODUCT_SERVICE_URL=http://product-service:8000
       - FRONTEND_SERVICE_URL=http://frontend:3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - CORS_ORIGINS=http://localhost,http://localhost:3000
     ports:
       - "80:8080"
     depends_on:
       - product-service
       - frontend
+      - auth-service
     networks:
       - microservices_network
 
@@ -68,6 +98,7 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost/api
+      - NEXT_PUBLIC_AUTH_URL=http://localhost/auth
     volumes:
       - ./frontend:/app
       - /app/node_modules
