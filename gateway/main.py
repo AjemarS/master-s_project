@@ -1,90 +1,70 @@
 from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import httpx
 import os
 import logging
 
-# Налаштування логування
+# ================================
+#           ЛОГУВАННЯ
+# ================================
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("gateway")
+
+
+# ================================
+#      CONFIG FROM ENV
+# ================================
+PRODUCT_SERVICE_URL = os.environ.get(
+    "PRODUCT_SERVICE_URL", "http://product-service:8000"
+)
+AUTH_SERVICE_URL = os.environ.get("AUTH_SERVICE_URL", "http://auth-service:3001")
+FRONTEND_SERVICE_URL = os.environ.get("FRONTEND_SERVICE_URL", "http://frontend:3000")
+
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost").split(",")
+
+
+# ================================
+#            LIFESPAN
+# ================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. створюємо httpx клієнт тільки один раз
+    app.state.client = httpx.AsyncClient(timeout=30.0, http2=True)
+    yield
+    # 2. закриваємо при зупинці
+    await app.state.client.aclose()
+
 
 app = FastAPI(
     title="API Gateway",
-    description="Кастомний API Gateway на FastAPI для мікросервісної архітектури",
-    version="1.0.0",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# CORS налаштування
+
+# ================================
+#            CORS
+# ================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# URL сервісів з environment variables
-PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://product-service:8000")
-FRONTEND_SERVICE_URL = os.getenv("FRONTEND_SERVICE_URL", "http://frontend:3000")
 
-# HTTP клієнт з таймаутами
-client = httpx.AsyncClient(timeout=30.0)
-
-
-@app.get("/")
-async def root():
-    """Головна сторінка Gateway"""
-    return {
-        "service": "API Gateway",
-        "version": "1.0.0",
-        "endpoints": {"api": "/api/*", "admin": "/admin/*", "frontend": "/*"},
-    }
-
-
-@app.get("/health")
-async def health_check():
-    """Перевірка здоров'я Gateway та всіх сервісів"""
-    services_health = {}
-
-    # Перевірка Product Service
-    try:
-        response = await client.get(f"{PRODUCT_SERVICE_URL}/api/products/", timeout=5.0)
-        services_health["product-service"] = {
-            "status": "healthy" if response.status_code == 200 else "unhealthy",
-            "status_code": response.status_code,
-        }
-    except Exception as e:
-        services_health["product-service"] = {"status": "unhealthy", "error": str(e)}
-
-    # Перевірка Frontend
-    try:
-        response = await client.get(FRONTEND_SERVICE_URL, timeout=5.0)
-        services_health["frontend"] = {
-            "status": "healthy" if response.status_code == 200 else "unhealthy",
-            "status_code": response.status_code,
-        }
-    except Exception as e:
-        services_health["frontend"] = {"status": "unhealthy", "error": str(e)}
-
-    all_healthy = all(
-        service.get("status") == "healthy" for service in services_health.values()
-    )
-
-    return {
-        "gateway": "healthy",
-        "services": services_health,
-        "overall_status": "healthy" if all_healthy else "degraded",
-    }
-
-
-async def proxy_request(request: Request, target_url: str, path: str = ""):
-    """Універсальна функція для проксування запитів"""
+# ================================
+#       UNIVERSAL PROXY
+# ================================
+async def proxy_request(request: Request, target: str, path: str = ""):
+    client: httpx.AsyncClient = request.app.state.client
 
     # Формування URL
-    url = f"{target_url}{path}"
+    url = f"{target}{path}"
 
-    # Отримання headers (без host)
+    # Отримання headers
     headers = dict(request.headers)
     headers.pop("host", None)
 
@@ -95,7 +75,6 @@ async def proxy_request(request: Request, target_url: str, path: str = ""):
 
     # Отримання query parameters
     params = dict(request.query_params)
-
     logger.info(f"Proxying {request.method} {url}")
 
     try:
@@ -108,67 +87,134 @@ async def proxy_request(request: Request, target_url: str, path: str = ""):
             params=params,
             follow_redirects=True,
         )
+        response_headers = dict(response.headers)
+
+        # ВИДАЛЯЄМО "ПРОБЛЕМНІ" ЗАГОЛОВКИ
+        response_headers.pop("content-encoding", None)
+        response_headers.pop("content-length", None)
 
         # Формування відповіді
         return Response(
             content=response.content,
             status_code=response.status_code,
-            headers=dict(response.headers),
+            headers=response_headers,
             media_type=response.headers.get("content-type"),
         )
 
     except httpx.TimeoutException:
-        logger.error(f"Timeout while proxying to {url}")
-        raise HTTPException(status_code=504, detail="Gateway Timeout")
+        raise HTTPException(504, "Gateway Timeout")
     except httpx.RequestError as e:
-        logger.error(f"Error while proxying to {url}: {str(e)}")
-        raise HTTPException(status_code=502, detail="Bad Gateway")
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"Proxy error: {e}")
+        raise HTTPException(502, "Bad Gateway")
 
 
+# ================================
+#            ROUTES
+# ================================
+
+
+@app.get("/")
+async def root(request: Request):
+    return await proxy_request(request, FRONTEND_SERVICE_URL, "/")
+
+@app.get("/gateway")
+async def gateway_check():
+    return  {"message": "API Gateway is running."}
+
+@app.get("/health")
+async def health():
+    """Перевірка стану сервісів"""
+    client = app.state.client
+
+    async def check(url: str):
+        try:
+            r = await client.get(url, timeout=5)
+            return {"status": "healthy" if r.status_code == 200 else "unhealthy"}
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
+    return {
+        "gateway": "healthy",
+        "services": {
+            "product": await check(f"{PRODUCT_SERVICE_URL}/api/products/"),
+            "auth": await check(f"{AUTH_SERVICE_URL}/health"),
+            "frontend": await check(f"{FRONTEND_SERVICE_URL}/favicon.ico"),
+        },
+    }
+
+
+# Products
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def proxy_to_product_service(request: Request, path: str):
-    """Проксування запитів до Product Service"""
+async def proxy_products(request: Request, path: str):
     return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}")
 
 
-@app.api_route("/admin/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def proxy_to_admin(request: Request, path: str):
-    """Проксування запитів до Django Admin"""
+# Django Admin (GET + POST)
+@app.api_route("/admin/{path:path}", methods=["GET", "POST"])
+async def proxy_admin(request: Request, path: str):
     return await proxy_request(request, PRODUCT_SERVICE_URL, f"/admin/{path}")
 
 
-@app.get("/admin")
-async def proxy_to_admin_root(request: Request):
-    """Проксування до Django Admin root"""
-    return await proxy_request(request, PRODUCT_SERVICE_URL, "/admin/")
-
-
 @app.api_route("/static/{path:path}", methods=["GET"])
-async def proxy_to_static(request: Request, path: str):
-    """Проксування статичних файлів Django"""
+async def proxy_static(request: Request, path: str):
     return await proxy_request(request, PRODUCT_SERVICE_URL, f"/static/{path}")
 
 
-@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-async def proxy_to_frontend(request: Request, path: str):
-    """Проксування всіх інших запитів до Frontend"""
-    # Виключаємо вже оброблені шляхи
-    if path.startswith(("api/", "admin/", "static/", "health")):
-        raise HTTPException(status_code=404, detail="Not Found")
+# Auth Service
+@app.api_route("/auth/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_auth(request: Request, path: str):
+    return await proxy_request(request, AUTH_SERVICE_URL, f"/auth/{path}")
+
+
+@app.get("/auth/me")
+async def proxy_auth_me(request: Request):
+    return await proxy_request(request, AUTH_SERVICE_URL, "/auth/me")
+
+
+# Frontend
+@app.api_route("/{path:path}", methods=["GET"])
+async def proxy_frontend(request: Request, path: str):
+    # уникаємо конфліктів
+    if path.startswith(("api/", "auth/", "admin/", "static/")):
+        raise HTTPException(404, detail="Not Found")
 
     return await proxy_request(request, FRONTEND_SERVICE_URL, f"/{path}")
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Закриття HTTP клієнта при зупинці"""
-    await client.aclose()
+# ================================
+#     Для WebSocket'ів Next.js
+# ================================
 
+from fastapi import WebSocket, WebSocketDisconnect
+import websockets
+import asyncio
 
-if __name__ == "__main__":
-    import uvicorn
+@app.websocket("/_next/webpack-hmr")
+async def websocket_proxy(ws: WebSocket):
+    await ws.accept()
 
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    backend_ws_url = FRONTEND_SERVICE_URL.replace("http", "ws") + "/_next/webpack-hmr"
+
+    try:
+        async with websockets.connect(backend_ws_url) as backend_ws:
+
+            async def client_to_backend():
+                try:
+                    while True:
+                        msg = await ws.receive_text()
+                        await backend_ws.send(msg)
+                except WebSocketDisconnect:
+                    await backend_ws.close()
+
+            async def backend_to_client():
+                try:
+                    while True:
+                        msg = await backend_ws.recv()
+                        await ws.send_text(msg)
+                except:
+                    await ws.close()
+
+            await asyncio.gather(client_to_backend(), backend_to_client())
+
+    except:
+        await ws.close()
