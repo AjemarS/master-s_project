@@ -45,7 +45,7 @@ export function Header({ showAuth = true }: HeaderProps) {
     <header
       className={`
         sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur
-        supports-[backdrop-filter]:bg-background/60
+        supports-backdrop-filter:bg-background/60
       `}
     >
       <div
@@ -63,7 +63,7 @@ export function Header({ showAuth = true }: HeaderProps) {
                   "text-xl font-bold",
                   !isDashboard &&
                     `
-                      bg-gradient-to-r from-primary to-primary/70 bg-clip-text
+                      bg-linear-to-r from-primary to-primary/70 bg-clip-text
                       tracking-tight text-transparent
                     `
                 )}
@@ -134,12 +134,12 @@ export function Header({ showAuth = true }: HeaderProps) {
                   <Skeleton className="h-10 w-32" />
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Link href="/auth/sign-in">
+                    <Link href="/sign-in">
                       <Button size="sm" variant="ghost">
                         Log in
                       </Button>
                     </Link>
-                    <Link href="/auth/sign-up">
+                    <Link href="/sign-up">
                       <Button size="sm">Sign up</Button>
                     </Link>
                   </div>

@@ -66,7 +66,7 @@ async def proxy_request(request: Request, target: str, path: str = ""):
 
     # Отримання headers
     headers = dict(request.headers)
-    headers.pop("host", None)
+    # headers.pop("host", None)
 
     # Отримання body для POST/PUT/PATCH
     body = None
@@ -149,15 +149,9 @@ async def proxy_products(request: Request, path: str):
     return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}")
 
 
-# Django Admin (GET + POST)
-@app.api_route("/admin/{path:path}", methods=["GET", "POST"])
-async def proxy_admin(request: Request, path: str):
-    return await proxy_request(request, PRODUCT_SERVICE_URL, f"/admin/{path}")
-
-
-@app.api_route("/static/{path:path}", methods=["GET"])
-async def proxy_static(request: Request, path: str):
-    return await proxy_request(request, PRODUCT_SERVICE_URL, f"/static/{path}")
+@app.api_route("/media/{path:path}", methods=["GET"])
+async def proxy_media(request: Request, path: str):
+    return await proxy_request(request, target="http://product-service:8000", path = f"/media/{path}")
 
 
 # Auth Service

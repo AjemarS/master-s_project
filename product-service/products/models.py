@@ -35,6 +35,7 @@ class Product(models.Model):
     stock = models.IntegerField(
         default=0, validators=[MinValueValidator(0)], verbose_name="Кількість на складі"
     )
+    image = models.ImageField(upload_to="product_images/", blank=True, null=True, verbose_name="Зображення")
     sku = models.CharField(max_length=50, unique=True, verbose_name="Артикул")
     is_active = models.BooleanField(default=True, verbose_name="Активний")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
