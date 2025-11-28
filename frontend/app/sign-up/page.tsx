@@ -1,9 +1,9 @@
 // import { getCurrentUserOrRedirect } from "~/lib/auth";
 
-import { SignInPageClient } from "./page.client";
+import { SignUpPageClient } from "./page.client";
 
-export default async function SignInPage() {
+export default async function SignUpPage() {
   // await getCurrentUserOrRedirect(undefined, SYSTEM_CONFIG.redirectAfterSignIn, true);
 
-  return <SignInPageClient />;
+  return <SignUpPageClient />;
 }

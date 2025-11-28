@@ -81,7 +81,7 @@ export function HeaderUserDropdown({
           <div className="flex flex-col space-y-0.5">
             <p className="text-sm font-medium">{userName || "User"}</p>
             <p
-              className={"max-w-[160px] truncate text-xs text-muted-foreground"}
+              className={"max-w-40 truncate text-xs text-muted-foreground"}
             >
               {userEmail}
             </p>
@@ -131,7 +131,7 @@ export function HeaderUserDropdown({
               `,
           )}
         >
-          <Link href="/auth/sign-out">
+          <Link href="/sign-out">
             <LogOut className="mr-2 h-4 w-4" />
             Log out
           </Link>

@@ -23,7 +23,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
-
+    image = serializers.SerializerMethodField()
     class Meta:
         model = Product
         fields = [
@@ -33,6 +33,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "price",
             "category",
             "category_name",
+            "image",
             "stock",
             "sku",
             "is_active",
@@ -40,6 +41,11 @@ class ProductSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
     def validate_price(self, value):
         if value < 0:

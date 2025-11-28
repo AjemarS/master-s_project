@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ShoppingCart, Star } from "lucide-react";
+import { ShoppingCart, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
@@ -10,14 +10,11 @@ import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
 
-type ProductCardProps = Omit<
-  React.HTMLAttributes<HTMLDivElement>,
-  "onError"
-> & {
+type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
   onAddToCart?: (productId: string) => void;
   onAddToWishlist?: (productId: string) => void;
   product: {
-    category: string;
+    category_name: string;
     id: string;
     image: string;
     inStock?: boolean;
@@ -32,14 +29,12 @@ type ProductCardProps = Omit<
 export function ProductCard({
   className,
   onAddToCart,
-  onAddToWishlist,
   product,
   variant = "default",
   ...props
 }: ProductCardProps) {
   const [isHovered, setIsHovered] = React.useState(false);
   const [isAddingToCart, setIsAddingToCart] = React.useState(false);
-  const [isInWishlist, setIsInWishlist] = React.useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -53,18 +48,8 @@ export function ProductCard({
     }
   };
 
-  const handleAddToWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onAddToWishlist) {
-      setIsInWishlist(!isInWishlist);
-      onAddToWishlist(product.id);
-    }
-  };
-
   const discount = product.originalPrice
-    ? Math.round(
-        ((product.originalPrice - product.price) / product.originalPrice) * 100,
-      )
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
 
   const renderStars = () => {
@@ -81,16 +66,14 @@ export function ProductCard({
               i < fullStars
                 ? "fill-yellow-400 text-yellow-400"
                 : i === fullStars && hasHalfStar
-                  ? "fill-yellow-400/50 text-yellow-400"
-                  : "stroke-muted/40 text-muted",
+                ? "fill-yellow-400/50 text-yellow-400"
+                : "stroke-muted/40 text-muted"
             )}
             key={`star-${product.id}-position-${i + 1}`}
           />
         ))}
         {rating > 0 && (
-          <span className="ml-1 text-xs text-muted-foreground">
-            {rating.toFixed(1)}
-          </span>
+          <span className="ml-1 text-xs text-muted-foreground">{rating.toFixed(1)}</span>
         )}
       </div>
     );
@@ -106,7 +89,7 @@ export function ProductCard({
               duration-200 ease-in-out
               hover:shadow-md
             `,
-            isHovered && "ring-1 ring-primary/20",
+            isHovered && "ring-1 ring-primary/20"
           )}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -117,11 +100,12 @@ export function ProductCard({
                 alt={product.name}
                 className={cn(
                   "object-cover transition-transform duration-300 ease-in-out",
-                  isHovered && "scale-105",
+                  isHovered && "scale-105"
                 )}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 src={product.image}
+                unoptimized
               />
             )}
 
@@ -132,7 +116,7 @@ export function ProductCard({
               `}
               variant="outline"
             >
-              {product.category}
+              {product.category_name}
             </Badge>
 
             {/* Discount badge */}
@@ -146,31 +130,6 @@ export function ProductCard({
                 {discount}% OFF
               </Badge>
             )}
-
-            {/* Wishlist button */}
-            <Button
-              className={cn(
-                `
-                  absolute right-2 bottom-2 z-10 rounded-full bg-background/80
-                  backdrop-blur-sm transition-opacity duration-300
-                `,
-                !isHovered && !isInWishlist && "opacity-0",
-              )}
-              onClick={handleAddToWishlist}
-              size="icon"
-              type="button"
-              variant="outline"
-            >
-              <Heart
-                className={cn(
-                  "h-4 w-4",
-                  isInWishlist
-                    ? "fill-destructive text-destructive"
-                    : "text-muted-foreground",
-                )}
-              />
-              <span className="sr-only">Add to wishlist</span>
-            </Button>
           </div>
 
           <CardContent className="p-4 pt-4">
@@ -188,9 +147,7 @@ export function ProductCard({
               <>
                 <div className="mt-1.5">{renderStars()}</div>
                 <div className="mt-2 flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">
-                    ${product.price.toFixed(2)}
-                  </span>
+                  <span className="font-medium text-foreground">${product.price.toFixed(2)}</span>
                   {product.originalPrice ? (
                     <span className="text-sm text-muted-foreground line-through">
                       ${product.originalPrice.toFixed(2)}
@@ -204,10 +161,7 @@ export function ProductCard({
           {variant === "default" && (
             <CardFooter className="p-4 pt-0">
               <Button
-                className={cn(
-                  "w-full gap-2 transition-all",
-                  isAddingToCart && "opacity-70",
-                )}
+                className={cn("w-full gap-2 transition-all", isAddingToCart && "opacity-70")}
                 disabled={isAddingToCart}
                 onClick={handleAddToCart}
               >
@@ -230,9 +184,7 @@ export function ProductCard({
             <CardFooter className="p-4 pt-0">
               <div className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">
-                    ${product.price.toFixed(2)}
-                  </span>
+                  <span className="font-medium text-foreground">${product.price.toFixed(2)}</span>
                   {product.originalPrice ? (
                     <span className="text-sm text-muted-foreground line-through">
                       ${product.originalPrice.toFixed(2)}
