@@ -38,25 +38,6 @@ app.get("/auth/me", async (req, res) => {
 app.all("/", async (req, res) => {
   res.redirect("http://localhost/");
 });
-// // Список користувачів (для адміністрування)
-// app.get("/api/users", async (req, res) => {
-//   try {
-//     const session = await auth.api.getSession({
-//       headers: req.headers as any,
-//     });
-
-//     if (!session || session.user.role !== "admin") {
-//       return res.status(401).json({ error: "Unauthorized" });
-//     }
-
-//     // Тут можна додати перевірку ролей
-//     // У Better Auth можна отримати користувачів через database adapter
-//     res.json({ message: "Users endpoint - implement as needed" });
-//   } catch (error) {
-//     console.error("Error:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
 
 app.listen(PORT, () => {
   console.log(`🔐 Auth service running on port ${PORT}`);

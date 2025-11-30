@@ -12,16 +12,14 @@ import { Button } from "~/ui/primitives/button";
 /* -------------------------------------------------------------------------- */
 
 interface Product {
-  category: string; // category id
   category_name: string;
   id: string;
   image: string;
-  stock: number;
   inStock?: boolean;
   name: string;
-  originalPrice?: number;
+  originalPrice: number;
   price: number;
-  rating?: number;
+  rating: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -59,11 +57,12 @@ export default function ProductsPage() {
 
         const data = await response.json();
 
-        // transforming input data
+        // Transform input data as needed
         const products = data.results.map((product: Product) => ({
           ...product,
           price: Number(product.price),
-          inStock: product.stock > 0,
+          originalPrice: Number(product.originalPrice),
+          rating: Number(product.rating),
         }));
 
         setProducts(products);
@@ -117,7 +116,7 @@ export default function ProductsPage() {
             id: product.id,
             image: product.image,
             name: product.name,
-            price: Number(product.price),
+            price: product.price,
           },
           1 // (quantity) always adds 1 item to the cart
         );
