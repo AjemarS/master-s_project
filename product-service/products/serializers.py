@@ -3,27 +3,21 @@ from .models import Product, Category
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    products_count = serializers.SerializerMethodField()
-
     class Meta:
         model = Category
         fields = [
             "id",
             "name",
-            "description",
-            "products_count",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 
-    def get_products_count(self, obj):
-        return obj.products.count()
-
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     image = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
         fields = [
@@ -31,16 +25,14 @@ class ProductSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "price",
-            "category",
+            "originalPrice",
             "category_name",
             "image",
-            "stock",
-            "sku",
-            "is_active",
-            "created_at",
-            "updated_at",
+            "inStock",
+            "features",
+            "specs",
+            "rating",
         ]
-        read_only_fields = ["created_at", "updated_at"]
 
     def get_image(self, obj):
         if obj.image:
@@ -52,7 +44,13 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ціна не може бути від'ємною")
         return value
 
-    def validate_stock(self, value):
+    def validate_originalPrice(self, value):
         if value < 0:
-            raise serializers.ValidationError("Кількість не може бути від'ємною")
+            raise serializers.ValidationError("Початкова ціна не може бути від'ємною")
+        if "price" in self.initial_data:
+            price = float(self.initial_data["price"])
+            if value < price:
+                raise serializers.ValidationError(
+                    "Початкова ціна не може бути меншою за поточну ціну"
+                )
         return value

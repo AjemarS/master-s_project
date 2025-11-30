@@ -13,6 +13,7 @@ import { Separator } from "~/ui/primitives/separator";
 /* -------------------------------------------------------------------------- */
 /*                               Type declarations                            */
 /* -------------------------------------------------------------------------- */
+type Specs = {[property: string]: string | number | boolean};
 
 interface Product {
   category: string;
@@ -22,10 +23,10 @@ interface Product {
   image: string;
   inStock: boolean;
   name: string;
-  originalPrice?: number;
+  originalPrice: number;
   price: number;
   rating: number;
-  specs: Record<string, string>;
+  specs: Specs;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -48,197 +49,6 @@ const slugify = (str: string) =>
 const range = (length: number) => Array.from({ length }, (_, i) => i);
 
 /* -------------------------------------------------------------------------- */
-/*                        Static product data (demo only)                     */
-/* -------------------------------------------------------------------------- */
-
-const products: Product[] = [
-  {
-    category: "Audio",
-    description:
-      "Experience crystal-clear sound with our premium wireless headphones. Featuring active noise cancellation, 30-hour battery life, and comfortable over-ear design for all-day listening comfort.",
-    features: [
-      "Active noise cancellation",
-      "30-hour battery life",
-      "Bluetooth 5.2 connectivity",
-      "Comfortable memory foam ear cushions",
-      "Quick charge - 5 minutes for 4 hours of playback",
-      "Built-in microphone for calls",
-    ],
-    id: "1",
-    image:
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    inStock: true,
-    name: "Premium Wireless Headphones",
-    originalPrice: 249.99,
-    price: 199.99,
-    rating: 4.5,
-    specs: {
-      batteryLife: "30 hours",
-      brand: "AudioMax",
-      connectivity: "Bluetooth 5.2, 3.5mm jack",
-      model: "WH-1000XM5",
-      warranty: "2 years",
-      weight: "250g",
-    },
-  },
-  {
-    category: "Wearables",
-    description:
-      "Stay connected and track your fitness goals with our advanced smartwatch. Features health monitoring, GPS tracking, and a beautiful always-on display.",
-    features: [
-      "Health monitoring (heart rate, ECG, sleep)",
-      "Water resistant up to 50m",
-      "GPS tracking",
-      "7-day battery life",
-      "Always-on retina display",
-      "Customizable watch faces",
-    ],
-    id: "2",
-    image:
-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    inStock: true,
-    name: "Smart Watch Series 5",
-    originalPrice: 349.99,
-    price: 299.99,
-    rating: 4.2,
-    specs: {
-      batteryLife: "7 days",
-      brand: "TechFit",
-      compatibility: "iOS, Android",
-      display: '1.5" AMOLED',
-      model: "Watch Pro 5",
-      warranty: "1 year",
-      waterResistance: "5 ATM",
-    },
-  },
-  {
-    category: "Photography",
-    description:
-      "Capture stunning photos and videos with our professional camera kit. Includes a high-resolution sensor, 4K video recording, and a versatile lens kit for any shooting situation.",
-    features: [
-      "24.2MP full-frame sensor",
-      "4K video recording at 60fps",
-      "5-axis image stabilization",
-      "Weather-sealed body",
-      "Dual SD card slots",
-      "Includes 24-70mm f/2.8 lens",
-    ],
-    id: "3",
-    image:
-      "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    inStock: false,
-    name: "Professional Camera Kit",
-    originalPrice: 1499.99,
-    price: 1299.99,
-    rating: 4.8,
-    specs: {
-      brand: "OptiPro",
-      iso: "100-51,200 (expandable to 204,800)",
-      model: "X-1000",
-      resolution: "24.2MP",
-      sensorType: "Full-frame CMOS",
-      shutter: "1/8000 to 30 sec",
-      warranty: "2 years",
-    },
-  },
-  {
-    category: "Furniture",
-    description:
-      "Work in comfort with our ergonomic office chair designed for all-day support. Features adjustable height, lumbar support, and breathable mesh back.",
-    features: [
-      "Adjustable height and armrests",
-      "Breathable mesh back",
-      "Lumbar support",
-      "360° swivel",
-      "Heavy-duty base with smooth-rolling casters",
-      "Weight capacity: 300 lbs",
-    ],
-    id: "4",
-    image:
-      "https://images.unsplash.com/photo-1506377295352-e3154d43ea9e?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    inStock: true,
-    name: "Ergonomic Office Chair",
-    originalPrice: 299.99,
-    price: 249.99,
-    rating: 4.6,
-    specs: {
-      adjustableHeight: "16-20 inches",
-      brand: "ErgoComfort",
-      dimensions: '26"W x 26"D x 38-42"H',
-      material: "Mesh back, fabric seat",
-      maxWeight: "300 lbs",
-      model: "Executive Pro",
-      warranty: "5 years",
-    },
-  },
-  {
-    category: "Electronics",
-    description:
-      "The ultimate smartphone experience with a stunning display, powerful camera system, and all-day battery life.",
-    features: [
-      '6.7" Super Retina XDR display',
-      "Triple camera system (12MP wide, ultra-wide, telephoto)",
-      "Face ID for secure authentication",
-      "A16 Bionic chip",
-      "Up to 1TB storage",
-      "All-day battery life",
-    ],
-    id: "5",
-    image:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    inStock: true,
-    name: "Smartphone Pro Max",
-    originalPrice: 1099.99,
-    price: 999.99,
-    rating: 4.9,
-    specs: {
-      battery: "4,352mAh",
-      brand: "TechPro",
-      camera: "12MP triple camera system",
-      display: '6.7" Super Retina XDR',
-      model: "Galaxy Pro Max",
-      os: "iOS 16",
-      processor: "A16 Bionic chip",
-      storage: "128GB/256GB/512GB/1TB",
-      warranty: "1 year",
-    },
-  },
-  {
-    category: "Electronics",
-    description:
-      "Transform your home entertainment with our Ultra HD Smart TV featuring vibrant colors, immersive sound, and smart connectivity.",
-    features: [
-      '55" 4K Ultra HD display',
-      "Dolby Vision HDR",
-      "Dolby Atmos sound",
-      "Built-in voice assistant",
-      "Smart home integration",
-      "Multiple HDMI and USB ports",
-    ],
-    id: "6",
-    image:
-      "https://images.unsplash.com/photo-1593784991095-a205069470b6?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-    inStock: true,
-    name: 'Ultra HD Smart TV 55"',
-    originalPrice: 899.99,
-    price: 799.99,
-    rating: 4.7,
-    specs: {
-      audio: "40W Dolby Atmos",
-      brand: "VisionPro",
-      connectivity: "HDMI x4, USB x3, Wi-Fi, Bluetooth",
-      display: '55" 4K Ultra HD LED',
-      hdr: "Dolby Vision, HDR10+",
-      model: "X55-4K",
-      refreshRate: "120Hz",
-      resolution: "3840 x 2160",
-      smartFeatures: "Voice control, App store",
-      warranty: "2 years",
-    },
-  },
-];
-
-/* -------------------------------------------------------------------------- */
 /*                                 Component                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -247,6 +57,41 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
+  /* ------------------------------- Products --------------------------------- */
+
+  const [product, setProduct] = React.useState<Product>();
+  React.useEffect(() => {
+    async function fetchProduct() {
+      try {
+        const response = await fetch(`http://localhost/api/products/${id}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Response status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Transform input data as needed
+        const product: Product = {
+          ...data,
+          price: Number(data.price),
+          originalPrice: Number(data.originalPrice),
+          rating: Number(data.rating),
+        };
+
+        setProduct(product);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchProduct();
+  }, [id]);
+
   /* ----------------------------- Cart hook ------------------------------- */
   const { addItem } = useCart();
 
@@ -254,15 +99,10 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = React.useState(1);
   const [isAdding, setIsAdding] = React.useState(false);
 
-  /* ------------------------ Derive product object ------------------------ */
-  const product = React.useMemo(() => products.find((p) => p.id === id), [id]);
-
   /* ----------------------- Derived/computed values ----------------------- */
   const discountPercentage = React.useMemo(() => {
     if (!product?.originalPrice) return 0;
-    return Math.round(
-      ((product.originalPrice - product.price) / product.originalPrice) * 100,
-    );
+    return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
   }, [product]);
 
   /* ------------------------------ Handlers ------------------------------- */
@@ -282,7 +122,7 @@ export default function ProductDetailPage() {
         name: product.name,
         price: product.price,
       },
-      quantity,
+      quantity
     );
     setQuantity(1);
     toast.success(`${product.name} added to cart`);
@@ -302,9 +142,7 @@ export default function ProductDetailPage() {
             `}
           >
             <h1 className="text-3xl font-bold">Product Not Found</h1>
-            <p className="mt-4">
-              The product you&apos;re looking for doesn&apos;t exist.
-            </p>
+            <p className="mt-4">The product you&apos;re looking for doesn&apos;t exist.</p>
             <Button className="mt-6" onClick={() => router.push("/products")}>
               Back to Products
             </Button>
@@ -353,6 +191,7 @@ export default function ProductDetailPage() {
                 fill
                 priority
                 src={product.image}
+                unoptimized
               />
               {discountPercentage > 0 && (
                 <div
@@ -386,8 +225,8 @@ export default function ProductDetailPage() {
                             i < Math.floor(product.rating)
                               ? "fill-primary text-primary"
                               : i < product.rating
-                                ? "fill-primary/50 text-primary"
-                                : "text-muted-foreground"
+                              ? "fill-primary/50 text-primary"
+                              : "text-muted-foreground"
                           }
                         `}
                         key={`star-${i}`}
@@ -402,9 +241,7 @@ export default function ProductDetailPage() {
 
               {/* Category & prices */}
               <div className="mb-6">
-                <p className="text-lg font-medium text-muted-foreground">
-                  {product.category}
-                </p>
+                <p className="text-lg font-medium text-muted-foreground">{product.category}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-3xl font-bold">
                     {CURRENCY_FORMATTER.format(product.price)}
@@ -418,18 +255,14 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Description */}
-              <p className="mb-6 text-muted-foreground">
-                {product.description}
-              </p>
+              <p className="mb-6 text-muted-foreground">{product.description}</p>
 
               {/* Stock */}
               <div aria-atomic="true" aria-live="polite" className="mb-6">
                 {product.inStock ? (
                   <p className="text-sm font-medium text-green-600">In Stock</p>
                 ) : (
-                  <p className="text-sm font-medium text-red-500">
-                    Out of Stock
-                  </p>
+                  <p className="text-sm font-medium text-red-500">Out of Stock</p>
                 )}
               </div>
 
@@ -452,9 +285,7 @@ export default function ProductDetailPage() {
                     <Minus className="h-4 w-4" />
                   </Button>
 
-                  <span className="w-12 text-center select-none">
-                    {quantity}
-                  </span>
+                  <span className="w-12 text-center select-none">{quantity}</span>
 
                   <Button
                     aria-label="Increase quantity"
@@ -497,7 +328,7 @@ export default function ProductDetailPage() {
                     className="flex items-start"
                     key={`feature-${product.id}-${slugify(feature)}`}
                   >
-                    <span className="mt-1 mr-2 h-2 w-2 rounded-full bg-primary" />
+                    <span className="mt-2.5 mr-2 h-2 w-2 rounded-full bg-primary" />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -509,10 +340,7 @@ export default function ProductDetailPage() {
               <h2 className="mb-4 text-2xl font-bold">Specifications</h2>
               <div className="space-y-2">
                 {Object.entries(product.specs).map(([key, value]) => (
-                  <div
-                    className="flex justify-between border-b pb-2 text-sm"
-                    key={key}
-                  >
+                  <div className="flex justify-between border-b pb-2 text-sm" key={key}>
                     <span className="font-medium capitalize">
                       {key.replace(/([A-Z])/g, " $1").trim()}
                     </span>

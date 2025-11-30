@@ -21,7 +21,7 @@ type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & 
     name: string;
     originalPrice?: number;
     price: number;
-    rating?: number;
+    rating: number;
   };
   variant?: "compact" | "default";
 };

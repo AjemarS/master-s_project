@@ -12,13 +12,16 @@ class CategoryAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
         "name",
-        "sku",
         "price",
-        "stock",
+        "originalPrice",
+        "inStock",
         "category",
-        "is_active",
+        "features",
+        "specs",
+        "image",
+        "rating",
         "created_at",
     ]
-    list_filter = ["is_active", "category", "created_at"]
-    search_fields = ["name", "sku", "description"]
-    list_editable = ["is_active", "stock", "price"]
+    # list_filter = ["category", "created_at"]
+    # search_fields = ["name", "description"]
+    # list_editable = ["price", "originalPrice", "inStock", "features", "specs", "rating"]
