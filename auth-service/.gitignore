@@ -1,43 +1,46 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependency directories
+node_modules/
+jspm_packages/
 
-.env
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Log files
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Build artifacts
+dist/
+build/
+.next/ # For Next.js projects
+out/ # For Nuxt.js projects
 
-# vercel
-.vercel
+# Environment variables
+.env
+.env.development.local
+.env.test.local
+.env.production.local
 
-# typescript
+# Editor and OS specific files
+.DS_Store
+Thumbs.db
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Test and coverage reports
+coverage/
+.nyc_output/
+
+# IDE specific files (e.g., WebStorm, IntelliJ)
+.idea/
+
+# Yarn Plug'n'Play
+.pnp.*
+
+# Optional: If you are using a specific framework or tool, add its specific ignore patterns
+# For example, if using TypeScript
 *.tsbuildinfo
-next-env.d.ts
+
+# Optional: If you have local configuration files that should not be committed
+# config/local.js
+# database.sqlite

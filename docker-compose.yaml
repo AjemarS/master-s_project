@@ -1,16 +1,36 @@
 services:
-  # PostgreSQL Database
-  db:
+  # Products Database
+  products_db:
     image: postgres:15-alpine
-    container_name: postgres_db
+    container_name: products_db
     environment:
       POSTGRES_DB: products_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_products_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices_network
+
+  # Auth Database
+  auth_db:
+    image: postgres:15-alpine
+    container_name: auth_db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -26,7 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: product_service
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/products_db
+      DATABASE_URL: postgresql://postgres:postgres@products_db:5432/products_db
       DJANGO_SETTINGS_MODULE: product_service.settings
       DJANGO_SECRET_KEY: your-secret-key-change-in-production
       ALLOWED_HOSTS: localhost, 127.0.0.1, product-service, gateway, frontend
@@ -36,7 +56,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      db:
+      products_db:
         condition: service_healthy
     networks:
       - microservices_network
@@ -52,7 +72,7 @@ services:
     container_name: auth_service
     environment:
       PORT: 3001
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/products_db
+      DATABASE_URL: postgresql://postgres:postgres@auth_db:5432/auth_db
       BETTER_AUTH_SECRET: CRaoTYODSDKtVmxosfiHkjUjFbIlrVeY
       BETTER_AUTH_URL: http://localhost:3001/auth
       GOOGLE_CLIENT_ID: 354897909540-bv2ig1tu2p8eesihk3m7um7eqtfg82gl.apps.googleusercontent.com
@@ -63,7 +83,7 @@ services:
     ports:
       - "3001:3001"
     depends_on:
-      db:
+      auth_db:
         condition: service_healthy
     command: npm run dev
     networks:
@@ -74,7 +94,7 @@ services:
     build:
       context: ./gateway
       dockerfile: Dockerfile
-    container_name: api_gateway
+    container_name: gateway
     environment:
       - PRODUCT_SERVICE_URL=http://product-service:8000
       - FRONTEND_SERVICE_URL=http://frontend:3000
@@ -110,7 +130,8 @@ services:
     command: npm run dev
 
 volumes:
-  postgres_data:
+  postgres_products_data:
+  postgres_auth_data:
 
 networks:
   microservices_network:

@@ -1,10 +1,12 @@
+"use client";
+
 import { createAuthClient } from "better-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:3001/auth", 
-}, );
+  baseURL: process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:3001/auth",
+});
 
 export const { signIn, signUp, signOut, useSession } = authClient;
 
