@@ -200,7 +200,7 @@ export function SignInPageClient() {
                     text-primary underline-offset-4
                     hover:underline
                   `}
-                  href="/auth/sign-up"
+                  href="/sign-up"
                 >
                   Sign up
                 </Link>

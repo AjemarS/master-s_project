@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { signIn, signUp } from "~/lib/auth-client";
 import { GitHubIcon } from "~/ui/components/icons/github";
@@ -44,7 +45,8 @@ export function SignUpPageClient() {
         password: formData.password,
       })
       .then(() => {
-        router.push("/auth/sign-in?registered=true");
+        router.push("/sign-in?registered=true");
+        toast.success("Registration successful! Please sign in.");
       })
       .catch((err: unknown) => {
         setError("Registration failed. Please try again.");

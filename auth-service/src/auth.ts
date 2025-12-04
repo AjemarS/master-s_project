@@ -54,6 +54,8 @@ export const auth = betterAuth({
   // Переадресації після входу
   redirects:{
     afterSignIn: "http://localhost/",
+    afterSignUp: "http://localhost/sign-in",
+    afterSignOut: "http://localhost/",
   },
 
   // Додаткові поля користувача
