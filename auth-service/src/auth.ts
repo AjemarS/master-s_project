@@ -23,10 +23,6 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 днів
     updateAge: 60 * 60 * 24, // Оновлювати кожен день
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 60 * 24 * 7, // 7 днів
-    },
   },
 
   // Налаштування cookies
@@ -79,15 +75,5 @@ export const auth = betterAuth({
     enabled: true,
     window: 60, // 60 секунд
     max: 100, // 100 запитів
-  },
-
-  // Callbacks
-  callbacks: {
-    async onSignIn(user) {
-      console.log(`✅ User signed in: ${user.email}`);
-    },
-    async onSignUp(user) {
-      console.log(`🎉 New user registered: ${user.email}`);
-    },
   },
 });
