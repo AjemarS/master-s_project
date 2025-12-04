@@ -41,6 +41,7 @@ export default function ProductsPage() {
 
   /* ---------------------------- Products -------------------------------- */
   const [products, setProducts] = React.useState<Product[]>([]);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
   React.useEffect(() => {
     async function fetchProducts() {
       try {
@@ -68,6 +69,8 @@ export default function ProductsPage() {
         setProducts(products);
       } catch (error) {
         console.error(error);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchProducts();
@@ -85,14 +88,10 @@ export default function ProductsPage() {
   /* ----------------------- Category in query ---------------------------- */
   const params = useSearchParams();
   const category = params.get("category");
-  
+
   React.useEffect(() => {
     if (category) {
-      category
-        .split("")
-        .map((char, index) => (index === 0 ? char.toUpperCase() : char))
-        .join("");
-      setSelectedCategory(category);
+      setSelectedCategory(category.charAt(0).toUpperCase() + category.slice(1));
     }
   }, [category]);
 
@@ -183,8 +182,15 @@ export default function ProductsPage() {
             ))}
           </div>
 
+          {/* Loading state */}
+          {isLoading && (
+            <div className="mt-8 text-center">
+              <p className="text-transparent bg-clip-text bg-linear-120 from-white to-black">Loading </p>
+            </div>
+          )}
+
           {/* Empty state */}
-          {filteredProducts.length === 0 && (
+          {filteredProducts.length === 0 && !isLoading &&  (
             <div className="mt-8 text-center">
               <p className="text-muted-foreground">No products found in this category.</p>
             </div>
