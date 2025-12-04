@@ -31,7 +31,7 @@ export function SignInPageClient() {
         email,
         password,
       });
-      router.push('/dashboard/profile');
+      router.push("/dashboard/profile");
     } catch (err) {
       setError("Invalid email or password");
       console.error(err);
@@ -65,7 +65,7 @@ export function SignInPageClient() {
   return (
     <div
       className={`
-        grid h-screen w-screen
+        grid h-screen 
         md:grid-cols-2
       `}
     >

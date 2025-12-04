@@ -1,10 +1,12 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.contrib.postgres.fields import ArrayField
 
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Назва")
+    image = models.ImageField(
+        upload_to="category_images/", blank=True, null=True, verbose_name="Зображення категорій"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
@@ -50,7 +52,7 @@ class Product(models.Model):
 
     inStock = models.BooleanField(default=True, verbose_name="В наявності")
     image = models.ImageField(
-        upload_to="product_images/", blank=True, null=True, verbose_name="Зображення"
+        upload_to="product_images/", blank=True, null=True, verbose_name="Зображення продукту"
     )
 
     rating = models.DecimalField(

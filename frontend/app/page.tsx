@@ -1,13 +1,15 @@
+"use client";
+
 import { ArrowRight, Clock, ShoppingBag, Star, Truck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { ProductCard } from "~/ui/components/product-card";
 import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-with-marquee";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
 
-import { categories, featuredProductsHomepage, testimonials } from "./mocks";
+import { testimonials } from "./mocks";
+import React from "react";
 
 const featuresWhyChooseUs = [
   {
@@ -36,7 +38,38 @@ const featuresWhyChooseUs = [
   },
 ];
 
+interface Category {
+  name: string;
+  image: string;
+  productCount: number;
+}
+
 export default function HomePage() {
+  const [categories, setCategories] = React.useState<Category[]>([]);
+  React.useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch("http://localhost/api/categories/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Response status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        setCategories(data.results);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    fetchCategories();
+  }, []);
+
   return (
     <>
       <main
@@ -73,7 +106,6 @@ export default function HomePage() {
             >
               <div className="flex flex-col justify-center space-y-6">
                 <div className="space-y-4">
-                  
                   <h1
                     className={`
                       font-display text-4xl leading-tight font-bold
@@ -157,11 +189,11 @@ export default function HomePage() {
                     via-transparent to-transparent
                   `}
                 />
-                <img
+                <Image
                   alt="Shopping experience"
                   className="object-cover"
-                  // fill
-                  // priority
+                  fill
+                  priority
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   src="https://images.unsplash.com/photo-1624767735494-1929dc24ad43?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3"
                 />
@@ -238,6 +270,7 @@ export default function HomePage() {
                       fill
                       sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
                       src={category.image}
+                      unoptimized
                     />
                   </div>
                   <div className="relative z-20 -mt-6 p-4">
@@ -248,62 +281,6 @@ export default function HomePage() {
                   </div>
                 </Link>
               ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Featured Products */}
-        <section
-          className={`
-            bg-muted/50 py-12
-            md:py-16
-          `}
-        >
-          <div
-            className={`
-              container mx-auto max-w-7xl px-4
-              sm:px-6
-              lg:px-8
-            `}
-          >
-            <div className="mb-8 flex flex-col items-center text-center">
-              <h2
-                className={`
-                  font-display text-3xl leading-tight font-bold tracking-tight
-                  md:text-4xl
-                `}
-              >
-                Featured Products
-              </h2>
-              <div className="mt-2 h-1 w-12 rounded-full bg-primary" />
-              <p className="mt-4 max-w-2xl text-center text-muted-foreground">
-                Check out our latest and most popular tech items
-              </p>
-            </div>
-            <div
-              className={`
-                grid grid-cols-1 gap-6
-                sm:grid-cols-2
-                lg:grid-cols-3
-                xl:grid-cols-4
-              `}
-            >
-              {featuredProductsHomepage.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-            <div className="mt-10 flex justify-center">
-              <Link href="/products">
-                <Button className="group h-12 px-8" size="lg" variant="outline">
-                  View All Products
-                  <ArrowRight
-                    className={`
-                      ml-2 h-4 w-4 transition-transform duration-300
-                      group-hover:translate-x-1
-                    `}
-                  />
-                </Button>
-              </Link>
             </div>
           </div>
         </section>

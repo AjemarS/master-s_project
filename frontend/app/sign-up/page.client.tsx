@@ -80,7 +80,7 @@ export function SignUpPageClient() {
   return (
     <div
       className={`
-        grid h-screen w-screen
+        grid h-screen 
         md:grid-cols-2
       `}
     >
