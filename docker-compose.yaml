@@ -77,6 +77,10 @@ services:
       BETTER_AUTH_URL: http://localhost:3001/auth
       GOOGLE_CLIENT_ID: 354897909540-bv2ig1tu2p8eesihk3m7um7eqtfg82gl.apps.googleusercontent.com
       GOOGLE_CLIENT_SECRET: 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
+      GOOGLE_REDIRECT_URL: http://localhost:3001/auth/callback/google
+      GITHUB_CLIENT_ID: Ov23liLjTfq6tsmIInNG
+      GITHUB_CLIENT_SECRET: bf76bfcf8e2b08b7d19828a7b84f21ae92406787
+      GITHUB_REDIRECT_URL: http://localhost:3001/auth/callback/github
     volumes:
       - ./auth-service:/app
       - /app/node_modules
