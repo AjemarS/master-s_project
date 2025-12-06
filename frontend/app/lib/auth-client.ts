@@ -1,14 +1,32 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
+import { adminClient, inferAdditionalFields } from "better-auth/client/plugins";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:3001/auth",
+  plugins: [
+    inferAdditionalFields({
+      user: {
+        status: {
+          type: "string",
+          required: false,
+          defaultValue: "active",
+          input: false,
+        },
+      },
+    }),
+    adminClient(),
+  ],
 });
 
 export const { signIn, signUp, signOut, useSession } = authClient;
+
+// Types
+export type Session = typeof authClient.$Infer.Session.session;
+export type User = typeof authClient.$Infer.Session.user;
 
 export const useCurrentUser = () => {
   const { data, isPending } = useSession();
@@ -20,7 +38,7 @@ export const useCurrentUser = () => {
 };
 
 export const useCurrentUserOrRedirect = (
-  forbiddenUrl = "/auth/sign-in",
+  forbiddenUrl = "/sign-in",
   okUrl = "",
   ignoreForbidden = false
 ) => {

@@ -22,9 +22,7 @@ export function SettingsPageClient() {
     >
       <div className="space-y-0.5">
         <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences.
-        </p>
+        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
       </div>
 
       <Tabs className="space-y-4" defaultValue="profile">
@@ -33,10 +31,7 @@ export function SettingsPageClient() {
             <User className="h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger
-            className="flex items-center gap-2"
-            value="notifications"
-          >
+          <TabsTrigger className="flex items-center gap-2" value="notifications">
             <Bell className="h-4 w-4" />
             Notifications
           </TabsTrigger>
@@ -54,11 +49,7 @@ export function SettingsPageClient() {
             <CardContent className="space-y-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input
-                  defaultValue={user?.name || ""}
-                  id="name"
-                  placeholder="Enter your name"
-                />
+                <Input defaultValue={user?.name || ""} id="name" placeholder="Enter your name" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
@@ -105,27 +96,15 @@ export function SettingsPageClient() {
             <CardContent className="space-y-4">
               <div className="grid gap-2">
                 <Label htmlFor="current-password">Current Password</Label>
-                <Input
-                  id="current-password"
-                  placeholder="Enter current password"
-                  type="password"
-                />
+                <Input id="current-password" placeholder="Enter current password" type="password" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="new-password">New Password</Label>
-                <Input
-                  id="new-password"
-                  placeholder="Enter new password"
-                  type="password"
-                />
+                <Input id="new-password" placeholder="Enter new password" type="password" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <Input
-                  id="confirm-password"
-                  placeholder="Confirm new password"
-                  type="password"
-                />
+                <Input id="confirm-password" placeholder="Confirm new password" type="password" />
               </div>
               <Button>Update Password</Button>
             </CardContent>

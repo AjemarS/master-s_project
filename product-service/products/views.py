@@ -16,14 +16,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter,
     ]
     filterset_class = ProductFilter
-    search_fields = ["name", "description", "sku"]
+    search_fields = ["name", "description"]
     ordering_fields = ["name", "price", "stock", "created_at", "updated_at"]
     ordering = ["-created_at"]
 
     @action(detail=False, methods=["get"])
     def low_stock(self, request):
         threshold = int(request.query_params.get("threshold", 10))
-        products = self.queryset.filter(stock__lte=threshold, is_active=True)
+        products = self.queryset.filter(stock__lte=threshold, inStock=True)
         serializer = self.get_serializer(products, many=True)
         return Response(serializer.data)
 
@@ -35,7 +35,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 {"error": "category_id параметр обов'язковий"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        products = self.queryset.filter(category_id=category_id, is_active=True)
+        products = self.queryset.filter(category_id=category_id, inStock=True)
         serializer = self.get_serializer(products, many=True)
         return Response(serializer.data)
 
@@ -52,12 +52,13 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         try:
             quantity = int(quantity)
-            product.stock += quantity
-            if product.stock < 0:
+            new_stock = product.stock + quantity
+            if new_stock < 0:
                 return Response(
                     {"error": "Недостатньо товару на складі"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            product.stock = new_stock
             product.save()
             serializer = self.get_serializer(product)
             return Response(serializer.data)

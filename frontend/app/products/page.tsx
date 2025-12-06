@@ -4,23 +4,9 @@ import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { useCart } from "~/lib/hooks/use-cart";
+import { Product } from "~/lib/types";
 import { ProductCard } from "~/ui/components/product-card";
 import { Button } from "~/ui/primitives/button";
-
-/* -------------------------------------------------------------------------- */
-/*                                   Types                                    */
-/* -------------------------------------------------------------------------- */
-
-interface Product {
-  category_name: string;
-  id: string;
-  image: string;
-  inStock?: boolean;
-  name: string;
-  originalPrice: number;
-  price: number;
-  rating: number;
-}
 
 /* -------------------------------------------------------------------------- */
 /*                            Helpers / utilities                             */
@@ -77,13 +63,13 @@ export default function ProductsPage() {
   }, []);
 
   /* ----------------------- Categories (derived) ------------------------- */
-  const categories: Product["category_name"][] = React.useMemo(() => {
-    const dynamic = Array.from(new Set(products.map((p) => p.category_name))).sort();
+  const categories: Product["categoryName"][] = React.useMemo(() => {
+    const dynamic = Array.from(new Set(products.map((p) => p.categoryName))).sort();
     return ["All", ...dynamic];
   }, [products]);
 
   /* ----------------------------- State ---------------------------------- */
-  const [selectedCategory, setSelectedCategory] = React.useState<Product["category_name"]>("All");
+  const [selectedCategory, setSelectedCategory] = React.useState<Product["categoryName"]>("All");
 
   /* ----------------------- Category in query ---------------------------- */
   const params = useSearchParams();
@@ -100,7 +86,7 @@ export default function ProductsPage() {
     () =>
       selectedCategory === "All"
         ? products
-        : products.filter((p) => p.category_name === selectedCategory),
+        : products.filter((p) => p.categoryName === selectedCategory),
     [selectedCategory, products]
   );
 
@@ -111,7 +97,7 @@ export default function ProductsPage() {
       if (product) {
         addItem(
           {
-            category: product.category_name,
+            category: product.categoryName,
             id: product.id,
             image: product.image,
             name: product.name,

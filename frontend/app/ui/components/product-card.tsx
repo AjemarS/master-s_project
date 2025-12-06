@@ -6,6 +6,7 @@ import Link from "next/link";
 import * as React from "react";
 
 import { cn } from "~/lib/cn";
+import { Product } from "~/lib/types";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
@@ -13,16 +14,7 @@ import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
 type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
   onAddToCart?: (productId: string) => void;
   onAddToWishlist?: (productId: string) => void;
-  product: {
-    category_name: string;
-    id: string;
-    image: string;
-    inStock?: boolean;
-    name: string;
-    originalPrice?: number;
-    price: number;
-    rating: number;
-  };
+  product: Product;
   variant?: "compact" | "default";
 };
 
@@ -116,7 +108,7 @@ export function ProductCard({
               `}
               variant="outline"
             >
-              {product.category_name}
+              {product.categoryName}
             </Badge>
 
             {/* Discount badge */}

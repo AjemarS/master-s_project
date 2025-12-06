@@ -20,26 +20,39 @@ interface HeaderProps {
   showAuth?: boolean;
 }
 
+const mainNavigation = [
+  { href: "/", name: "Home" },
+  { href: "/products", name: "Products" },
+];
+
+const dashboardNavigation = [
+  { href: "/dashboard/stats", name: "Stats" },
+  { href: "/dashboard/profile", name: "Profile" },
+  { href: "/dashboard/settings", name: "Settings" },
+];
+
+const adminNavigation = [
+  { href: "/admin/summary", name: "Summary" },
+  { href: "/admin/users", name: "Users" },
+  { href: "/admin/products", name: "Products" },
+];
+
+const rules = [
+  { prefix: "/dashboard/", nav: dashboardNavigation, where: "dashboard" },
+  { prefix: "/admin/", nav: adminNavigation, where: "admin" },
+];
+
 export function Header({ showAuth = true }: HeaderProps) {
   const pathname = usePathname();
   const { isPending, user } = useCurrentUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const mainNavigation = [
-    { href: "/", name: "Home" },
-    { href: "/products", name: "Products" },
-  ];
+  // Determine in which section we are
+  const matchedRule = rules.find((r) => pathname.startsWith(r.prefix));
 
-  const dashboardNavigation = [
-    { href: "/dashboard/stats", name: "Stats" },
-    { href: "/dashboard/profile", name: "Profile" },
-    { href: "/dashboard/settings", name: "Settings" },
-    { href: "/dashboard/uploads", name: "Uploads" },
-    { href: "/admin/summary", name: "Admin" },
-  ];
+  const whereAmI = matchedRule?.where ?? "main";
 
-  const isDashboard = user && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")); // todo: remove /admin when admin role is implemented
-  const navigation = isDashboard ? dashboardNavigation : mainNavigation;
+  const navigation = matchedRule ? matchedRule.nav : mainNavigation;
 
   const renderContent = () => (
     <header
@@ -61,7 +74,7 @@ export function Header({ showAuth = true }: HeaderProps) {
               <span
                 className={cn(
                   "text-xl font-bold",
-                  !isDashboard &&
+                  !(whereAmI === "dashboard" || "admin") &&
                     `
                       bg-linear-to-r from-primary to-primary/70 bg-clip-text
                       tracking-tight text-transparent
@@ -111,7 +124,7 @@ export function Header({ showAuth = true }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            {!isDashboard &&
+            {!!(whereAmI === "dashboard" || "admin") &&
               (isPending ? <Skeleton className={`h-9 w-9 rounded-full`} /> : <Cart />)}
 
             {isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <NotificationsWidget />}
@@ -125,7 +138,7 @@ export function Header({ showAuth = true }: HeaderProps) {
               >
                 {user ? (
                   <HeaderUserDropdown
-                    isDashboard={!!isDashboard}
+                    isDashboard={!!(whereAmI === "dashboard" || "admin")}
                     userEmail={user.email}
                     userImage={user.image}
                     userName={user.name}
@@ -147,7 +160,7 @@ export function Header({ showAuth = true }: HeaderProps) {
               </div>
             )}
 
-            {!isDashboard &&
+            {!(whereAmI === "dashboard") &&
               (isPending ? <Skeleton className={`h-9 w-9 rounded-full`} /> : <ThemeToggle />)}
 
             {/* Mobile menu button */}

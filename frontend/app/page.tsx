@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/
 
 import { testimonials } from "./mocks";
 import React from "react";
+import { Category } from "./lib/types";
 
 const featuresWhyChooseUs = [
   {
@@ -37,12 +38,6 @@ const featuresWhyChooseUs = [
     title: "Quality Guarantee",
   },
 ];
-
-interface Category {
-  name: string;
-  image: string;
-  productCount: number;
-}
 
 export default function HomePage() {
   const [categories, setCategories] = React.useState<Category[]>([]);
