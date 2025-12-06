@@ -7,27 +7,9 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { useCart } from "~/lib/hooks/use-cart";
+import {  ProductDetail } from "~/lib/types";
 import { Button } from "~/ui/primitives/button";
 import { Separator } from "~/ui/primitives/separator";
-
-/* -------------------------------------------------------------------------- */
-/*                               Type declarations                            */
-/* -------------------------------------------------------------------------- */
-type Specs = {[property: string]: string | number | boolean};
-
-interface Product {
-  category: string;
-  description: string;
-  features: string[];
-  id: string;
-  image: string;
-  inStock: boolean;
-  name: string;
-  originalPrice: number;
-  price: number;
-  rating: number;
-  specs: Specs;
-}
 
 /* -------------------------------------------------------------------------- */
 /*                         Helpers (shared, memo-safe)                        */
@@ -59,7 +41,7 @@ export default function ProductDetailPage() {
 
   /* ------------------------------- Products --------------------------------- */
 
-  const [product, setProduct] = React.useState<Product>();
+  const [product, setProduct] = React.useState<ProductDetail>();
   React.useEffect(() => {
     async function fetchProduct() {
       try {
@@ -77,7 +59,7 @@ export default function ProductDetailPage() {
         const data = await response.json();
 
         // Transform input data as needed
-        const product: Product = {
+        const product: ProductDetail = {
           ...data,
           price: Number(data.price),
           originalPrice: Number(data.originalPrice),
@@ -116,7 +98,7 @@ export default function ProductDetailPage() {
     setIsAdding(true);
     addItem(
       {
-        category: product.category,
+        category: product.category.name,
         id: product.id,
         image: product.image,
         name: product.name,
@@ -241,7 +223,7 @@ export default function ProductDetailPage() {
 
               {/* Category & prices */}
               <div className="mb-6">
-                <p className="text-lg font-medium text-muted-foreground">{product.category}</p>
+                <p className="text-lg font-medium text-muted-foreground">{product.category.name}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-3xl font-bold">
                     {CURRENCY_FORMATTER.format(product.price)}

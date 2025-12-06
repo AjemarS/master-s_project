@@ -3,7 +3,7 @@ from .models import Product, Category
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    product_count = serializers.SerializerMethodField()
+    productCount = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
@@ -11,18 +11,18 @@ class CategorySerializer(serializers.ModelSerializer):
             "id",
             "name",
             "image",
-            "product_count",
+            "productCount",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 
-    def get_product_count(self, obj):
-        return obj.products.filter(category_id=obj.id).count()
+    def get_productCount(self, obj):
+        return obj.products.count()
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source="category.name", read_only=True)
+    categoryName = serializers.CharField(source="category.name", read_only=True)
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -33,8 +33,9 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "price",
             "originalPrice",
-            "category_name",
+            "categoryName",
             "image",
+            "stock",
             "inStock",
             "features",
             "specs",
@@ -46,18 +47,20 @@ class ProductSerializer(serializers.ModelSerializer):
             return obj.image.url
         return None
 
-    def validate_price(self, value):
+    def validate_stock(self, value):
         if value < 0:
-            raise serializers.ValidationError("Ціна не може бути від'ємною")
+            raise serializers.ValidationError(
+                "Кількість на складі не може бути від'ємною"
+            )
         return value
 
-    def validate_originalPrice(self, value):
-        if value < 0:
-            raise serializers.ValidationError("Початкова ціна не може бути від'ємною")
-        if "price" in self.initial_data:
-            price = float(self.initial_data["price"])
-            if value < price:
+    def validate(self, data):
+        # Перевірка, що originalPrice >= price
+        if "originalPrice" in data and "price" in data:
+            if data["originalPrice"] < data["price"]:
                 raise serializers.ValidationError(
-                    "Початкова ціна не може бути меншою за поточну ціну"
+                    {
+                        "originalPrice": "Початкова ціна не може бути меншою за поточну ціну"
+                    }
                 )
-        return value
+        return data

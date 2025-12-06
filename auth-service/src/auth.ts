@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { admin } from "better-auth/plugins";
 import { Pool } from "pg";
 
 export const auth = betterAuth({
@@ -11,6 +12,7 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3001/auth",
 
   trustedOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:3001"],
+  plugins: [admin({ adminUserIds: ["3KzQAtJSMENIre4qto5e46d2bB2UXWsX"] })],
 
   // Email + Password автентифікація
   emailAndPassword: {
@@ -46,9 +48,9 @@ export const auth = betterAuth({
       redirectURI: process.env.GITHUB_REDIRECT_URL || "http://localhost:3001/auth/callback/github",
     },
   },
-  
+
   // Переадресації після входу
-  redirects:{
+  redirects: {
     afterSignIn: "http://localhost/",
     afterSignUp: "http://localhost/sign-in",
     afterSignOut: "http://localhost/",
@@ -57,14 +59,10 @@ export const auth = betterAuth({
   // Додаткові поля користувача
   user: {
     additionalFields: {
-      role: {
+      status: {
         type: "string",
-        defaultValue: "user",
-        required: false,
-      },
-      emailVerified: {
-        type: "boolean",
-        defaultValue: false,
+        defaultValue: "active",
+        input: false,
         required: false,
       },
     },

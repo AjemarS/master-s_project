@@ -169,7 +169,7 @@ async def proxy_auth_me(request: Request):
 @app.api_route("/{path:path}", methods=["GET"])
 async def proxy_frontend(request: Request, path: str):
     # уникаємо конфліктів
-    if path.startswith(("api/", "auth/", "admin/", "static/")):
+    if path.startswith(("api/", "auth/", "media/")):
         raise HTTPException(404, detail="Not Found")
 
     return await proxy_request(request, FRONTEND_SERVICE_URL, f"/{path}")

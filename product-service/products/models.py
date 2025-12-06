@@ -5,7 +5,10 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Назва")
     image = models.ImageField(
-        upload_to="category_images/", blank=True, null=True, verbose_name="Зображення категорій"
+        upload_to="category_images/",
+        blank=True,
+        null=True,
+        verbose_name="Зображення категорій",
     )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
@@ -49,10 +52,13 @@ class Product(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name="Початкова ціна",
     )
-
+    stock = models.PositiveIntegerField(default=0, verbose_name="Кількість на складі")
     inStock = models.BooleanField(default=True, verbose_name="В наявності")
     image = models.ImageField(
-        upload_to="product_images/", blank=True, null=True, verbose_name="Зображення продукту"
+        upload_to="product_images/",
+        blank=True,
+        null=True,
+        verbose_name="Зображення продукту",
     )
 
     rating = models.DecimalField(
@@ -78,3 +84,8 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Автоматично оновлюємо inStock на основі stock
+        self.inStock = self.stock > 0
+        super().save(*args, **kwargs)
