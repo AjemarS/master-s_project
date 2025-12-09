@@ -1,11 +1,4 @@
-import {
-  BarChart,
-  LogOut,
-  Settings,
-  Shield,
-  Upload,
-  UserIcon,
-} from "lucide-react";
+import { BarChart, LogOut, Settings, Shield, Upload, UserIcon } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "~/lib/cn";
@@ -21,6 +14,7 @@ import {
 
 interface HeaderUserDropdownProps {
   isDashboard: boolean;
+  isAdmin: boolean;
   userEmail: string;
   userImage?: null | string;
   userName: string;
@@ -28,6 +22,7 @@ interface HeaderUserDropdownProps {
 
 export function HeaderUserDropdown({
   isDashboard = false,
+  isAdmin,
   userEmail,
   userImage,
   userName,
@@ -35,16 +30,9 @@ export function HeaderUserDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          className="relative overflow-hidden rounded-full"
-          size="icon"
-          variant="ghost"
-        >
+        <Button className="relative overflow-hidden rounded-full" size="icon" variant="ghost">
           <Avatar className="h-9 w-9">
-            <AvatarImage
-              alt={userName || "User"}
-              src={userImage || undefined}
-            />
+            <AvatarImage alt={userName || "User"} src={userImage || undefined} />
             <AvatarFallback>
               {userName ? (
                 userName
@@ -62,10 +50,7 @@ export function HeaderUserDropdown({
       <DropdownMenuContent align="end" className="w-56">
         <div className="flex items-center justify-start gap-2 p-2">
           <Avatar className="h-8 w-8 bg-primary/10">
-            <AvatarImage
-              alt={userName || "User"}
-              src={userImage || undefined}
-            />
+            <AvatarImage alt={userName || "User"} src={userImage || undefined} />
             <AvatarFallback>
               {userName ? (
                 userName
@@ -80,11 +65,7 @@ export function HeaderUserDropdown({
           </Avatar>
           <div className="flex flex-col space-y-0.5">
             <p className="text-sm font-medium">{userName || "User"}</p>
-            <p
-              className={"max-w-40 truncate text-xs text-muted-foreground"}
-            >
-              {userEmail}
-            </p>
+            <p className={"max-w-40 truncate text-xs text-muted-foreground"}>{userEmail}</p>
           </div>
         </div>
         <DropdownMenuSeparator />
@@ -112,12 +93,14 @@ export function HeaderUserDropdown({
             Uploads
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link className="cursor-pointer" href="/admin/summary">
-            <Shield className="mr-2 h-4 w-4" />
-            Admin
-          </Link>
-        </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link className="cursor-pointer" href="/admin/summary">
+              <Shield className="mr-2 h-4 w-4" />
+              Admin
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           asChild
@@ -128,7 +111,7 @@ export function HeaderUserDropdown({
               : `
                 txt-destructive
                 focus:text-destrctive
-              `,
+              `
           )}
         >
           <Link href="/sign-out">

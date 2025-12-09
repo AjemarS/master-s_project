@@ -1,26 +1,28 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { cn } from "~/lib/cn";
 import { Cart } from "~/ui/components/cart";
-import { Button } from "~/ui/primitives/button";
 import { Skeleton } from "~/ui/primitives/skeleton";
 
 import { NotificationsWidget } from "../notifications/notifications-widget";
 import { ThemeToggle } from "../theme-toggle";
-import { HeaderUserDropdown } from "./header-user";
 import { useCurrentUser } from "~/lib/auth-client";
+import { DesktopNavigation } from "./header-desktop-nav";
+import { AuthSection } from "./header-auth";
+import { MobileMenu, MobileMenuButton } from "./header-mobile-menu";
 
 interface HeaderProps {
   children?: React.ReactNode;
   showAuth?: boolean;
 }
 
-const mainNavigation = [
+export type NavigationSection = "main" | "dashboard" | "admin";
+
+export const mainNavigation = [
   { href: "/", name: "Home" },
   { href: "/products", name: "Products" },
 ];
@@ -38,23 +40,26 @@ const adminNavigation = [
 ];
 
 const rules = [
-  { prefix: "/dashboard/", nav: dashboardNavigation, where: "dashboard" },
-  { prefix: "/admin/", nav: adminNavigation, where: "admin" },
+  { prefix: "/dashboard/", nav: dashboardNavigation, where: "dashboard" as const },
+  { prefix: "/admin/", nav: adminNavigation, where: "admin" as const },
 ];
+
+export const isInDashboardOrAdmin = (section: NavigationSection) => 
+  section === "dashboard" || section === "admin";
+
+export const isActive = (href: string, current: string) =>
+  current === href || (href !== "/" && current?.startsWith(href));
 
 export function Header({ showAuth = true }: HeaderProps) {
   const pathname = usePathname();
   const { isPending, user } = useCurrentUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Determine in which section we are
   const matchedRule = rules.find((r) => pathname.startsWith(r.prefix));
-
-  const whereAmI = matchedRule?.where ?? "main";
-
+  const whereAmI: NavigationSection = matchedRule?.where ?? "main";
   const navigation = matchedRule ? matchedRule.nav : mainNavigation;
 
-  const renderContent = () => (
+  return (
     <header
       className={`
         sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur
@@ -69,178 +74,63 @@ export function Header({ showAuth = true }: HeaderProps) {
         `}
       >
         <div className="flex h-16 items-center justify-between">
+          {/* Logo and Desktop Navigation */}
           <div className="flex items-center gap-6">
             <Link className="flex items-center gap-2" href="/">
               <span
                 className={cn(
                   "text-xl font-bold",
-                  !(whereAmI === "dashboard" || "admin") &&
-                    `
-                      bg-linear-to-r from-primary to-primary/70 bg-clip-text
-                      tracking-tight text-transparent
-                    `
+                  !isInDashboardOrAdmin(whereAmI) &&
+                    "bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent"
                 )}
               >
                 Store
               </span>
             </Link>
-            <nav
-              className={`
-                hidden
-                md:flex
-              `}
-            >
-              <ul className="flex items-center gap-6">
-                {isPending
-                  ? Array.from({ length: navigation.length }).map((_, i) => (
-                      <li key={i}>
-                        <Skeleton className="h-6 w-20" />
-                      </li>
-                    ))
-                  : navigation.map((item) => {
-                      const isActive =
-                        pathname === item.href ||
-                        (item.href !== "/" && pathname?.startsWith(item.href));
-
-                      return (
-                        <li key={item.name}>
-                          <Link
-                            className={cn(
-                              `
-                                text-sm font-medium transition-colors
-                                hover:text-primary
-                              `,
-                              isActive ? "font-semibold text-primary" : "text-muted-foreground"
-                            )}
-                            href={item.href}
-                          >
-                            {item.name}
-                          </Link>
-                        </li>
-                      );
-                    })}
-              </ul>
-            </nav>
+            <DesktopNavigation 
+              navigation={navigation}
+              isPending={isPending}
+              pathname={pathname}
+            />
           </div>
 
+          {/* Right side actions */}
           <div className="flex items-center gap-4">
-            {!!(whereAmI === "dashboard" || "admin") &&
-              (isPending ? <Skeleton className={`h-9 w-9 rounded-full`} /> : <Cart />)}
+            {isInDashboardOrAdmin(whereAmI) &&
+              (isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <Cart />)}
 
             {isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <NotificationsWidget />}
 
             {showAuth && (
-              <div
-                className={`
-                  hidden
-                  md:block
-                `}
-              >
-                {user ? (
-                  <HeaderUserDropdown
-                    isDashboard={!!(whereAmI === "dashboard" || "admin")}
-                    userEmail={user.email}
-                    userImage={user.image}
-                    userName={user.name}
-                  />
-                ) : isPending ? (
-                  <Skeleton className="h-10 w-32" />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Link href="/sign-in">
-                      <Button size="sm" variant="ghost">
-                        Log in
-                      </Button>
-                    </Link>
-                    <Link href="/sign-up">
-                      <Button size="sm">Sign up</Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
+              <AuthSection 
+                user={user!}
+                isPending={isPending}
+                whereAmI={whereAmI}
+              />
             )}
 
-            {!(whereAmI === "dashboard") &&
-              (isPending ? <Skeleton className={`h-9 w-9 rounded-full`} /> : <ThemeToggle />)}
+            {whereAmI !== "dashboard" &&
+              (isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <ThemeToggle />)}
 
-            {/* Mobile menu button */}
-            <Button
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              size="icon"
-              variant="ghost"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
+            <MobileMenuButton 
+              isOpen={mobileMenuOpen}
+              onToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+            />
           </div>
         </div>
       </div>
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden">
-          <div className="space-y-1 border-b px-4 py-3">
-            {isPending
-              ? Array.from({ length: navigation.length }).map((_, i) => (
-                  <div className="py-2" key={i}>
-                    <Skeleton className="h-6 w-32" />
-                  </div>
-                ))
-              : navigation.map((item) => {
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== "/" && pathname?.startsWith(item.href));
-
-                  return (
-                    <Link
-                      className={cn(
-                        "block rounded-md px-3 py-2 text-base font-medium",
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : `
-                            text-foreground
-                            hover:bg-muted/50 hover:text-primary
-                          `
-                      )}
-                      href={item.href}
-                      key={item.name}
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      {item.name}
-                    </Link>
-                  );
-                })}
-          </div>
-
-          {showAuth && !user && (
-            <div className="space-y-1 border-b px-4 py-3">
-              <Link
-                className={`
-                  block rounded-md px-3 py-2 text-base font-medium
-                  hover:bg-muted/50
-                `}
-                href="/auth/sign-in"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Log in
-              </Link>
-              <Link
-                className={`
-                  block rounded-md bg-primary px-3 py-2 text-base font-medium
-                  text-primary-foreground
-                  hover:bg-primary/90
-                `}
-                href="/auth/sign-up"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Sign up
-              </Link>
-            </div>
-          )}
-        </div>
+        <MobileMenu
+          navigation={navigation}
+          isPending={isPending}
+          pathname={pathname}
+          showAuth={showAuth}
+          user={user!}
+          onClose={() => setMobileMenuOpen(false)}
+        />
       )}
     </header>
   );
-
-  return renderContent();
 }
