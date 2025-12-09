@@ -1,4 +1,4 @@
-import { BarChart, LogOut, Settings, Shield, Upload, UserIcon } from "lucide-react";
+import { BarChart, LogOut, Settings, Shield, UserIcon } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "~/lib/cn";
@@ -85,12 +85,6 @@ export function HeaderUserDropdown({
           <Link className="cursor-pointer" href="/dashboard/settings">
             <Settings className="mr-2 h-4 w-4" />
             Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link className="cursor-pointer" href="/dashboard/uploads">
-            <Upload className="mr-2 h-4 w-4" />
-            Uploads
           </Link>
         </DropdownMenuItem>
         {isAdmin && (
