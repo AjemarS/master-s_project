@@ -44,7 +44,7 @@ const rules = [
   { prefix: "/admin/", nav: adminNavigation, where: "admin" as const },
 ];
 
-export const isInDashboardOrAdmin = (section: NavigationSection) => 
+export const isInDashboardOrAdmin = (section: NavigationSection) =>
   section === "dashboard" || section === "admin";
 
 export const isActive = (href: string, current: string) =>
@@ -87,32 +87,22 @@ export function Header({ showAuth = true }: HeaderProps) {
                 Store
               </span>
             </Link>
-            <DesktopNavigation 
-              navigation={navigation}
-              isPending={isPending}
-              pathname={pathname}
-            />
+            <DesktopNavigation navigation={navigation} isPending={isPending} pathname={pathname} />
           </div>
 
           {/* Right side actions */}
           <div className="flex items-center gap-4">
-            {isInDashboardOrAdmin(whereAmI) &&
+            {whereAmI !== "admin" &&
               (isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <Cart />)}
 
             {isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <NotificationsWidget />}
 
-            {showAuth && (
-              <AuthSection 
-                user={user!}
-                isPending={isPending}
-                whereAmI={whereAmI}
-              />
-            )}
+            {showAuth && <AuthSection user={user!} isPending={isPending} whereAmI={whereAmI} />}
 
             {whereAmI !== "dashboard" &&
               (isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <ThemeToggle />)}
 
-            <MobileMenuButton 
+            <MobileMenuButton
               isOpen={mobileMenuOpen}
               onToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
             />
