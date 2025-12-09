@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import type { CartItem } from "~/ui/components/cart";
+import type { CartItem } from "~/ui/components/cart/cart";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -72,21 +72,16 @@ export function CartProvider({ children }: React.PropsWithChildren) {
   }, [items]);
 
   /* ----------------------------- Actions -------------------------------- */
-  const addItem = React.useCallback(
-    (newItem: Omit<CartItem, "quantity">, qty = 1) => {
-      if (qty <= 0) return;
-      setItems((prev) => {
-        const existing = prev.find((i) => i.id === newItem.id);
-        if (existing) {
-          return prev.map((i) =>
-            i.id === newItem.id ? { ...i, quantity: i.quantity + qty } : i,
-          );
-        }
-        return [...prev, { ...newItem, quantity: qty }];
-      });
-    },
-    [],
-  );
+  const addItem = React.useCallback((newItem: Omit<CartItem, "quantity">, qty = 1) => {
+    if (qty <= 0) return;
+    setItems((prev) => {
+      const existing = prev.find((i) => i.id === newItem.id);
+      if (existing) {
+        return prev.map((i) => (i.id === newItem.id ? { ...i, quantity: i.quantity + qty } : i));
+      }
+      return [...prev, { ...newItem, quantity: qty }];
+    });
+  }, []);
 
   const removeItem = React.useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
@@ -99,21 +94,18 @@ export function CartProvider({ children }: React.PropsWithChildren) {
         if (qty <= 0) return []; // treat zero/negative as remove
         if (qty === i.quantity) return i;
         return { ...i, quantity: qty };
-      }),
+      })
     );
   }, []);
 
   const clearCart = React.useCallback(() => setItems([]), []);
 
   /* --------------------------- Derived data ----------------------------- */
-  const itemCount = React.useMemo(
-    () => items.reduce((t, i) => t + i.quantity, 0),
-    [items],
-  );
+  const itemCount = React.useMemo(() => items.reduce((t, i) => t + i.quantity, 0), [items]);
 
   const subtotal = React.useMemo(
     () => items.reduce((t, i) => t + i.price * i.quantity, 0),
-    [items],
+    [items]
   );
 
   /* ----------------------------- Context value -------------------------- */
@@ -127,15 +119,7 @@ export function CartProvider({ children }: React.PropsWithChildren) {
       subtotal,
       updateQuantity,
     }),
-    [
-      items,
-      addItem,
-      removeItem,
-      updateQuantity,
-      clearCart,
-      itemCount,
-      subtotal,
-    ],
+    [items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal]
   );
 
   return <CartContext value={value}>{children}</CartContext>;

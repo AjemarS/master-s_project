@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { cn } from "~/lib/cn";
-import { Cart } from "~/ui/components/cart";
+import { Cart } from "~/ui/components/cart/cart";
 import { Skeleton } from "~/ui/primitives/skeleton";
 
 import { NotificationsWidget } from "../notifications/notifications-widget";
@@ -99,8 +99,7 @@ export function Header({ showAuth = true }: HeaderProps) {
 
             {showAuth && <AuthSection user={user!} isPending={isPending} whereAmI={whereAmI} />}
 
-            {whereAmI !== "dashboard" &&
-              (isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <ThemeToggle />)}
+            {isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <ThemeToggle />}
 
             <MobileMenuButton
               isOpen={mobileMenuOpen}

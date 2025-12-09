@@ -3,7 +3,7 @@
 import Link from "next/link";
 import React from "react";
 
-import type { User } from "~/db/schema/users/types";
+import type { User } from "~/lib/auth-client";
 
 import { signOut, useCurrentUser } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
@@ -80,43 +80,29 @@ export function DashboardPageClient({ user }: DashboardPageClientProps) {
         <Card>
           <CardHeader>
             <CardTitle>Welcome to your Dashboard</CardTitle>
-            <CardDescription>
-              Manage your account and view your information
-            </CardDescription>
+            <CardDescription>Manage your account and view your information</CardDescription>
           </CardHeader>
           <CardContent>
             {user && (
               <div className="space-y-2">
                 <div className="space-y-1">
                   <p className="text-sm leading-none font-medium">Name</p>
-                  <p className="text-sm text-muted-foreground">
-                    {user.name ?? "Not set"}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{user.name ?? "Not set"}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm leading-none font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">
-                    {user.email ?? "Not set"}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{user.email ?? "Not set"}</p>
                 </div>
-                {user?.firstName && (
+                {/* {user?.firstName && (
                   <div className="space-y-1">
-                    <p className="text-sm leading-none font-medium">
-                      First Name
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {user.firstName}
-                    </p>
+                    <p className="text-sm leading-none font-medium">First Name</p>
+                    <p className="text-sm text-muted-foreground">{user.firstName}</p>
                   </div>
                 )}
                 {user?.lastName && (
                   <div className="space-y-1">
-                    <p className="text-sm leading-none font-medium">
-                      Last Name
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {user.lastName}
-                    </p>
+                    <p className="text-sm leading-none font-medium">Last Name</p>
+                    <p className="text-sm text-muted-foreground">{user.lastName}</p>
                   </div>
                 )}
                 {user?.age ? (
@@ -126,13 +112,11 @@ export function DashboardPageClient({ user }: DashboardPageClientProps) {
                   </div>
                 ) : null}
                 <div className="space-y-1">
-                  <p className="text-sm leading-none font-medium">
-                    Two-Factor Authentication
-                  </p>
+                  <p className="text-sm leading-none font-medium">Two-Factor Authentication</p>
                   <p className="text-sm text-muted-foreground">
                     {user.twoFactorEnabled ? "Enabled" : "Disabled"}
                   </p>
-                </div>
+                </div> */}
               </div>
             )}
           </CardContent>
@@ -167,9 +151,7 @@ export function DashboardPageClient({ user }: DashboardPageClientProps) {
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Common actions you might want to perform
-            </CardDescription>
+            <CardDescription>Common actions you might want to perform</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6">
             <div className="grid grid-cols-2 gap-4">
