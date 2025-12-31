@@ -41,7 +41,7 @@ export default function SummaryPage() {
         const usersData = await authClient.admin.listUsers({ query: {} });
 
         // Fetch products stats from Django
-        const productsRes = await fetch("http://localhost/api/products/");
+        const productsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/products/`);
         const productsData = await productsRes.json();
         const products = productsData.results || productsData || [];
 

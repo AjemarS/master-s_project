@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { cn } from "~/lib/cn";
 import { Cart } from "~/ui/components/cart/cart";
 import { Skeleton } from "~/ui/primitives/skeleton";
 
@@ -77,13 +76,7 @@ export function Header({ showAuth = true }: HeaderProps) {
           {/* Logo and Desktop Navigation */}
           <div className="flex items-center gap-6">
             <Link className="flex items-center gap-2" href="/">
-              <span
-                className={cn(
-                  "text-xl font-bold",
-                  !isInDashboardOrAdmin(whereAmI) &&
-                    "bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent"
-                )}
-              >
+              <span className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent">
                 Store
               </span>
             </Link>

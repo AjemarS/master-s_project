@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { admin } from "better-auth/plugins";
+import { admin, twoFactor } from "better-auth/plugins";
 import { Pool } from "pg";
 
 export const auth = betterAuth({
@@ -12,7 +12,8 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3001/auth",
 
   trustedOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:3001"],
-  plugins: [admin({ adminUserIds: ["3KzQAtJSMENIre4qto5e46d2bB2UXWsX"] })],
+  appName: "Store",
+  plugins: [admin({ adminUserIds: ["3KzQAtJSMENIre4qto5e46d2bB2UXWsX"] }), twoFactor()],
 
   // Email + Password автентифікація
   emailAndPassword: {

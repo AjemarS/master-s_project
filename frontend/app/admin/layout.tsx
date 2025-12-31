@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCurrentUser } from "~/lib/auth-client";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { AdminSidebar } from "./components/admin-sidebar";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isPending } = useCurrentUser();
@@ -49,11 +50,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <AlertCircle className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800">
             You don&apos;t have permission to access the admin panel. Admin role required.
+            Redirecting...
           </AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <main className="flex-1 overflow-y-auto bg-slate-50/50">
+        {children}
+      </main>
+    </div>
+  );
 }

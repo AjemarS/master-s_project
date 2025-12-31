@@ -1,7 +1,7 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
-import { adminClient, inferAdditionalFields } from "better-auth/client/plugins";
+import { adminClient, inferAdditionalFields, twoFactorClient } from "better-auth/client/plugins";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -19,10 +19,18 @@ export const authClient = createAuthClient({
       },
     }),
     adminClient(),
+    twoFactorClient({
+      onTwoFactorRedirect: () => {
+        // Redirect to 2FA page
+        window.location.href = "/mfa";
+      },
+    }),
   ],
 });
 
 export const { signIn, signUp, signOut, useSession } = authClient;
+
+export const twoFactor = authClient.twoFactor;
 
 // Types
 export type Session = typeof authClient.$Infer.Session.session;

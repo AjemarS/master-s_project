@@ -44,7 +44,7 @@ export default function HomePage() {
   React.useEffect(() => {
     async function fetchCategories() {
       try {
-        const response = await fetch("http://localhost/api/categories/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

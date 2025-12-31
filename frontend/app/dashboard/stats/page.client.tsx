@@ -110,13 +110,13 @@ export function DashboardPageClient({ user }: DashboardPageClientProps) {
                     <p className="text-sm leading-none font-medium">Age</p>
                     <p className="text-sm text-muted-foreground">{user.age}</p>
                   </div>
-                ) : null}
+                ) : null} */}
                 <div className="space-y-1">
                   <p className="text-sm leading-none font-medium">Two-Factor Authentication</p>
                   <p className="text-sm text-muted-foreground">
                     {user.twoFactorEnabled ? "Enabled" : "Disabled"}
                   </p>
-                </div> */}
+                </div> 
               </div>
             )}
           </CardContent>

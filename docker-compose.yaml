@@ -4,9 +4,9 @@ services:
     image: postgres:15-alpine
     container_name: products_db
     environment:
-      POSTGRES_DB: products_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_products_data:/var/lib/postgresql/data
     ports:
@@ -24,9 +24,9 @@ services:
     image: postgres:15-alpine
     container_name: auth_db
     environment:
-      POSTGRES_DB: auth_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${AUTH_DB_NAME}
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
     volumes:
       - postgres_auth_data:/var/lib/postgresql/data
     ports:
@@ -46,16 +46,17 @@ services:
       dockerfile: Dockerfile
     container_name: product_service
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@products_db:5432/products_db
-      DB_NAME: products_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: products_db
-      DB_PORT: 5432
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@products_db:5432/${POSTGRES_DB}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
       DJANGO_SETTINGS_MODULE: product_service.settings
-      DJANGO_SECRET_KEY: your-secret-key-change-in-production
-      ALLOWED_HOSTS: localhost, 127.0.0.1, product-service, gateway, frontend
-      CORS_ALLOWED_ORIGINS: http://localhost, http://localhost:3000
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      DEBUG: ${DEBUG}
     volumes:
       - ./product-service:/app
     ports:
@@ -76,16 +77,16 @@ services:
       dockerfile: Dockerfile
     container_name: auth_service
     environment:
-      PORT: 3001
-      DATABASE_URL: postgresql://postgres:postgres@auth_db:5432/auth_db
-      BETTER_AUTH_SECRET: CRaoTYODSDKtVmxosfiHkjUjFbIlrVeY
-      BETTER_AUTH_URL: http://localhost:3001/auth
-      GOOGLE_CLIENT_ID: 354897909540-bv2ig1tu2p8eesihk3m7um7eqtfg82gl.apps.googleusercontent.com
-      GOOGLE_CLIENT_SECRET: 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
-      GOOGLE_REDIRECT_URL: http://localhost:3001/auth/callback/google
-      GITHUB_CLIENT_ID: Ov23liLjTfq6tsmIInNG
-      GITHUB_CLIENT_SECRET: bf76bfcf8e2b08b7d19828a7b84f21ae92406787
-      GITHUB_REDIRECT_URL: http://localhost:3001/auth/callback/github
+      PORT: ${AUTH_PORT}
+      DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth_db:5432/${AUTH_DB_NAME}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_REDIRECT_URL: ${GITHUB_REDIRECT_URL}
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -105,10 +106,10 @@ services:
       dockerfile: Dockerfile
     container_name: gateway
     environment:
-      - PRODUCT_SERVICE_URL=http://product-service:8000
-      - FRONTEND_SERVICE_URL=http://frontend:3000
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - CORS_ORIGINS=http://localhost,http://localhost:3000
+      - PRODUCT_SERVICE_URL=${PRODUCT_SERVICE_URL}
+      - FRONTEND_SERVICE_URL=${FRONTEND_SERVICE_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "80:8080"
     depends_on:
@@ -125,9 +126,9 @@ services:
       dockerfile: Dockerfile
     container_name: frontend_app
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost/api
-      - NEXT_PUBLIC_AUTH_URL=http://localhost/auth
+      - NODE_ENV=${NODE_ENV}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_AUTH_URL=${NEXT_PUBLIC_AUTH_URL}
     volumes:
       - ./frontend:/app
       - /app/node_modules

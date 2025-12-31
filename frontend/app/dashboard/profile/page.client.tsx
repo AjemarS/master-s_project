@@ -4,7 +4,7 @@ import { Shield, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { useCurrentUserOrRedirect } from "~/lib/auth-client";
+import { twoFactor, useCurrentUserOrRedirect } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Input } from "~/ui/primitives/input";
@@ -31,80 +31,74 @@ export function ProfilePageClient() {
     );
   }
 
-  // const handleEnableTwoFactor = () => {
-  //   if (!password) {
-  //     setError("Password is required");
-  //     return;
-  //   }
+  const handleEnableTwoFactor = () => {
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
 
-  //   setError("");
-  //   setLoading(true);
+    setError("");
+    setLoading(true);
 
-  //   twoFactor
-  //     .enable({
-  //       password,
-  //     })
-  //     .then((result) => {
-  //       if ("data" in result && result.data) {
-  //         const uri = result.data.totpURI;
-  //         setQrCodeData(uri);
+    twoFactor
+      .enable({
+        password,
+      })
+      .then((result) => {
+        if ("data" in result && result.data) {
+          const uri = result.data.totpURI;
+          setQrCodeData(uri);
 
-  //         if (typeof uri === "string" && uri.includes("secret=")) {
-  //           const secretMatch = uri.split("secret=")[1];
-  //           if (secretMatch) {
-  //             const extractedSecret = secretMatch.split("&")[0];
-  //             if (extractedSecret) {
-  //               setSecret(extractedSecret);
-  //             }
-  //           }
-  //         }
+          if (typeof uri === "string" && uri.includes("secret=")) {
+            const secretMatch = uri.split("secret=")[1];
+            if (secretMatch) {
+              const extractedSecret = secretMatch.split("&")[0];
+              if (extractedSecret) {
+                setSecret(extractedSecret);
+              }
+            }
+          }
 
-  //         setShowQrCode(true);
-  //         setMessage("Scan the QR code with your authenticator app");
-  //       } else {
-  //         setError(
-  //           "Failed to enable two-factor authentication. Unexpected response format.",
-  //         );
-  //       }
-  //     })
-  //     .catch((err: unknown) => {
-  //       setError(
-  //         "Failed to enable two-factor authentication. Please try again.",
-  //       );
-  //       console.error(err);
-  //     })
-  //     .finally(() => {
-  //       setLoading(false);
-  //     });
-  // };
+          setShowQrCode(true);
+          setMessage("Scan the QR code with your authenticator app");
+        } else {
+          setError("Failed to enable two-factor authentication. Unexpected response format.");
+        }
+      })
+      .catch((err: unknown) => {
+        setError("Failed to enable two-factor authentication. Please try again.");
+        console.error(err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
-  // const handleDisableTwoFactor = () => {
-  //   if (!password) {
-  //     setError("Password is required");
-  //     return;
-  //   }
+  const handleDisableTwoFactor = () => {
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
 
-  //   setError("");
-  //   setLoading(true);
+    setError("");
+    setLoading(true);
 
-  //   twoFactor
-  //     .disable({
-  //       password,
-  //     })
-  //     .then(() => {
-  //       setMessage("Two-factor authentication has been disabled");
-  //       setShowQrCode(false);
-  //     })
-  //     .catch((err: unknown) => {
-  //       setError(
-  //         "Failed to disable two-factor authentication. Please try again.",
-  //       );
-  //       console.error(err);
-  //     })
-  //     .finally(() => {
-  //       setLoading(false);
-  //     });
-  // };
+    twoFactor
+      .disable({
+        password,
+      })
+      .then(() => {
+        setMessage("Two-factor authentication has been disabled");
+        setShowQrCode(false);
+      })
+      .catch((err: unknown) => {
+        setError("Failed to disable two-factor authentication. Please try again.");
+        console.error(err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   return (
     <div
@@ -115,9 +109,7 @@ export function ProfilePageClient() {
     >
       <div className="space-y-0.5">
         <h2 className="text-2xl font-bold tracking-tight">Profile</h2>
-        <p className="text-muted-foreground">
-          Manage your profile and security settings.
-        </p>
+        <p className="text-muted-foreground">Manage your profile and security settings.</p>
       </div>
 
       <Tabs className="space-y-4" defaultValue="general">
@@ -140,11 +132,7 @@ export function ProfilePageClient() {
             <CardContent className="space-y-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input
-                  defaultValue={user?.name || ""}
-                  id="name"
-                  placeholder="Enter your name"
-                />
+                <Input defaultValue={user?.name || ""} id="name" placeholder="Enter your name" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
@@ -172,9 +160,7 @@ export function ProfilePageClient() {
           )}
 
           {message && (
-            <div className="rounded-md bg-green-50 p-4 text-sm text-green-700">
-              {message}
-            </div>
+            <div className="rounded-md bg-green-50 p-4 text-sm text-green-700">{message}</div>
           )}
 
           {showQrCode && qrCodeData && (
@@ -184,14 +170,17 @@ export function ProfilePageClient() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col items-center">
-                  <img
-                    alt="QR Code for Two-Factor Authentication"
-                    className="h-48 w-48"
-                    src={qrCodeData}
-                  />
+                  {
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt="QR Code for Two-Factor Authentication"
+                      className="h-48 w-48"
+                      src={qrCodeData}
+                    />
+                  }
                   <p className="mt-4 text-center text-sm text-muted-foreground">
-                    Scan this QR code with your authenticator app (Google
-                    Authenticator, Authy, etc.)
+                    Scan this QR code with your authenticator app (Google Authenticator, Authy,
+                    etc.)
                   </p>
                   {secret && (
                     <div className="mt-6 w-full">
@@ -230,19 +219,15 @@ export function ProfilePageClient() {
                 </p>
               </div>
 
-              {/* <div className="flex space-x-4">
+              <div className="flex space-x-4">
                 <Button disabled={loading} onClick={handleEnableTwoFactor}>
                   {loading ? "Processing..." : "Enable Two-Factor"}
                 </Button>
 
-                <Button
-                  disabled={loading}
-                  onClick={handleDisableTwoFactor}
-                  variant="destructive"
-                >
+                <Button disabled={loading} onClick={handleDisableTwoFactor} variant="destructive">
                   {loading ? "Processing..." : "Disable Two-Factor"}
                 </Button>
-              </div> */}
+              </div>
             </CardContent>
           </Card>
 
@@ -252,7 +237,7 @@ export function ProfilePageClient() {
             </CardHeader>
             <CardContent>
               <Button asChild>
-                <Link href="/auth/mfa">manage backup codes</Link>
+                <Link href="/mfa">manage backup codes</Link>
               </Button>
             </CardContent>
           </Card>
