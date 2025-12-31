@@ -1,8 +1,5 @@
-import { useRouter } from "next/navigation";
+import { redirect } from 'next/navigation';
 
-const AdminDashboard = () => {
-  const router = useRouter();
-  router.push("/admin/summary");
-};
-
-export default AdminDashboard;
+export default function AdminPage() {
+    redirect('/admin/summary');
+}

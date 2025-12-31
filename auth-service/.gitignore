@@ -44,3 +44,5 @@ coverage/
 # Optional: If you have local configuration files that should not be committed
 # config/local.js
 # database.sqlite
+
+better-auth_migrations/
