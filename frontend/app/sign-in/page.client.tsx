@@ -27,37 +27,53 @@ export function SignInPageClient() {
     setLoading(true);
 
     try {
-      await signIn.email({
+      const result = await signIn.email({
         email,
         password,
       });
+      if (result?.error) {
+        setError(result.error.message || "Invalid email or password");
+        return;
+      }
       router.push("/dashboard/profile");
     } catch (err) {
-      setError("Invalid email or password");
+      setError("An unexpected error occurred");
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGitHubLogin = () => {
+  const handleGitHubLogin = async () => {
     setLoading(true);
+    setError("");
     try {
-      void signIn.social({ provider: "github" });
+      const result = await signIn.social({ provider: "github" });
+      if (result?.error) {
+        setError(result.error.message || "Failed to sign in with GitHub");
+      }
+      // On success the page will redirect via OAuth
     } catch (err) {
       setError("Failed to sign in with GitHub");
       console.error(err);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
+    setError("");
     try {
-      void signIn.social({ provider: "google" });
+      const result = await signIn.social({ provider: "google" });
+      if (result?.error) {
+        setError(result.error.message || "Failed to sign in with Google");
+      }
+      // On success the page will redirect via OAuth
     } catch (err) {
       setError("Failed to sign in with Google");
       console.error(err);
+    } finally {
       setLoading(false);
     }
   };
@@ -121,7 +137,7 @@ export function SignInPageClient() {
                 className="space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void handleEmailLogin(e);
+                  handleEmailLogin(e).catch(console.error);
                 }}
               >
                 <div className="grid gap-2">

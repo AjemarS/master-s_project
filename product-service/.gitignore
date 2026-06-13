@@ -18,5 +18,5 @@ pip-env/
 *.log
 *.sqlite3
 media/
-static_collected/
+staticfiles/
 local_settings.py

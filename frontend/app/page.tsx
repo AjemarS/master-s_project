@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/
 import { testimonials } from "./mocks";
 import React from "react";
 import { Category } from "./lib/types";
+import { categoryApi } from "./lib/api/admin-api";
 
 const featuresWhyChooseUs = [
   {
@@ -44,20 +45,10 @@ export default function HomePage() {
   React.useEffect(() => {
     async function fetchCategories() {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories/`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Response status: ${response.status}`);
+        const response = await categoryApi.getAll();
+        if (response.data) {
+          setCategories(response.data.results);
         }
-
-        const data = await response.json();
-
-        setCategories(data.results);
       } catch (error) {
         console.error(error);
       }

@@ -2,11 +2,18 @@
 
 import * as React from "react";
 
-import type { CartItem } from "~/ui/components/cart/cart";
-
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
 /* -------------------------------------------------------------------------- */
+
+export interface CartItem {
+  category: string;
+  id: string;
+  image: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 export interface CartContextType {
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;

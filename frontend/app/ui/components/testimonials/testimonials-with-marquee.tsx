@@ -140,7 +140,7 @@ export function TestimonialsSection({
           <div
             className={`
               flex flex-row overflow-hidden p-2
-              [gap:var(--gap)]
+              gap-(--gap)
               [--gap:1rem]
             `}
             onMouseEnter={handleMouseEnter}
@@ -149,7 +149,7 @@ export function TestimonialsSection({
             <div
               className={`
                 flex shrink-0 flex-row justify-around
-                [gap:var(--gap)]
+                gap-(--gap)
               `}
               ref={marqueeRef}
               style={{ translate: "none" }}
@@ -170,14 +170,14 @@ export function TestimonialsSection({
           <div
             className={`
               pointer-events-none absolute inset-y-0 left-0 hidden w-1/3
-              bg-gradient-to-r from-background
+              bg-linear-to-r from-background
               sm:block
             `}
           />
           <div
             className={`
               pointer-events-none absolute inset-y-0 right-0 hidden w-1/3
-              bg-gradient-to-l from-background
+              bg-linear-to-l from-background
               sm:block
             `}
           />
