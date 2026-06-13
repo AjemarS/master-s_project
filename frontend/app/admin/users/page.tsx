@@ -11,7 +11,6 @@ import {
   Users,
   Search,
   Plus,
-  Trash2,
   AlertCircle,
   ArrowLeft,
   Shield,
@@ -38,6 +37,7 @@ export default function UsersPage() {
         if (response.data) setUsers(response.data.users);
       } catch (err) {
         setError("Failed to load users. Please try again later.");
+        console.error("Error fetching users:", err);
       } finally {
         setLoading(false);
       }
