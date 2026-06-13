@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -10,7 +12,6 @@ class Category(models.Model):
         null=True,
         verbose_name="Зображення категорій",
     )
-
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
@@ -35,10 +36,7 @@ class Product(models.Model):
         verbose_name="Категорія",
     )
 
-    features = models.JSONField(
-        default=list,
-        verbose_name="Особливості",
-    )
+    features = models.JSONField(default=list, verbose_name="Особливості")
 
     price = models.DecimalField(
         max_digits=10,
@@ -46,31 +44,34 @@ class Product(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name="Поточна ціна",
     )
-    originalPrice = models.DecimalField(
+    # db_column preserves the existing column name so no migration is needed
+    original_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
         verbose_name="Початкова ціна",
+        db_column="originalPrice",
     )
     stock = models.PositiveIntegerField(default=0, verbose_name="Кількість на складі")
-    inStock = models.BooleanField(default=True, verbose_name="В наявності")
+    in_stock = models.BooleanField(
+        default=True,
+        verbose_name="В наявності",
+        db_column="inStock",
+    )
     image = models.ImageField(
         upload_to="product_images/",
         blank=True,
         null=True,
         verbose_name="Зображення продукту",
     )
-
     rating = models.DecimalField(
-        default=0.0,
+        default=Decimal("0.0"),
         decimal_places=1,
         max_digits=2,
         validators=[MinValueValidator(0), MaxValueValidator(5)],
         verbose_name="Рейтинг",
     )
-
     specs = models.JSONField(default=dict, verbose_name="Специфікації")
-
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
@@ -86,6 +87,6 @@ class Product(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        # Автоматично оновлюємо inStock на основі stock
-        self.inStock = self.stock > 0
+        # Keep in_stock in sync with stock count
+        self.in_stock = self.stock > 0
         super().save(*args, **kwargs)

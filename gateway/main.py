@@ -1,3 +1,5 @@
+from xmlrpc import client
+
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -46,13 +48,40 @@ app = FastAPI(
 # ================================
 #            CORS
 # ================================
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.middleware("http")
+async def secure_cors_and_options_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    
+    # 1. ОБРОБКА PREFLIGHT (OPTIONS) ЗАПИТІВ
+    if request.method == "OPTIONS":
+        response = Response(status_code=204)  # 204 No Content
+        
+        # Перевіряємо, чи origin є у нашому білому списку (.env)
+        if origin in CORS_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            
+            # Динамічно дозволяємо методи та заголовки, які просить фронтенд
+            requested_method = request.headers.get("access-control-request-method", "*")
+            requested_headers = request.headers.get("access-control-request-headers", "*")
+            
+            response.headers["Access-Control-Allow-Methods"] = requested_method
+            response.headers["Access-Control-Allow-Headers"] = requested_headers
+            
+            # Кешуємо preflight на 10 хвилин, щоб браузер не спамив Gateway перед кожним запитом
+            response.headers["Access-Control-Max-Age"] = "600"
+            
+        return response
+
+    # 2. ОБРОБКА ВСІХ ІНШИХ ЗАПИТІВ (GET, POST, etc.)
+    response = await call_next(request)
+    
+    # Додаємо CORS заголовки до фінальної відповіді, якщо Origin валідний
+    if origin in CORS_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        
+    return response
 
 
 # ================================
@@ -61,14 +90,18 @@ app.add_middleware(
 async def proxy_request(request: Request, target: str, path: str = ""):
     client: httpx.AsyncClient = request.app.state.client
 
-    # Формування URL
+    # Формування кінцевої URL-адреси мікросервісу
     url = f"{target}{path}"
 
-    # Отримання headers
+    # Отримуємо заголовки від фронтенду
     headers = dict(request.headers)
-    # headers.pop("host", None)
+    
+    # 1. КРИТИЧНО ДЛЯ DJANGO: Видаляємо заголовок Host.
+    # HTTPX сам підставить правильний Host (наприклад, product-service:8000),
+    # завдяки чому Django не буде лаятися на ALLOWED_HOSTS.
+    headers.pop("host", None)
 
-    # Отримання body для POST/PUT/PATCH
+    # Отримання body для POST/PUT/PATCH запитів
     body = None
     if request.method in ["POST", "PUT", "PATCH"]:
         body = await request.body()
@@ -78,7 +111,7 @@ async def proxy_request(request: Request, target: str, path: str = ""):
     logger.info(f"Proxying {request.method} {url}")
 
     try:
-        # Виконання запиту
+        # Виконуємо запит до внутрішнього мікросервісу
         response = await client.request(
             method=request.method,
             url=url,
@@ -87,13 +120,25 @@ async def proxy_request(request: Request, target: str, path: str = ""):
             params=params,
             follow_redirects=True,
         )
+        
+        # Копіюємо заголовки, які повернув мікросервіс (Django / Auth)
         response_headers = dict(response.headers)
 
-        # ВИДАЛЯЄМО "ПРОБЛЕМНІ" ЗАГОЛОВКИ
+        # 2. ОЧИЩЕННЯ ЗАГОЛОВКІВ БЕКЕНДУ
+        # Видаляємо службові заголовки, які HTTPX/FastAPI мають розрахувати самі
         response_headers.pop("content-encoding", None)
         response_headers.pop("content-length", None)
+        
+        # 3. ВИДАЛЯЄМО СЛУЖБОВІ CORS ЗАГОЛОВКИ БЕКЕНДУ (якщо вони там є)
+        # Це гарантує, що якщо Django чи Auth-service випадково викинуть свої
+        # CORS-заголовки, вони не завадять нашому Middleware виставити правильні.
+        response_headers.pop("access-control-allow-origin", None)
+        response_headers.pop("access-control-allow-credentials", None)
+        response_headers.pop("access-control-allow-methods", None)
+        response_headers.pop("access-control-allow-headers", None)
 
-        # Формування відповіді
+        # Повертаємо чисту відповідь. Глобальний Middleware сам перехопить її 
+        # і додасть правильний Access-Control-Allow-Origin для фронтенду.
         return Response(
             content=response.content,
             status_code=response.status_code,
@@ -106,7 +151,6 @@ async def proxy_request(request: Request, target: str, path: str = ""):
     except httpx.RequestError as e:
         logger.error(f"Proxy error: {e}")
         raise HTTPException(502, "Bad Gateway")
-
 
 # ================================
 #            ROUTES

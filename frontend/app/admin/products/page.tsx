@@ -19,7 +19,8 @@ import {
   Filter,
   Download,
 } from "lucide-react";
-import { productApi, type Product } from "~/lib/api/admin-api";
+import { productApi } from "~/lib/api/admin-api";
+import type { Product } from "~/lib/types";
 import { ConfirmDialog, TableSkeleton, StatsGridSkeleton } from "../components";
 import { useDebounce } from "~/lib/hooks/use-debounce";
 
@@ -36,13 +37,8 @@ export default function ProductsPage() {
   }>({ open: false, productId: null, productName: "" });
   const [deleting, setDeleting] = useState(false);
 
+  // Refetch when debounced search term changes
   useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  // Refetch when search term changes (debounced)
-  useEffect(() => {
-    if (debouncedSearchTerm !== searchTerm) return; // Only refetch when debounced value matches
     fetchProducts();
   }, [debouncedSearchTerm]);
 
@@ -112,13 +108,7 @@ export default function ProductsPage() {
     }
   };
 
-  // Filter products client-side (can be moved to server-side with API)
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.categoryName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  // Products are already filtered server-side via the debounced search term
   // Calculate stats
   const stats = {
     total: products.length,
@@ -128,7 +118,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -140,11 +130,11 @@ export default function ProductsPage() {
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2 flex items-center gap-3">
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <Package className="h-10 w-10 text-purple-600" />
                 Products Management
               </h1>
-              <p className="text-slate-600">Django REST Framework API Integration</p>
+              <p className="text-slate-600 dark:text-slate-400">Django REST Framework API Integration</p>
             </div>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -154,9 +144,9 @@ export default function ProductsPage() {
         </div>
 
         {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -165,27 +155,27 @@ export default function ProductsPage() {
           <StatsGridSkeleton count={4} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
+            <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600">Total Products</div>
-                <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">Total Products</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600">In Stock</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">In Stock</div>
                 <div className="text-2xl font-bold text-green-600">{stats.active}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600">Low Stock</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">Low Stock</div>
                 <div className="text-2xl font-bold text-orange-600">{stats.lowStock}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600">Total Value</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">Total Value</div>
                 <div className="text-2xl font-bold text-blue-600">
                   ${stats.totalValue.toFixed(2)}
                 </div>
@@ -195,12 +185,12 @@ export default function ProductsPage() {
         )}
 
         {/* Main Content */}
-        <Card>
+        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Product Catalog</CardTitle>
-                <CardDescription>Manage your inventory and pricing</CardDescription>
+                <CardTitle className="dark:text-slate-100">Product Catalog</CardTitle>
+                <CardDescription className="dark:text-slate-400">Manage your inventory and pricing</CardDescription>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm">
@@ -218,7 +208,7 @@ export default function ProductsPage() {
             {/* Search */}
             <div className="mb-6">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                 <Input
                   placeholder="Search products by name or category..."
                   value={searchTerm}
@@ -232,41 +222,41 @@ export default function ProductsPage() {
             {loading ? (
               <TableSkeleton rows={8} cols={7} />
             ) : (
-              <div className="border rounded-lg overflow-x-auto">
+              <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
                 <table className="w-full">
-                  <thead className="bg-slate-50 border-b">
+                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">ID</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">ID</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">
                         Product Name
                       </th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Category</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Price</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Stock</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Status</th>
-                      <th className="text-right p-4 text-sm font-medium text-slate-600">Actions</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Category</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Price</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Stock</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Status</th>
+                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProducts.length === 0 ? (
+                    {products.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-12 text-slate-500">
-                          <Package className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                        <td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                          <Package className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                           {searchTerm
                             ? "No products found matching your search"
                             : "No products available"}
                         </td>
                       </tr>
                     ) : (
-                      filteredProducts.map((product) => (
+                      products.map((product) => (
                         <tr
                           key={product.id}
-                          className="border-b hover:bg-slate-50 transition-colors"
+                          className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                         >
-                          <td className="p-4 font-medium text-slate-900">#{product.id}</td>
-                          <td className="p-4 font-medium">{product.name}</td>
-                          <td className="p-4 text-slate-600">{product.categoryName || "N/A"}</td>
-                          <td className="p-4 font-semibold text-slate-900">
+                          <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{product.id}</td>
+                          <td className="p-4 font-medium dark:text-slate-200">{product.name}</td>
+                          <td className="p-4 text-slate-600 dark:text-slate-400">{product.categoryName || "N/A"}</td>
+                          <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">
                             ${product.price.toFixed(2)}
                           </td>
                           <td className="p-4">

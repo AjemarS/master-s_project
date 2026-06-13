@@ -47,7 +47,7 @@ export default function UsersPage() {
   }, [searchTerm]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -59,11 +59,11 @@ export default function UsersPage() {
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2 flex items-center gap-3">
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <Users className="h-10 w-10 text-blue-600" />
                 Users Management
               </h1>
-              <p className="text-slate-600">Better-Auth Admin Plugin Integration</p>
+              <p className="text-slate-600 dark:text-slate-400">Better-Auth Admin Plugin Integration</p>
             </div>
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -73,39 +73,39 @@ export default function UsersPage() {
         </div>
 
         {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
+          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600">Total Users</div>
-              <div className="text-2xl font-bold text-slate-900">{users.length}</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Total Users</div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{users.length}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600">Active</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Active</div>
               <div className="text-2xl font-bold text-green-600">
                 {users.filter((u) => !u.banned).length}
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600">Banned</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Banned</div>
               <div className="text-2xl font-bold text-red-600">
                 {users.filter((u) => u.banned).length}
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600">Admins</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Admins</div>
               <div className="text-2xl font-bold text-purple-600">
                 {users.filter((u) => u.role === "admin").length}
               </div>
@@ -114,12 +114,12 @@ export default function UsersPage() {
         </div>
 
         {/* Main Content */}
-        <Card>
+        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>User Accounts</CardTitle>
-                <CardDescription>
+                <CardTitle className="dark:text-slate-100">User Accounts</CardTitle>
+                <CardDescription className="dark:text-slate-400">
                   Manage user roles, permissions, and account status
                 </CardDescription>
               </div>
@@ -129,7 +129,7 @@ export default function UsersPage() {
             {/* Search  */}
             <div className="mb-6">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                 <Input
                   placeholder="Search users by name, email, or role..."
                   value={searchTerm}
@@ -141,28 +141,28 @@ export default function UsersPage() {
 
             {/* Table */}
             {loading ? (
-              <div className="text-center py-12 text-slate-500">
-                <Users className="h-12 w-12 mx-auto mb-4 animate-pulse text-slate-300" />
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                <Users className="h-12 w-12 mx-auto mb-4 animate-pulse text-slate-300 dark:text-slate-600" />
                 Loading users...
               </div>
             ) : (
-              <div className="border rounded-lg overflow-x-auto">
+              <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
                 <table className="w-full">
-                  <thead className="bg-slate-50 border-b">
+                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">User</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Email</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Role</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Status</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600">Joined</th>
-                      <th className="text-right p-4 text-sm font-medium text-slate-600">Actions</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">User</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Email</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Role</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Status</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Joined</th>
+                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {users.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-12 text-slate-500">
-                          <Users className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                        <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                          <Users className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                           {searchTerm
                             ? "No users found matching your search"
                             : "No users available"}
@@ -170,24 +170,24 @@ export default function UsersPage() {
                       </tr>
                     ) : (
                       users.map((user) => (
-                        <tr key={user.id} className="border-b hover:bg-slate-50 transition-colors">
+                        <tr key={user.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
                                 {user.name?.charAt(0).toUpperCase() || "U"}
                               </div>
                               <div>
-                                <div className="font-medium text-slate-900">
+                                <div className="font-medium text-slate-900 dark:text-slate-100">
                                   {user.name || "Unknown"}
                                 </div>
-                                <div className="text-sm text-slate-500">
+                                <div className="text-sm text-slate-500 dark:text-slate-400">
                                   {user.id.slice(0, 8)}...
                                 </div>
                               </div>
                             </div>
                           </td>
                           <td className="p-4">
-                            <div className="flex items-center gap-2 text-slate-600">
+                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                               <Mail className="h-4 w-4" />
                               {user.email}
                             </div>
@@ -220,7 +220,7 @@ export default function UsersPage() {
                               </Badge>
                             )}
                           </td>
-                          <td className="p-4 text-slate-600">
+                          <td className="p-4 text-slate-600 dark:text-slate-400">
                             <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               {new Date(user.createdAt).toLocaleDateString()}
@@ -245,7 +245,7 @@ export default function UsersPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="border-green-600 text-green-600 hover:bg-green-50"
+                                  className="border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
                                   onClick={() => adminService.unbanUser(user.id)}
                                   title="Unban user"
                                 >
@@ -255,7 +255,7 @@ export default function UsersPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                                  className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
                                   onClick={() => {
                                     const reason = prompt("Ban reason:");
                                     if (reason) adminService.banUser(user.id, reason);
@@ -276,12 +276,12 @@ export default function UsersPage() {
             )}
 
             {/* Better-Auth Admin Features Info */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
+                <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-1">Better-Auth Admin Features</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-1">Better-Auth Admin Features</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
                     <li>• List all users with detailed information</li>
                     <li>• Ban/Unban users with optional reason and expiry</li>
                     <li>• Set user roles (admin, user, etc.)</li>

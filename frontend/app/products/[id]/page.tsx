@@ -7,7 +7,8 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { useCart } from "~/lib/hooks/use-cart";
-import {  ProductDetail } from "~/lib/types";
+import { ProductDetail } from "~/lib/types";
+import { productApi } from "~/lib/api/admin-api";
 import { Button } from "~/ui/primitives/button";
 import { Separator } from "~/ui/primitives/separator";
 
@@ -45,28 +46,27 @@ export default function ProductDetailPage() {
   React.useEffect(() => {
     async function fetchProduct() {
       try {
-        const response = await fetch(`http://localhost/api/products/${id}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await productApi.getById(Number(id));
 
-        if (!response.ok) {
-          throw new Error(`Response status: ${response.status}`);
+        if (response.error) {
+          throw new Error(response.error.message);
         }
 
-        const data = await response.json();
+        if (response.data) {
+          // Transform input data as needed
+          const data = response.data as unknown as ProductDetail;
+          const product: ProductDetail = {
+            ...data,
+            price: Number(data.price),
+            originalPrice: Number(data.originalPrice),
+            rating: Number(data.rating),
+            features: data.features ?? [],
+            specs: data.specs ?? {},
+            image: data.image ?? "",
+          };
 
-        // Transform input data as needed
-        const product: ProductDetail = {
-          ...data,
-          price: Number(data.price),
-          originalPrice: Number(data.originalPrice),
-          rating: Number(data.rating),
-        };
-
-        setProduct(product);
+          setProduct(product);
+        }
       } catch (error) {
         console.error(error);
       }
@@ -99,8 +99,8 @@ export default function ProductDetailPage() {
     addItem(
       {
         category: product.category.name,
-        id: product.id,
-        image: product.image,
+        id: String(product.id),
+        image: product.image ?? "",
         name: product.name,
         price: product.price,
       },
@@ -172,7 +172,7 @@ export default function ProductDetailPage() {
                 className="object-cover"
                 fill
                 priority
-                src={product.image}
+                src={product.image || ""}
                 unoptimized
               />
               {discountPercentage > 0 && (
