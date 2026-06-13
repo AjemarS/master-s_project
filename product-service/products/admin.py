@@ -13,8 +13,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "price",
-        "originalPrice",
-        "inStock",
+        "original_price",
+        "in_stock",
         "category",
         "features",
         "specs",
@@ -24,4 +24,4 @@ class ProductAdmin(admin.ModelAdmin):
     ]
     # list_filter = ["category", "created_at"]
     # search_fields = ["name", "description"]
-    # list_editable = ["price", "originalPrice", "inStock", "features", "specs", "rating"]
+    # list_editable = ["price", "original_price", "in_stock", "features", "specs", "rating"]

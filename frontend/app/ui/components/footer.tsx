@@ -24,7 +24,7 @@ export function Footer({ className }: { className?: string }) {
             <Link className="flex items-center gap-2" href="/">
               <span
                 className={`
-                  bg-gradient-to-r from-primary to-primary/70 bg-clip-text
+                  bg-linear-to-r from-primary to-primary/70 bg-clip-text
                   text-xl font-bold tracking-tight text-transparent
                 `}
               >
