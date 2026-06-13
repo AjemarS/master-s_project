@@ -24,24 +24,25 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "~/ui/primitives/sheet";
+import { useCart } from "~/lib/hooks/use-cart";
 
-export interface CartItem {
-  category: string;
-  id: string;
-  image: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
+export type { CartItem } from "~/lib/hooks/use-cart";
 
 interface CartProps {
   className?: string;
-  mockCart: CartItem[];
 }
 
-export function CartClient({ className, mockCart }: CartProps) {
+export function CartClient({ className }: CartProps) {
+  const {
+    items: cartItems,
+    itemCount: totalItems,
+    subtotal,
+    updateQuantity,
+    removeItem,
+    clearCart,
+  } = useCart();
+
   const [isOpen, setIsOpen] = React.useState(false);
-  const [cartItems, setCartItems] = React.useState<CartItem[]>(mockCart);
   const [isMounted, setIsMounted] = React.useState(false);
   const isDesktop = typeof window !== "undefined" ? window.innerWidth >= 768 : false;
   
@@ -49,27 +50,17 @@ export function CartClient({ className, mockCart }: CartProps) {
     setIsMounted(true);
   }, []);
 
-  const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotal = cartItems.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0,
-  );
-
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item,
-      ),
-    );
+    updateQuantity(id, newQuantity);
   };
 
   const handleRemoveItem = (id: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+    removeItem(id);
   };
 
   const handleClearCart = () => {
-    setCartItems([]);
+    clearCart();
   };
 
   const CartTrigger = (

@@ -9,10 +9,10 @@ class ProductFilter(filters.FilterSet):
     min_stock = filters.NumberFilter(field_name="stock", lookup_expr="gte")
     max_stock = filters.NumberFilter(field_name="stock", lookup_expr="lte")
     category = filters.NumberFilter(field_name="category__id")
-    inStock = filters.BooleanFilter(field_name="inStock")
+    in_stock = filters.BooleanFilter(field_name="in_stock")
     created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
     created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
 
     class Meta:
         model = Product
-        fields = ["name", "category", "inStock"]
+        fields = ["name", "category", "in_stock"]

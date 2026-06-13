@@ -12,8 +12,8 @@ import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
 
 type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
-  onAddToCart?: (productId: string) => void;
-  onAddToWishlist?: (productId: string) => void;
+  onAddToCart?: (productId: number) => void;
+  onAddToWishlist?: (productId: number) => void;
   product: Product;
   variant?: "compact" | "default";
 };

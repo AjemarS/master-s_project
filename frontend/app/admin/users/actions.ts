@@ -1,12 +1,12 @@
 import { authClient } from "~/lib/auth-client";
 
 export const adminService = {
-  /** Отримати список користувачів */
+  /** List all users */
   async listUsers(query: Parameters<typeof authClient.admin.listUsers>[0]["query"]) {
     return await authClient.admin.listUsers({ query });
   },
 
-  /** Забанити користувача */
+  /** Ban a user */
   async banUser(userId: string, reason?: string) {
     const payload = {
       userId,
@@ -16,7 +16,7 @@ export const adminService = {
     return await authClient.admin.banUser(payload);
   },
 
-  /** Розбанити користувача */
+  /** Unban a user */
   async unbanUser(userId: string) {
     const payload = {
       userId,
@@ -25,7 +25,7 @@ export const adminService = {
     return await authClient.admin.unbanUser(payload);
   },
 
-  /** Встановити роль користувачу */
+  /** Set a user's role */
   async setUserRole(userId: string, role: "user" | "admin") {
     const payload = {
       userId,
@@ -35,7 +35,7 @@ export const adminService = {
     return await authClient.admin.setRole(payload);
   },
 
-  // /** Видалити користувача */
+  // /** Delete a user */
   // async removeUser(userId: string) {
   //   const payload = {
   //     userId,

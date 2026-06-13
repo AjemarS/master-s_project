@@ -21,10 +21,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600" />
-          <p className="text-slate-600">Checking admin access...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600 dark:text-slate-400" />
+          <p className="text-slate-600 dark:text-slate-400">Checking admin access...</p>
         </div>
       </div>
     );
@@ -32,10 +32,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8">
-        <Alert className="max-w-md border-red-200 bg-red-50">
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-8">
+        <Alert className="max-w-md border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+          <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+          <AlertDescription className="text-red-800 dark:text-red-300">
             You must be logged in to access the admin panel.
           </AlertDescription>
         </Alert>
@@ -45,10 +45,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (user.role !== "admin") {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-8">
-        <Alert className="max-w-md border-orange-200 bg-orange-50">
-          <AlertCircle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-8">
+        <Alert className="max-w-md border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20">
+          <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <AlertDescription className="text-orange-800 dark:text-orange-300">
             You don&apos;t have permission to access the admin panel. Admin role required.
             Redirecting...
           </AlertDescription>
@@ -60,7 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />
-      <main className="flex-1 overflow-y-auto bg-slate-50/50">
+      <main className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50">
         {children}
       </main>
     </div>
