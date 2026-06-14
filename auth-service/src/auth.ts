@@ -13,7 +13,12 @@ export const auth = betterAuth({
 
   trustedOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:3001"],
   appName: "Store",
-  plugins: [admin({ adminUserIds: ["3KzQAtJSMENIre4qto5e46d2bB2UXWsX"] }), twoFactor()],
+  plugins: [
+    admin({
+      adminUserIds: (process.env.ADMIN_USER_IDS || "3KzQAtJSMENIre4qto5e46d2bB2UXWsX").split(","),
+    }),
+    twoFactor(),
+  ],
 
   // Email + Password автентифікація
   emailAndPassword: {

@@ -8,6 +8,14 @@ import { Input } from "~/ui/primitives/input";
 import { Badge } from "~/ui/primitives/badge";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/ui/primitives/dialog";
+import {
   Users,
   Search,
   Plus,
@@ -28,6 +36,17 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
+  const [banDialog, setBanDialog] = useState<{
+    open: boolean;
+    userId: string | null;
+    reason: string;
+  }>({ open: false, userId: null, reason: "" });
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -234,9 +253,21 @@ export default function UsersPage() {
                                 title="Change role"
                                 onClick={() => {
                                   const newRole = user.role === "admin" ? "user" : "admin";
-                                  if (confirm(`Change role to ${newRole}?`)) {
-                                    adminService.setUserRole(user.id, newRole);
-                                  }
+                                  setConfirmDialog({
+                                    open: true,
+                                    title: "Change User Role",
+                                    description: `Are you sure you want to change ${user.name || user.email}'s role to "${newRole}"?`,
+                                    onConfirm: () => {
+                                      adminService.setUserRole(user.id, newRole).then(() => {
+                                        setUsers((prev) =>
+                                          prev.map((u) =>
+                                            u.id === user.id ? { ...u, role: newRole } : u
+                                          )
+                                        );
+                                      });
+                                      setConfirmDialog((prev) => ({ ...prev, open: false }));
+                                    },
+                                  });
                                 }}
                               >
                                 <UserCog className="h-4 w-4" />
@@ -246,7 +277,23 @@ export default function UsersPage() {
                                   size="sm"
                                   variant="outline"
                                   className="border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
-                                  onClick={() => adminService.unbanUser(user.id)}
+                                  onClick={() => {
+                                    setConfirmDialog({
+                                      open: true,
+                                      title: "Unban User",
+                                      description: `Are you sure you want to unban ${user.name || user.email}?`,
+                                      onConfirm: () => {
+                                        adminService.unbanUser(user.id).then(() => {
+                                          setUsers((prev) =>
+                                            prev.map((u) =>
+                                              u.id === user.id ? { ...u, banned: false } : u
+                                            )
+                                          );
+                                        });
+                                        setConfirmDialog((prev) => ({ ...prev, open: false }));
+                                      },
+                                    });
+                                  }}
                                   title="Unban user"
                                 >
                                   <CheckCircle className="h-4 w-4" />
@@ -257,8 +304,7 @@ export default function UsersPage() {
                                   variant="outline"
                                   className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
                                   onClick={() => {
-                                    const reason = prompt("Ban reason:");
-                                    if (reason) adminService.banUser(user.id, reason);
+                                    setBanDialog({ open: true, userId: user.id, reason: "" });
                                   }}
                                   title="Ban user"
                                 >
@@ -293,6 +339,79 @@ export default function UsersPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Confirm Dialog for Role Change / Unban */}
+        <Dialog
+          open={confirmDialog.open}
+          onOpenChange={(open) => setConfirmDialog((prev) => ({ ...prev, open }))}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{confirmDialog.title}</DialogTitle>
+              <DialogDescription>{confirmDialog.description}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+              >
+                Cancel
+              </Button>
+              <Button variant="default" onClick={confirmDialog.onConfirm}>
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Ban Dialog */}
+        <Dialog
+          open={banDialog.open}
+          onOpenChange={(open) => setBanDialog((prev) => ({ ...prev, open }))}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Ban User</DialogTitle>
+              <DialogDescription>
+                Enter a reason for banning this user. This will be logged for audit purposes.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="Reason for ban (required)"
+                value={banDialog.reason}
+                onChange={(e) => setBanDialog((prev) => ({ ...prev, reason: e.target.value }))}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setBanDialog({ open: false, userId: null, reason: "" })}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!banDialog.reason.trim()}
+                onClick={() => {
+                  if (banDialog.userId && banDialog.reason.trim()) {
+                    adminService.banUser(banDialog.userId, banDialog.reason).then(() => {
+                      setUsers((prev) =>
+                        prev.map((u) =>
+                          u.id === banDialog.userId ? { ...u, banned: true } : u
+                        )
+                      );
+                    });
+                    setBanDialog({ open: false, userId: null, reason: "" });
+                  }
+                }}
+              >
+                Ban User
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

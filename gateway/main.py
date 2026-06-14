@@ -1,11 +1,10 @@
-from xmlrpc import client
-
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import httpx
 import os
 import logging
+import json
 
 # ================================
 #           ЛОГУВАННЯ
@@ -82,6 +81,52 @@ async def secure_cors_and_options_middleware(request: Request, call_next):
         response.headers["Access-Control-Allow-Credentials"] = "true"
         
     return response
+
+
+# ================================
+#     AUTH VERIFICATION HELPERS
+# ================================
+
+async def verify_session(request: Request) -> dict | None:
+    """
+    Перевіряє сесію користувача через auth-service.
+    Повертає user dict або None, якщо не автентифікований.
+    """
+    client: httpx.AsyncClient = request.app.state.client
+    cookie_header = request.headers.get("cookie", "")
+    
+    if not cookie_header:
+        return None
+
+    try:
+        auth_response = await client.get(
+            f"{AUTH_SERVICE_URL}/auth/me",
+            headers={"cookie": cookie_header},
+            timeout=5.0,
+        )
+        if auth_response.status_code == 200:
+            data = auth_response.json()
+            return data.get("user") if data else None
+        return None
+    except Exception as e:
+        logger.warning(f"Session verification failed: {e}")
+        return None
+
+
+async def require_auth(request: Request, require_admin: bool = False):
+    """
+    Middleware helper: перевіряє автентифікацію та опціонально роль admin.
+    Кидає HTTPException при невдачі.
+    """
+    user = await verify_session(request)
+    
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if require_admin and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return user
 
 
 # ================================
@@ -188,8 +233,18 @@ async def health():
 
 
 # Products
+# Public read access, authenticated write access
+# Only admin users can create/update/delete products
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy_products(request: Request, path: str):
+    # Read operations are public
+    if request.method in ["GET", "HEAD", "OPTIONS"]:
+        return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}")
+
+    # Write operations require authentication + admin role
+    # This protects the entire product CRUD API from unauthorized modifications
+    await require_auth(request, require_admin=True)
+
     return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}")
 
 
@@ -212,7 +267,7 @@ async def proxy_auth_me(request: Request):
 # Frontend
 @app.api_route("/{path:path}", methods=["GET"])
 async def proxy_frontend(request: Request, path: str):
-    # уникаємо конфліктів
+    # avoid conflicts
     if path.startswith(("api/", "auth/", "media/")):
         raise HTTPException(404, detail="Not Found")
 

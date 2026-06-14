@@ -5,6 +5,11 @@ import { auth } from "./auth";
 import dotenv from "dotenv";
 import { twoFactorRoutes } from "./routes/twoFactorRoutes";
 import { usersRoutes } from "./routes/usersRoutes";
+import {
+  checkLoginRateLimit,
+  recordFailedAttempt,
+  resetLoginRateLimit,
+} from "./middleware/rateLimiter";
 
 dotenv.config();
 
@@ -25,6 +30,57 @@ app.get("/health", (req, res) => {
   res.json({ status: "healthy", service: "auth-service" });
 });
 
+// Brute-force protection: intercept all sign-in related routes
+// This middleware runs before BetterAuth's handler gets the request
+app.use("/auth/sign-in", (req: Request, res: Response, next: NextFunction) => {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+
+  // Check rate limit before allowing the request
+  const { allowed, retryAfter } = checkLoginRateLimit(ip);
+
+  if (!allowed) {
+    return res.status(429).json({
+      error: {
+        message: `Too many login attempts. Please try again in ${retryAfter} seconds.`,
+        status: 429,
+      },
+    });
+  }
+
+  // Override res.end to intercept the response from BetterAuth
+  const originalEnd = res.end.bind(res);
+  const originalJson = res.json.bind(res);
+
+  res.end = function (this: Response, chunk?: any) {
+    // Try to parse response body to check for error
+    if (chunk) {
+      try {
+        const parsed = JSON.parse(chunk.toString());
+        if (parsed?.error) {
+          recordFailedAttempt(ip);
+        } else {
+          resetLoginRateLimit(ip);
+        }
+      } catch {
+        // Not JSON, ignore
+      }
+    }
+    return originalEnd.call(this, chunk as Parameters<Response["end"]>[0]);
+  } as typeof res.end;
+
+  // Also intercept json in case BetterAuth uses it
+  res.json = function (this: Response, body: any) {
+    if (body?.error) {
+      recordFailedAttempt(ip);
+    } else {
+      resetLoginRateLimit(ip);
+    }
+    return originalJson.call(this, body as Parameters<Response["json"]>[0]);
+  } as typeof res.json;
+
+  next();
+});
+
 app.use("/auth/two-factor", twoFactorRoutes);
 
 app.use("/auth/admin", requireAdmin, usersRoutes);
@@ -39,9 +95,6 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
       return res.status(403).json({ message: "Access denied. Admin only." });
     }
 
-    // Attach user to request if needed, though express types might complain
-    // (req as any).user = session.user;
-    
     next();
   } catch (error) {
     console.error("Admin check failed", error);
@@ -49,7 +102,7 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-// Захищений endpoint для перевірки сесії
+// Protected endpoint for session verification
 app.get("/auth/me", async (req, res) => {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
@@ -57,7 +110,7 @@ app.get("/auth/me", async (req, res) => {
   return res.json(session);
 });
 
-// Better Auth routes - всі маршрути автентифікації
+// Better Auth routes - all authentication routes
 app.all("/auth/*", toNodeHandler(auth));
 
 app.all("/", async (req, res) => {
