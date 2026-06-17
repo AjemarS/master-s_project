@@ -23,8 +23,12 @@ export async function proxy(request: NextRequest) {
     // Forward cookies to check session
     const cookieHeader = request.headers.get("cookie") || "";
     
-    // Use the existing /auth/me endpoint that returns the session
-    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:3001/auth";
+    // Use a server-side URL through gateway.
+    // PROXY_AUTH_URL (server-side, through gateway, set in docker-compose)
+    //   → Docker: http://gateway:8080/auth
+    //   → Local:  http://localhost/auth
+    // NEXT_PUBLIC_AUTH_URL (browser-facing, through gateway, for backwards compat)
+    const authUrl = process.env.PROXY_AUTH_URL || process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth";
     const response = await fetch(`${authUrl}/me`, {
       headers: { cookie: cookieHeader },
       // Don't follow redirects

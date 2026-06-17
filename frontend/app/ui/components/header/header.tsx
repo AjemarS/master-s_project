@@ -60,7 +60,10 @@ export function Header({ showAuth = true }: HeaderProps) {
   // shouldn't be in the matched section (e.g. non-admin on /admin/*).
   let whereAmI: NavigationSection = "main";
   if (matchedRule) {
-    if (matchedRule.where === "admin" && user?.role === "admin") {
+    if (matchedRule.where === "admin") {
+      // Set admin nav immediately while session loads, instead of flashing main nav.
+      // If session resolves and user isn't admin, the proxy will have already
+      // redirected them away — so this state is unreachable for non-admins.
       whereAmI = "admin";
     } else if (matchedRule.where === "dashboard" && user) {
       whereAmI = "dashboard";

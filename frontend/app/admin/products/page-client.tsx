@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -42,23 +42,9 @@ export default function AdminProductsClient({
     productName: string;
   }>({ open: false, productId: null, productName: "" });
   const [deleting, setDeleting] = useState(false);
+  const hasRetriedRef = useRef(false);
 
-  // Refetch when debounced search term changes, or fallback-fetch
-  // when the server-side fetch (in Docker) returned empty data.
-  useEffect(() => {
-    if (debouncedSearchTerm) {
-      fetchProducts();
-    } else if (initialProducts.length === 0 && !loading) {
-      // Server-side fetch likely failed (e.g. inside Docker where
-      // localhost doesn't resolve to the gateway).  Retry from the
-      // browser where the client-side URL works.
-      fetchProducts();
-    } else {
-      setProducts(initialProducts);
-    }
-  }, [debouncedSearchTerm]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -84,7 +70,29 @@ export default function AdminProductsClient({
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearchTerm]);
+
+  // Refetch when debounced search term changes, or fallback-fetch
+  // when the server-side fetch (in Docker) returned empty data.
+  useEffect(() => {
+    if (debouncedSearchTerm) {
+      fetchProducts();
+      return;
+    }
+
+    if (initialProducts.length > 0) {
+      setProducts(initialProducts);
+      return;
+    }
+
+    // Server returned empty — retry from browser once.
+    // initialProducts is from the server component and won't change,
+    // so this runs at most once per mount.
+    if (!hasRetriedRef.current) {
+      hasRetriedRef.current = true;
+      fetchProducts();
+    }
+  }, [debouncedSearchTerm, fetchProducts, initialProducts]);
 
   const handleDeleteClick = (product: Product) => {
     setDeleteDialog({

@@ -6,8 +6,8 @@ import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-w
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
 
-import { testimonials } from "./mocks";
-import { Category } from "./lib/types";
+import { testimonials } from "../mocks";
+import { Category } from "../lib/types";
 
 const featuresWhyChooseUs = [
   {
@@ -194,7 +194,7 @@ export default async function HomePage() {
                 Join thousands of satisfied customers and experience the best tech products on the market. Sign up today for exclusive deals and offers.
               </p>
               <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Link href="/auth/sign-up">
+                <Link href="/sign-up">
                   <Button className="h-12 px-8 transition-colors duration-200" size="lg">Sign Up Now</Button>
                 </Link>
                 <Link href="/products">
