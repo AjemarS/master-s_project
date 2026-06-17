@@ -9,6 +9,7 @@ work correctly.
 """
 
 import logging
+
 from django.contrib.auth import get_user_model
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
