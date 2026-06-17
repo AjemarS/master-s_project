@@ -103,7 +103,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: npm run dev
+    command: sh -c "npm run migrate && npm run dev"
     networks:
       - microservices_network
 
@@ -139,6 +139,7 @@ services:
       - NODE_ENV=${NODE_ENV}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_AUTH_URL=${NEXT_PUBLIC_AUTH_URL}
+      - API_SERVICE_URL=${API_SERVICE_URL}
     volumes:
       - ./frontend:/app
       - /app/node_modules

@@ -9,7 +9,7 @@ import logger from "../logger";
 
 // Redis connection
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-const redis = new Redis(REDIS_URL, {
+export const redisClient = new Redis(REDIS_URL, {
   maxRetriesPerRequest: 3,
   retryStrategy(times) {
     const delay = Math.min(times * 200, 2000);
@@ -18,11 +18,11 @@ const redis = new Redis(REDIS_URL, {
   lazyConnect: true,
 });
 
-redis.on("error", (err) => {
+redisClient.on("error", (err) => {
   logger.error("Redis connection error", { error: err.message });
 });
 
-redis.on("connect", () => {
+redisClient.on("connect", () => {
   logger.info("Redis connected for rate limiting");
 });
 
@@ -46,7 +46,7 @@ export async function checkLoginRateLimit(ip: string): Promise<{
 }> {
   // Check if currently blocked
   const blockKey = `${BLOCK_KEY}${ip}`;
-  const blockTTL = await redis.ttl(blockKey);
+  const blockTTL = await redisClient.ttl(blockKey);
 
   if (blockTTL > 0) {
     return { allowed: false, retryAfter: blockTTL };
@@ -67,9 +67,9 @@ export async function recordFailedAttempt(ip: string): Promise<{
   const blockKey = `${BLOCK_KEY}${ip}`;
 
   // Increment attempt count (expires after 1 hour of inactivity)
-  const count = await redis.incr(attemptKey);
+  const count = await redisClient.incr(attemptKey);
   if (count === 1) {
-    await redis.expire(attemptKey, 3600); // 1 hour window
+    await redisClient.expire(attemptKey, 3600); // 1 hour window
   }
 
   // Determine block duration based on count
@@ -86,7 +86,7 @@ export async function recordFailedAttempt(ip: string): Promise<{
   }
 
   if (blockDuration) {
-    await redis.setex(blockKey, blockDuration, "1");
+    await redisClient.setex(blockKey, blockDuration, "1");
     return { blocked: true, blockDuration };
   }
 
@@ -100,7 +100,7 @@ export async function resetLoginRateLimit(ip: string): Promise<void> {
   const attemptKey = `${ATTEMPT_KEY}${ip}`;
   const blockKey = `${BLOCK_KEY}${ip}`;
 
-  await Promise.all([redis.del(attemptKey), redis.del(blockKey)]);
+  await Promise.all([redisClient.del(attemptKey), redisClient.del(blockKey)]);
 }
 
 /**
@@ -108,7 +108,7 @@ export async function resetLoginRateLimit(ip: string): Promise<void> {
  */
 export async function initRateLimiter(): Promise<void> {
   try {
-    await redis.connect();
+    await redisClient.connect();
   } catch (err) {
     logger.warn("Rate limiter running in degraded mode (Redis unavailable)", {
       error: (err as Error).message,

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import ProductDetailClient from "./page-client"
 import { ProductDetail } from "~/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
+const API_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 
 async function getProduct(id: string): Promise<ProductDetail | null> {
   try {

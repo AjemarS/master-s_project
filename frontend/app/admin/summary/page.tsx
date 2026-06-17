@@ -1,7 +1,7 @@
 import SummaryPageClient from "./page-client";
 import type { Product } from "~/lib/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
+const API_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 
 async function getInitialProducts(): Promise<Product[]> {
   try {
