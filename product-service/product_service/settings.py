@@ -170,7 +170,7 @@ LOGGING = {
 }
 
 CORS_ALLOWED_ORIGINS = [x.strip() for x in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost").split(",")]
-CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost").split(",")]
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")]
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_COOKIE_SECURE = not DEBUG

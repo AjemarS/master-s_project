@@ -12,6 +12,7 @@ import {
   resetLoginRateLimit,
   initRateLimiter,
 } from "./middleware/rateLimiter";
+import onFinished from "on-finished";
 
 dotenv.config();
 
@@ -73,51 +74,49 @@ app.use("/auth/sign-in/email", async (req: Request, res: Response, next: NextFun
   // Check rate limit before allowing the request (with error handling)
   let allowed: boolean;
   let retryAfter: number | undefined;
+  let redisDown = false;
   try {
     const result = await checkLoginRateLimit(ip);
     allowed = result.allowed;
     retryAfter = result.retryAfter;
   } catch (err) {
-    logger.error("Rate limit check failed", { error: (err as Error).message, ip });
-    allowed = true; // Fail open — allow if rate limiter unavailable
-    retryAfter = undefined;
+    logger.error("Rate limit check failed — blocking request as safety measure", {
+      error: (err as Error).message,
+      ip,
+    });
+    allowed = false;  // Fail-closed: block if Redis is unavailable
+    retryAfter = 30;  // 30-second back-off
+    redisDown = true;
   }
 
   if (!allowed) {
     return res.status(429).json({
       error: {
-        message: `Too many login attempts. Please try again in ${retryAfter} seconds.`,
+        message: redisDown
+          ? "Service temporarily unavailable. Please try again shortly."
+          : `Too many login attempts. Please try again in ${retryAfter} seconds.`,
         status: 429,
       },
     });
   }
 
-  const originalEnd = res.end.bind(res);
-  const originalJson = res.json.bind(res);
+  // Track the response body to detect success/failure
+  let responseBody: any = undefined;
 
-  res.end = function (this: Response, ...args: any[]) {
-    const chunk = args[0];
-    if (chunk) {
-      try {
-        const parsed = JSON.parse(Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk));
-        if (parsed?.code) {
-          recordFailedAttempt(ip).catch(() => {});
-        } else if (parsed?.token || parsed?.user) {
-          resetLoginRateLimit(ip).catch(() => {});
-        }
-      } catch {
-        // Not JSON, ignore
-      }
-    }
-    return originalEnd.apply(this, args as any);
-  } as typeof res.end;
+  onFinished(res, () => {
+    if (!responseBody) return;
 
-  res.json = function (this: Response, body: any) {
-    if (body?.code) {
+    if (responseBody?.code) {
       recordFailedAttempt(ip).catch(() => {});
-    } else if (body?.token || body?.user) {
+    } else if (responseBody?.token || responseBody?.user) {
       resetLoginRateLimit(ip).catch(() => {});
     }
+  });
+
+  // Intercept res.json to capture the body for onFinished
+  const originalJson = res.json.bind(res);
+  res.json = function (this: Response, body: any) {
+    responseBody = body;
     return originalJson.call(this, body);
   } as typeof res.json;
 

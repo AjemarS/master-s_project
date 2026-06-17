@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .cart_models import Cart, CartItem
 from .cart_serializers import CartSerializer, CartItemSerializer
 from .models import Product
@@ -9,18 +10,17 @@ from .models import Product
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        user_id = self.request.headers.get("X-Gateway-User-Id")
-        if not user_id:
+        if not self.request.user.is_authenticated:
             return Cart.objects.none()
-        return Cart.objects.filter(user_id=user_id).prefetch_related("items__product")
+        return Cart.objects.filter(user_id=self.request.user.id).prefetch_related("items__product")
 
     def get_cart(self):
-        user_id = self.request.headers.get("X-Gateway-User-Id")
-        if not user_id:
+        if not self.request.user.is_authenticated:
             return None
-        cart, _ = Cart.objects.get_or_create(user_id=user_id)
+        cart, _ = Cart.objects.get_or_create(user_id=self.request.user.id)
         return cart
 
     def list(self, request, *args, **kwargs):
@@ -106,7 +106,7 @@ class CartViewSet(viewsets.ModelViewSet):
         if not cart:
             return Response({"error": "Authentication required"}, status=401)
 
-        cart.objects.all().delete()
+        CartItem.objects.filter(cart=cart).delete()
         return Response({"message": "Cart cleared"})
 
     @action(detail=False, methods=["post"])
