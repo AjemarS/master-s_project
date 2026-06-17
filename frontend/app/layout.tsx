@@ -4,8 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./lib/css/globals.css";
 
 import { CartProvider } from "~/lib/hooks/use-cart";
-import { Footer } from "~/ui/components/footer";
-import { Header } from "~/ui/components/header/header";
 import { ThemeProvider } from "~/ui/components/theme-provider";
 import { Toaster } from "~/ui/primitives/sonner";
 
@@ -48,9 +46,7 @@ export default function RootLayout({
           enableSystem
         >
           <CartProvider>
-            <Header showAuth={true} />
-            <main className={`flex min-h-screen flex-col`}>{children}</main>
-            <Footer />
+            {children}
             <Toaster />
           </CartProvider>
         </ThemeProvider>

@@ -103,8 +103,8 @@ export function HeaderUserDropdown({
             isDashboard
               ? "text-red-600"
               : `
-                txt-destructive
-                focus:text-destrctive
+                text-destructive
+                focus:text-destructive
               `
           )}
         >

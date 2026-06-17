@@ -140,6 +140,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_AUTH_URL=${NEXT_PUBLIC_AUTH_URL}
       - API_SERVICE_URL=${API_SERVICE_URL}
+      - PROXY_AUTH_URL=${PROXY_AUTH_URL}
     volumes:
       - ./frontend:/app
       - /app/node_modules
