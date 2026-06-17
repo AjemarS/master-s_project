@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 import { useCart } from "~/lib/hooks/use-cart";
+import { getImageUrl } from "~/lib/utils/image-url";
 import { Product } from "~/lib/types";
 import { ProductCard } from "~/ui/components/product-card";
 import { Button } from "~/ui/primitives/button";
@@ -37,9 +38,9 @@ export default function ProductsPageContent() {
   /* ----------------------- Categories (derived) ------------------------- */
   const queryCategory = params.get("category");
   const initialCategory = queryCategory
-    ? (queryCategory.charAt(0).toUpperCase() + queryCategory.slice(1)) as Product["categoryName"]
+    ? (queryCategory.charAt(0).toUpperCase() + queryCategory.slice(1)) as Product["category_name"]
     : "All";
-  const [selectedCategory, setSelectedCategory] = React.useState<Product["categoryName"]>(initialCategory);
+  const [selectedCategory, setSelectedCategory] = React.useState<Product["category_name"]>(initialCategory);
 
   React.useEffect(() => {
     async function fetchProducts() {
@@ -52,11 +53,10 @@ export default function ProductsPageContent() {
         });
 
         if (response.data) {
-          // Transform input data as needed
           const products = response.data.results.map((product: Product) => ({
             ...product,
             price: Number(product.price),
-            originalPrice: Number(product.originalPrice),
+            original_price: Number(product.original_price),
             rating: Number(product.rating),
           }));
           setProducts(products);
@@ -78,12 +78,13 @@ export default function ProductsPageContent() {
     () =>
       selectedCategory === "All"
         ? products
-        : products.filter((p) => p.categoryName === selectedCategory),
+        : products.filter((p) => p.category_name === selectedCategory),
     [selectedCategory, products]
   );
 
-  const categories: Product["categoryName"][] = React.useMemo(() => {
-    const dynamic = Array.from(new Set(products.map((p) => p.categoryName))).sort();
+  const categories: string[] = React.useMemo(() => {
+    // category_name is always a string from the API; no need to dig into `category` union
+    const dynamic = Array.from(new Set(products.map((p) => p.category_name))).sort();
     return ["All", ...dynamic];
   }, [products]);
 
@@ -94,9 +95,9 @@ export default function ProductsPageContent() {
       if (product) {
         addItem(
           {
-            category: product.categoryName,
+            category: product.category_name,
             id: String(product.id),
-            image: product.image ?? "",
+            image: getImageUrl(product.image_url),
             name: product.name,
             price: product.price,
           },

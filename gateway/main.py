@@ -9,8 +9,19 @@ import json
 # ================================
 #           ЛОГУВАННЯ
 # ================================
-logging.basicConfig(level=logging.INFO)
+from pythonjsonlogger import jsonlogger
+
+log_handler = logging.StreamHandler()
+formatter = jsonlogger.JsonFormatter(
+    fmt="%(asctime)s %(name)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S%z",
+)
+log_handler.setFormatter(formatter)
+
 logger = logging.getLogger("gateway")
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+logger.addHandler(log_handler)
+logger.propagate = False
 
 
 # ================================
@@ -132,7 +143,7 @@ async def require_auth(request: Request, require_admin: bool = False):
 # ================================
 #       UNIVERSAL PROXY
 # ================================
-async def proxy_request(request: Request, target: str, path: str = ""):
+async def proxy_request(request: Request, target: str, path: str = "", user: dict = dict()):
     client: httpx.AsyncClient = request.app.state.client
 
     # Формування кінцевої URL-адреси мікросервісу
@@ -141,10 +152,26 @@ async def proxy_request(request: Request, target: str, path: str = ""):
     # Отримуємо заголовки від фронтенду
     headers = dict(request.headers)
     
-    # 1. КРИТИЧНО ДЛЯ DJANGO: Видаляємо заголовок Host.
-    # HTTPX сам підставить правильний Host (наприклад, product-service:8000),
-    # завдяки чому Django не буде лаятися на ALLOWED_HOSTS.
-    headers.pop("host", None)
+    # 1. КРИТИЧНО: Видаляємо hop-by-hop заголовки, які не можна проксувати
+    #    (transfer-encoding, connection, keep-alive, etc.)
+    #    Також видаляємо content-encoding, бо тіло вже декодоване Starlette
+    hop_by_hop = {
+        "host", "transfer-encoding", "connection", "keep-alive",
+        "te", "trailer", "upgrade", "proxy-authorization",
+        "proxy-authenticate", "content-encoding",
+    }
+    for header in hop_by_hop:
+        headers.pop(header, None)
+    
+    # 2. ДОДАЄМО ЗАГОЛОВКИ АВТЕНТИФІКАЦІЇ ДЛЯ БЕКЕНД-СЕРВІСІВ
+    # Gateway перевіряє сесію через Better Auth і передає перевірені дані
+    # внутрішнім сервісам через захищені заголовки.
+    # Це вирішує проблему несумісності Better Auth з Django/Basic auth.
+    if user:
+        headers["X-Gateway-User-Id"] = user.get("id", "")
+        headers["X-Gateway-User-Role"] = user.get("role", "user")
+        headers["X-Gateway-User-Email"] = user.get("email", "")
+        headers["X-Gateway-User-Name"] = user.get("name", "")
 
     # Отримання body для POST/PUT/PATCH запитів
     body = None
@@ -153,7 +180,7 @@ async def proxy_request(request: Request, target: str, path: str = ""):
 
     # Отримання query parameters
     params = dict(request.query_params)
-    logger.info(f"Proxying {request.method} {url}")
+    logger.info(f"Proxying {request.method} {url} (user={user.get('id') if user else 'anonymous'})")
 
     try:
         # Виконуємо запит до внутрішнього мікросервісу
@@ -169,14 +196,13 @@ async def proxy_request(request: Request, target: str, path: str = ""):
         # Копіюємо заголовки, які повернув мікросервіс (Django / Auth)
         response_headers = dict(response.headers)
 
-        # 2. ОЧИЩЕННЯ ЗАГОЛОВКІВ БЕКЕНДУ
-        # Видаляємо службові заголовки, які HTTPX/FastAPI мають розрахувати самі
+        # Очищення службових заголовків, які HTTPX/FastAPI мають розрахувати самі
         response_headers.pop("content-encoding", None)
         response_headers.pop("content-length", None)
+        response_headers.pop("transfer-encoding", None)
+        response_headers.pop("connection", None)
         
-        # 3. ВИДАЛЯЄМО СЛУЖБОВІ CORS ЗАГОЛОВКИ БЕКЕНДУ (якщо вони там є)
-        # Це гарантує, що якщо Django чи Auth-service випадково викинуть свої
-        # CORS-заголовки, вони не завадять нашому Middleware виставити правильні.
+        # Видаляємо CORS-заголовки бекенду (Gateway сам виставить правильні)
         response_headers.pop("access-control-allow-origin", None)
         response_headers.pop("access-control-allow-credentials", None)
         response_headers.pop("access-control-allow-methods", None)
@@ -237,15 +263,17 @@ async def health():
 # Only admin users can create/update/delete products
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy_products(request: Request, path: str):
-    # Read operations are public
+    # Read operations are public (but still pass user info if available)
+    user = None
     if request.method in ["GET", "HEAD", "OPTIONS"]:
-        return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}")
+        user = await verify_session(request)
+        return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}", user=user)
 
     # Write operations require authentication + admin role
     # This protects the entire product CRUD API from unauthorized modifications
-    await require_auth(request, require_admin=True)
+    user = await require_auth(request, require_admin=True)
 
-    return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}")
+    return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}", user=user)
 
 
 @app.api_route("/media/{path:path}", methods=["GET"])

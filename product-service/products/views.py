@@ -84,7 +84,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             raise ValidationError({"threshold": "Must be a non-negative integer."})
 
         products = self.filter_queryset(
-            self.queryset.filter(stock__lte=threshold, inStock=True)
+            self.queryset.filter(stock__lte=threshold, in_stock=True)
         )
         page = self.paginate_queryset(products)
         if page is not None:
@@ -115,7 +115,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
 
         products = self.filter_queryset(
-            self.queryset.filter(category_id=category_id, inStock=True)
+            self.queryset.filter(category_id=category_id, in_stock=True)
         )
         page = self.paginate_queryset(products)
         if page is not None:

@@ -59,3 +59,29 @@ async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiRe
 }
 
 export { apiCall, API_URL, AUTH_URL };
+
+// Cart API methods
+export const cartApi = {
+  get: () => apiCall<import("../types").CartResponse>(`${API_URL}/cart/`),
+  addItem: (productId: number, quantity = 1) =>
+    apiCall(`${API_URL}/cart/add_item/`, {
+      method: "POST",
+      body: JSON.stringify({ product_id: productId, quantity }),
+    }),
+  updateItem: (productId: number, quantity: number) =>
+    apiCall(`${API_URL}/cart/update_item/`, {
+      method: "POST",
+      body: JSON.stringify({ product_id: productId, quantity }),
+    }),
+  removeItem: (productId: number) =>
+    apiCall(`${API_URL}/cart/remove_item/`, {
+      method: "POST",
+      body: JSON.stringify({ product_id: productId }),
+    }),
+  clear: () => apiCall(`${API_URL}/cart/clear/`, { method: "POST" }),
+  merge: (items: { id: string; quantity: number }[]) =>
+    apiCall(`${API_URL}/cart/merge/`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+};

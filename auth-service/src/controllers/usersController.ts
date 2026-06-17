@@ -1,6 +1,7 @@
 // usersController.ts
 import { fromNodeHeaders } from "better-auth/node";
 import * as usersService from "../services/usersService";
+import logger from "../logger";
 import { Request, Response } from "express";
 
 export const usersController = {
@@ -8,8 +9,9 @@ export const usersController = {
   async getUsers(req: Request, res: Response) {
     try {
       const query = req.query;
+      const headers = fromNodeHeaders(req.headers);
 
-      const users = await usersService.getUsers(query);
+      const users = await usersService.getUsers(query, headers);
 
       return res.status(200).json({
         success: true,
@@ -17,7 +19,7 @@ export const usersController = {
         users: users,
       });
     } catch (error: any) {
-      console.error("Get users error:", error);
+      logger.error("Get users failed", { error: (error as Error).message });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to fetch users",
@@ -37,7 +39,7 @@ export const usersController = {
         user: user,
       });
     } catch (error: any) {
-      console.error("Get user by ID error:", error);
+      logger.error("Get user by ID failed", { error: (error as Error).message, userId: req.params.id });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to fetch user",
@@ -64,7 +66,7 @@ export const usersController = {
         user,
       });
     } catch (error: any) {
-      console.error("Create user error:", error);
+      logger.error("Create user failed", { error: (error as Error).message });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to create user",
@@ -85,7 +87,7 @@ export const usersController = {
         updated,
       });
     } catch (error: any) {
-      console.error("Update user error:", error);
+      logger.error("Update user failed", { error: (error as Error).message, userId: req.params.id });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to update user",
@@ -105,7 +107,7 @@ export const usersController = {
         result,
       });
     } catch (error: any) {
-      console.error("Remove user error:", error);
+      logger.error("Remove user failed", { error: (error as Error).message, userId: req.params.id });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to delete user",
@@ -125,7 +127,7 @@ export const usersController = {
         sessions,
       });
     } catch (error: any) {
-      console.error("Get user sessions error:", error);
+      logger.error("Get user sessions failed", { error: (error as Error).message, userId: req.params.id });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to fetch sessions",
@@ -152,7 +154,7 @@ export const usersController = {
         response,
       });
     } catch (error: any) {
-      console.error("Set user role error:", error);
+      logger.error("Set user role failed", { error: (error as Error).message, userId: req.body.userId });
       return res.status(500).json({
         success: false,
         message: error?.message || "Failed to set user role",

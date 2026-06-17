@@ -7,15 +7,17 @@ export const auth = betterAuth({
     connectionString: process.env.DATABASE_URL,
   }),
   // Базові налаштування
-  secret: process.env.BETTER_AUTH_SECRET || "your-super-secret-key-min-32-characters-long",
+  // In production, BETTER_AUTH_SECRET must be set in the environment
+  secret: process.env.BETTER_AUTH_SECRET,
 
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3001/auth",
 
   trustedOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:3001"],
   appName: "Store",
   plugins: [
+    // ADMIN_USER_IDS should be set in .env for admin users to use the admin dashboard
     admin({
-      adminUserIds: (process.env.ADMIN_USER_IDS || "3KzQAtJSMENIre4qto5e46d2bB2UXWsX").split(","),
+      adminUserIds: (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean),
     }),
     twoFactor(),
   ],

@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { cartApi } from "../api/client";
+import { useCurrentUser } from "../auth-client";
+import { getImageUrl } from "../utils/image-url";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -47,8 +50,8 @@ const loadCartFromStorage = (): CartItem[] => {
     if (Array.isArray(parsed)) {
       return parsed as CartItem[];
     }
-  } catch (err) {
-    console.error("Failed to load cart:", err);
+  } catch {
+    // Corrupted storage
   }
   return [];
 };
@@ -59,6 +62,9 @@ const loadCartFromStorage = (): CartItem[] => {
 
 export function CartProvider({ children }: React.PropsWithChildren) {
   const [items, setItems] = React.useState<CartItem[]>(loadCartFromStorage);
+  const { user } = useCurrentUser();
+  const prevUserId = React.useRef<string | null>(null);
+  const isMerging = React.useRef(false);
 
   /* -------------------- Persist to localStorage (debounced) ------------- */
   const saveTimeout = React.useRef<null | ReturnType<typeof setTimeout>>(null);
@@ -68,8 +74,8 @@ export function CartProvider({ children }: React.PropsWithChildren) {
     saveTimeout.current = setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-      } catch (err) {
-        console.error("Failed to save cart:", err);
+      } catch {
+        // Storage full or unavailable
       }
     }, DEBOUNCE_MS);
 
@@ -78,17 +84,97 @@ export function CartProvider({ children }: React.PropsWithChildren) {
     };
   }, [items]);
 
-  /* ----------------------------- Actions -------------------------------- */
-  const addItem = React.useCallback((newItem: Omit<CartItem, "quantity">, qty = 1) => {
-    if (qty <= 0) return;
-    setItems((prev) => {
-      const existing = prev.find((i) => i.id === newItem.id);
-      if (existing) {
-        return prev.map((i) => (i.id === newItem.id ? { ...i, quantity: i.quantity + qty } : i));
+  /* -------------------- Server-side cart sync on login ------------------ */
+  React.useEffect(() => {
+    const userId = user?.id || null;
+
+    // User logged in — merge local cart to server
+    if (userId && prevUserId.current !== userId && !isMerging.current) {
+      isMerging.current = true;
+      const localItems = loadCartFromStorage();
+      if (localItems.length > 0) {
+        cartApi
+          .merge(
+            localItems.map((item) => ({
+              id: item.id,
+              quantity: item.quantity,
+            }))
+          )
+          .then(() => {
+            // After merge, fetch server cart and replace local
+            return cartApi.get();
+          })
+          .then((response) => {
+            if (response.data?.items) {
+              const serverItems: CartItem[] = response.data.items.map(
+                (item) => ({
+                  category: "",
+                  id: String(item.product),
+                  image: getImageUrl(item.product_image),
+                  name: item.product_name,
+                  price: item.product_price,
+                  quantity: item.quantity,
+                })
+              );
+              setItems(serverItems);
+              isMerging.current = false;
+            }
+          })
+          .catch(() => {
+            isMerging.current = false;
+          });
+      } else {
+        // No local items, just fetch server cart
+        cartApi
+          .get()
+          .then((response) => {
+            if (response.data?.items) {
+              const serverItems: CartItem[] = response.data.items.map(
+                (item) => ({
+                  category: "",
+                  id: String(item.product),
+                  image: getImageUrl(item.product_image),
+                  name: item.product_name,
+                  price: item.product_price,
+                  quantity: item.quantity,
+                })
+              );
+              setItems(serverItems);
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            isMerging.current = false;
+          });
       }
-      return [...prev, { ...newItem, quantity: qty }];
-    });
-  }, []);
+    }
+
+    // User logged out — clear and reset to local
+    if (!userId && prevUserId.current) {
+      setItems(loadCartFromStorage());
+    }
+
+    prevUserId.current = userId;
+  }, [user?.id]);
+
+  /* ----------------------------- Actions -------------------------------- */
+  const addItem = React.useCallback(
+    (newItem: Omit<CartItem, "quantity">, qty = 1) => {
+      if (qty <= 0) return;
+      setItems((prev) => {
+        const existing = prev.find((i) => i.id === newItem.id);
+        if (existing) {
+          return prev.map((i) =>
+            i.id === newItem.id
+              ? { ...i, quantity: i.quantity + qty }
+              : i
+          );
+        }
+        return [...prev, { ...newItem, quantity: qty }];
+      });
+    },
+    []
+  );
 
   const removeItem = React.useCallback((id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
@@ -98,7 +184,7 @@ export function CartProvider({ children }: React.PropsWithChildren) {
     setItems((prev) =>
       prev.flatMap((i) => {
         if (i.id !== id) return i;
-        if (qty <= 0) return []; // treat zero/negative as remove
+        if (qty <= 0) return [];
         if (qty === i.quantity) return i;
         return { ...i, quantity: qty };
       })
@@ -108,7 +194,10 @@ export function CartProvider({ children }: React.PropsWithChildren) {
   const clearCart = React.useCallback(() => setItems([]), []);
 
   /* --------------------------- Derived data ----------------------------- */
-  const itemCount = React.useMemo(() => items.reduce((t, i) => t + i.quantity, 0), [items]);
+  const itemCount = React.useMemo(
+    () => items.reduce((t, i) => t + i.quantity, 0),
+    [items]
+  );
 
   const subtotal = React.useMemo(
     () => items.reduce((t, i) => t + i.price * i.quantity, 0),
