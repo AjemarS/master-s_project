@@ -34,7 +34,7 @@ const featuresWhyChooseUs = [
 
 async function getCategories(): Promise<Category[]> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
+    const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(`${apiUrl}/categories/`, { next: { revalidate: 60 } });
     if (!response.ok) return [];
     const data = await response.json();
