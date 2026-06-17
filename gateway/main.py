@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import httpx
-import os
+import asyncio
 import logging
-import json
+import os
+from contextlib import asynccontextmanager
+
+import httpx
+import websockets
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 
 # ================================
 #           ЛОГУВАННЯ
@@ -83,36 +84,36 @@ app = FastAPI(
 @app.middleware("http")
 async def secure_cors_and_options_middleware(request: Request, call_next):
     origin = request.headers.get("origin")
-    
+
     # 1. ОБРОБКА PREFLIGHT (OPTIONS) ЗАПИТІВ
     if request.method == "OPTIONS":
         response = Response(status_code=204)  # 204 No Content
-        
+
         # Перевіряємо, чи origin є у нашому білому списку (.env)
         if origin in CORS_ORIGINS:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
-            
+
             # Динамічно дозволяємо методи та заголовки, які просить фронтенд
             requested_method = request.headers.get("access-control-request-method", "*")
             requested_headers = request.headers.get("access-control-request-headers", "*")
-            
+
             response.headers["Access-Control-Allow-Methods"] = requested_method
             response.headers["Access-Control-Allow-Headers"] = requested_headers
-            
+
             # Кешуємо preflight на 10 хвилин, щоб браузер не спамив Gateway перед кожним запитом
             response.headers["Access-Control-Max-Age"] = "600"
-            
+
         return response
 
     # 2. ОБРОБКА ВСІХ ІНШИХ ЗАПИТІВ (GET, POST, etc.)
     response = await call_next(request)
-    
+
     # Додаємо CORS заголовки до фінальної відповіді, якщо Origin валідний
     if origin in CORS_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        
+
     return response
 
 
@@ -127,7 +128,7 @@ async def verify_session(request: Request) -> dict | None:
     """
     client: httpx.AsyncClient = request.app.state.client
     cookie_header = request.headers.get("cookie", "")
-    
+
     if not cookie_header:
         return None
 
@@ -152,20 +153,20 @@ async def require_auth(request: Request, require_admin: bool = False):
     Кидає HTTPException при невдачі.
     """
     user = await verify_session(request)
-    
+
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
-    
+
     if require_admin and user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
-    
+
     return user
 
 
 # ================================
 #       UNIVERSAL PROXY
 # ================================
-async def proxy_request(request: Request, target: str, path: str = "", user: dict = dict()):
+async def proxy_request(request: Request, target: str, path: str = "", user: dict | None = None):
     client: httpx.AsyncClient = request.app.state.client
 
     # Формування кінцевої URL-адреси мікросервісу
@@ -173,7 +174,7 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
 
     # Отримуємо заголовки від фронтенду
     headers = dict(request.headers)
-    
+
     # 1. КРИТИЧНО: Видаляємо hop-by-hop заголовки, які не можна проксувати
     #    (transfer-encoding, connection, keep-alive, etc.)
     #    Також видаляємо content-encoding, бо тіло вже декодоване Starlette
@@ -184,7 +185,7 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
     }
     for header in hop_by_hop:
         headers.pop(header, None)
-    
+
     # 2. ДОДАЄМО ЗАГОЛОВКИ АВТЕНТИФІКАЦІЇ ДЛЯ БЕКЕНД-СЕРВІСІВ
     # Gateway перевіряє сесію через Better Auth і передає перевірені дані
     # внутрішнім сервісам через захищені заголовки.
@@ -214,7 +215,7 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
             params=params,
             follow_redirects=True,
         )
-        
+
         # Копіюємо заголовки, які повернув мікросервіс (Django / Auth)
         response_headers = dict(response.headers)
 
@@ -223,14 +224,14 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
         response_headers.pop("content-length", None)
         response_headers.pop("transfer-encoding", None)
         response_headers.pop("connection", None)
-        
+
         # Видаляємо CORS-заголовки бекенду (Gateway сам виставить правильні)
         response_headers.pop("access-control-allow-origin", None)
         response_headers.pop("access-control-allow-credentials", None)
         response_headers.pop("access-control-allow-methods", None)
         response_headers.pop("access-control-allow-headers", None)
 
-        # Повертаємо чисту відповідь. Глобальний Middleware сам перехопить її 
+        # Повертаємо чисту відповідь. Глобальний Middleware сам перехопить її
         # і додасть правильний Access-Control-Allow-Origin для фронтенду.
         return Response(
             content=response.content,
@@ -240,10 +241,10 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
         )
 
     except httpx.TimeoutException:
-        raise HTTPException(504, "Gateway Timeout")
+        raise HTTPException(504, "Gateway Timeout") from None
     except httpx.RequestError as e:
         logger.error(f"Proxy error: {e}")
-        raise HTTPException(502, "Bad Gateway")
+        raise HTTPException(502, "Bad Gateway") from e
 
 # ================================
 #            ROUTES
@@ -311,7 +312,9 @@ async def proxy_products(request: Request, path: str):
 
 @app.api_route("/media/{path:path}", methods=["GET"])
 async def proxy_media(request: Request, path: str):
-    return await proxy_request(request, target="http://product-service:8000", path = f"/media/{path}")
+    return await proxy_request(
+        request, target="http://product-service:8000", path=f"/media/{path}"
+    )
 
 
 # Auth Service — catch-all proxy for all /auth/* paths
@@ -337,9 +340,6 @@ async def proxy_frontend(request: Request, path: str):
 #     Для WebSocket'ів Next.js
 # ================================
 
-from fastapi import WebSocket, WebSocketDisconnect
-import websockets
-import asyncio
 
 @app.websocket("/_next/webpack-hmr")
 async def websocket_proxy(ws: WebSocket):
@@ -363,10 +363,10 @@ async def websocket_proxy(ws: WebSocket):
                     while True:
                         msg = await backend_ws.recv()
                         await ws.send_text(msg)
-                except:
+                except Exception:
                     await ws.close()
 
             await asyncio.gather(client_to_backend(), backend_to_client())
 
-    except:
+    except Exception:
         await ws.close()

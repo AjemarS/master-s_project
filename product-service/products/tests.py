@@ -7,15 +7,19 @@ pagination, authentication, and cart operations.
 
 from decimal import Decimal
 from io import BytesIO
-from PIL import Image
-from django.test import TestCase, override_settings
-from django.core.files.uploadedfile import SimpleUploadedFile
+
 from django.contrib.auth import get_user_model
-from rest_framework.test import APITestCase, APIClient
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
+from django.test import TestCase
+from PIL import Image
 from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
+
+from .cart_models import Cart, CartItem
 from .models import Category, Product
 from .serializers import CategorySerializer, ProductSerializer
-from .cart_models import Cart, CartItem
 
 User = get_user_model()
 
@@ -83,7 +87,7 @@ class CategoryModelTest(TestCase):
 
     def test_unique_name(self):
         _create_category("Unique")
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             Category.objects.create(name="Unique")
 
     def test_product_count(self):
@@ -129,11 +133,11 @@ class ProductModelTest(TestCase):
             original_price=Decimal("15.00"),
             rating=Decimal("5.1"),
         )
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             product.full_clean()
 
         product.rating = Decimal("-0.1")
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             product.full_clean()
 
     def test_price_non_negative(self):
@@ -144,7 +148,7 @@ class ProductModelTest(TestCase):
             description="Test",
             price=Decimal("-1"),
         )
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             product.full_clean()
 
     def test_category_relation(self):
@@ -376,7 +380,7 @@ class ProductAPITest(APITestCase):
 
     def test_filter_by_category(self):
         cat2 = _create_category("Other")
-        p2 = _create_product(category=cat2, name="Other Product")
+        _create_product(category=cat2, name="Other Product")
         response = self.client.get(self.list_url, {"category": self.cat.pk})
         results = response.data["results"]
         self.assertEqual(len(results), 1)

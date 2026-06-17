@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Product, Category
+
+from .models import Category, Product
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -119,9 +120,8 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def validate_specs(self, value):
-        if value is not None:
-            if not isinstance(value, dict):
-                raise serializers.ValidationError("Specs must be a dictionary.")
+        if value is not None and not isinstance(value, dict):
+            raise serializers.ValidationError("Specs must be a dictionary.")
         return value
 
     def validate(self, attrs):
@@ -131,9 +131,8 @@ class ProductSerializer(serializers.ModelSerializer):
         price = attrs.get("price") or (
             self.instance.price if self.instance else None
         )
-        if original_price is not None and price is not None:
-            if original_price < price:
-                raise serializers.ValidationError(
-                    {"original_price": "Original price cannot be less than current price."}
-                )
+        if original_price is not None and price is not None and original_price < price:
+            raise serializers.ValidationError(
+                {"original_price": "Original price cannot be less than current price."}
+            )
         return attrs

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "better-auth": "^1.4.3",
@@ -23,7 +25,9 @@
     "@types/node": "^20.19.25",
     "@types/on-finished": "^2.3.5",
     "@types/pg": "^8.15.6",
+    "eslint": "^9",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8"
   }
 }

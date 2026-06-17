@@ -1,16 +1,18 @@
 import logging
-from rest_framework import viewsets, filters, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
-from rest_framework.exceptions import ValidationError
+
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Product, Category
-from .serializers import ProductSerializer, CategorySerializer
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+
 from .filters import ProductFilter
+from .models import Category, Product
 from .pagination import StandardResultsSetPagination
+from .serializers import CategorySerializer, ProductSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +80,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         raw = request.query_params.get("threshold", "10")
         try:
             threshold = int(raw)
-        except (TypeError, ValueError):
-            raise ValidationError({"threshold": "Must be a non-negative integer."})
+        except (TypeError, ValueError) as e:
+            raise ValidationError({"threshold": "Must be a non-negative integer."}) from e
         if threshold < 0:
             raise ValidationError({"threshold": "Must be a non-negative integer."})
 
@@ -102,8 +104,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         try:
             category_id = int(category_id)
-        except (TypeError, ValueError):
-            raise ValidationError({"category_id": "Must be a positive integer."})
+        except (TypeError, ValueError) as e:
+            raise ValidationError({"category_id": "Must be a positive integer."}) from e
         if category_id <= 0:
             raise ValidationError({"category_id": "Must be a positive integer."})
 
@@ -139,8 +141,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         try:
             quantity = int(raw_quantity)
-        except (TypeError, ValueError):
-            raise ValidationError({"quantity": "Must be an integer."})
+        except (TypeError, ValueError) as e:
+            raise ValidationError({"quantity": "Must be an integer."}) from e
 
         with transaction.atomic():
             # Lock the row for the duration of this transaction

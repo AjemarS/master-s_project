@@ -1,9 +1,10 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from .cart_models import Cart, CartItem
-from .cart_serializers import CartSerializer, CartItemSerializer
+from .cart_serializers import CartSerializer
 from .models import Product
 
 
