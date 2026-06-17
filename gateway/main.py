@@ -37,6 +37,28 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost").split(",")
 
 
 # ================================
+#      ENVIRONMENT VALIDATION
+# ================================
+def validate_env():
+    """
+    Validates that required environment variables are set.
+    Called at startup to fail early if configuration is missing.
+    """
+    required_vars = {
+        "PRODUCT_SERVICE_URL": PRODUCT_SERVICE_URL,
+        "AUTH_SERVICE_URL": AUTH_SERVICE_URL,
+        "FRONTEND_SERVICE_URL": FRONTEND_SERVICE_URL,
+    }
+    missing = [key for key, value in required_vars.items() if not value]
+    if missing:
+        logger.error("FATAL: Missing required environment variables", {"missing": missing})
+        raise SystemExit(1)
+
+
+validate_env()
+
+
+# ================================
 #            LIFESPAN
 # ================================
 @asynccontextmanager
@@ -226,6 +248,17 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
 # ================================
 #            ROUTES
 # ================================
+#
+# IMPORTANT: Route ordering matters! FastAPI matches routes in declaration order.
+# More specific routes MUST be declared before catch-all routes.
+# Current routing table:
+#   1. / (root)
+#   2. /gateway
+#   3. /health
+#   4. /api/{path:path}        → Product Service
+#   5. /media/{path:path}      → Product Service (media files)
+#   6. /auth/{path:path}       → Auth Service (includes /auth/me, /auth/sign-in/*)
+#   7. /{path:path}            → Frontend (excludes api/, auth/, media/)
 
 
 @app.get("/")
@@ -281,18 +314,16 @@ async def proxy_media(request: Request, path: str):
     return await proxy_request(request, target="http://product-service:8000", path = f"/media/{path}")
 
 
-# Auth Service
+# Auth Service — catch-all proxy for all /auth/* paths
+# NOTE: /auth/me is handled by this catch-all via the auth-service's own route.
+# Do NOT add a separate /auth/me route here — it would be dead code since
+# FastAPI matches the catch-all first.
 @app.api_route("/auth/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy_auth(request: Request, path: str):
     return await proxy_request(request, AUTH_SERVICE_URL, f"/auth/{path}")
 
 
-@app.get("/auth/me")
-async def proxy_auth_me(request: Request):
-    return await proxy_request(request, AUTH_SERVICE_URL, "/auth/me")
-
-
-# Frontend
+# Frontend — must be declared LAST to avoid intercepting api/, auth/, media/ routes
 @app.api_route("/{path:path}", methods=["GET"])
 async def proxy_frontend(request: Request, path: str):
     # avoid conflicts
