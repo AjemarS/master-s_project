@@ -35,12 +35,22 @@ export const adminService = {
     return await authClient.admin.setRole(payload);
   },
 
-  // /** Delete a user */
-  // async removeUser(userId: string) {
-  //   const payload = {
-  //     userId,
-  //   };
+  /** Delete a user */
+  async removeUser(userId: string) {
+    const payload = {
+      userId,
+    };
 
-  //   return await authClient.admin.removeUser(payload);
-  // },
+    return await authClient.admin.removeUser(payload);
+  },
+
+  /** Create a user */
+  async createUser(user: { email: string; password: string; name: string; role?: "admin" | "user" }) {
+    return await authClient.admin.createUser(user);
+  },
+
+  /** Update a user's fields */
+  async updateUser(userId: string, data: Record<string, unknown>) {
+    return await authClient.admin.updateUser({ userId, data });
+  },
 };

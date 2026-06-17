@@ -35,9 +35,10 @@ test.describe("Auth Pages", () => {
     });
 
     test("has a link to sign up page", async ({ page }) => {
-      await expect(
-        page.getByRole("link", { name: /sign up/i })
-      ).toBeVisible();
+      const formLink = page
+        .getByText("Don't have an account?")
+        .getByRole("link", { name: /sign up/i });
+      await expect(formLink).toBeVisible();
     });
 
     test("sign up link navigates to /sign-up", async ({ page }) => {

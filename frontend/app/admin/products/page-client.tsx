@@ -8,6 +8,7 @@ import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Badge } from "~/ui/primitives/badge";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
+import { Label } from "~/ui/primitives/label";
 import {
   Package,
   Search,
@@ -17,25 +18,37 @@ import {
   AlertCircle,
   ArrowLeft,
   Filter,
+  X,
   Download,
 } from "lucide-react";
-import { productApi } from "~/lib/api/admin-api";
-import type { Product } from "~/lib/types";
+import { productApi, categoryApi } from "~/lib/api/admin-api";
+import type { Product, Category } from "~/lib/types";
 import { ConfirmDialog, TableSkeleton, StatsGridSkeleton } from "../components";
 import { useDebounce } from "~/lib/hooks/use-debounce";
+import { ProductFormDialog } from "./product-form-dialog";
+
+const PAGE_SIZE = 20;
 
 export default function AdminProductsClient({
   initialProducts,
+  initialTotalCount,
   initialError,
 }: {
   initialProducts: Product[];
+  initialTotalCount: number;
   initialError: string | null;
 }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(initialTotalCount);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterMinPrice, setFilterMinPrice] = useState("");
+  const [filterMaxPrice, setFilterMaxPrice] = useState("");
+  const [filterInStock, setFilterInStock] = useState<boolean | undefined>(undefined);
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     productId: number | null;
@@ -44,11 +57,32 @@ export default function AdminProductsClient({
   const [deleting, setDeleting] = useState(false);
   const hasRetriedRef = useRef(false);
 
-  const fetchProducts = useCallback(async () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Note: ProductFormDialog state lives inside that component.
+  // The page only controls whether it's shown and in which mode.
+  const [showFormDialog, setShowFormDialog] = useState(false);
+  const [formDialogMode, setFormDialogMode] = useState<"create" | "edit">("create");
+  const [formDialogProduct, setFormDialogProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    categoryApi.getAll().then((res) => {
+      if (res.data) setCategories(res.data.results || []);
+    });
+  }, []);
+
+  const fetchProducts = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await productApi.getAll({ search: debouncedSearchTerm || undefined });
+      const response = await productApi.getAll({
+        search: debouncedSearchTerm || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+        minPrice: filterMinPrice ? parseFloat(filterMinPrice) : undefined,
+        maxPrice: filterMaxPrice ? parseFloat(filterMaxPrice) : undefined,
+        inStock: filterInStock,
+      });
       if (response.error) {
         setError(response.error.message);
         toast.error("Failed to load products", {
@@ -62,6 +96,8 @@ export default function AdminProductsClient({
           rating: Number(product.rating),
         }));
         setProducts(products);
+        setTotalCount(response.data.count);
+        setCurrentPage(page);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load products";
@@ -70,18 +106,20 @@ export default function AdminProductsClient({
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, filterMinPrice, filterMaxPrice, filterInStock]);
 
   // Refetch when debounced search term changes, or fallback-fetch
   // when the server-side fetch (in Docker) returned empty data.
   useEffect(() => {
     if (debouncedSearchTerm) {
-      fetchProducts();
+      setCurrentPage(1);
+      fetchProducts(1);
       return;
     }
 
     if (initialProducts.length > 0) {
       setProducts(initialProducts);
+      setCurrentPage(1);
       return;
     }
 
@@ -90,7 +128,7 @@ export default function AdminProductsClient({
     // so this runs at most once per mount.
     if (!hasRetriedRef.current) {
       hasRetriedRef.current = true;
-      fetchProducts();
+      fetchProducts(1);
     }
   }, [debouncedSearchTerm, fetchProducts, initialProducts]);
 
@@ -127,6 +165,42 @@ export default function AdminProductsClient({
     }
   };
 
+  const handleAddClick = () => {
+    setFormDialogMode("create");
+    setFormDialogProduct(null);
+    setShowFormDialog(true);
+  };
+
+  const handleEditClick = (product: Product) => {
+    setFormDialogMode("edit");
+    setFormDialogProduct(product);
+    setShowFormDialog(true);
+  };
+
+  const handleExport = () => {
+    const headers = ["ID", "Name", "Category", "Price", "Original Price", "Stock", "In Stock", "Description"];
+    const rows = products.map((p) => [
+      p.id,
+      `"${p.name.replace(/"/g, '""')}"`,
+      `"${(p.category_name || "").replace(/"/g, '""')}"`,
+      p.price,
+      p.original_price || "",
+      p.stock,
+      p.in_stock ? "Yes" : "No",
+      `"${(p.description || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export complete", { description: `${products.length} products exported.` });
+  };
+
   const stats = {
     total: products.length,
     active: products.filter((p) => p.in_stock).length,
@@ -152,7 +226,7 @@ export default function AdminProductsClient({
               </h1>
               <p className="text-slate-600 dark:text-slate-400">Django REST Framework API Integration</p>
             </div>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={handleAddClick}>
               <Plus className="h-4 w-4" />
               Add Product
             </Button>
@@ -205,11 +279,11 @@ export default function AdminProductsClient({
                 <CardDescription className="dark:text-slate-400">Manage your inventory and pricing</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
+                <Button variant="outline" size="sm" onClick={() => { setShowFilters(!showFilters); if (!showFilters) setCurrentPage(1); }}>
+                  {showFilters ? <X className="h-4 w-4 mr-2" /> : <Filter className="h-4 w-4 mr-2" />}
+                  {showFilters ? "Close" : "Filter"}
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleExport}>
                   <Download className="h-4 w-4 mr-2" />
                   Export
                 </Button>
@@ -228,6 +302,63 @@ export default function AdminProductsClient({
                 />
               </div>
             </div>
+
+            {/* Filter Panel */}
+            {showFilters && (
+              <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="minPrice" className="text-xs text-slate-500">Min Price</Label>
+                    <Input
+                      id="minPrice"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      value={filterMinPrice}
+                      onChange={(e) => setFilterMinPrice(e.target.value)}
+                      className="w-28"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="maxPrice" className="text-xs text-slate-500">Max Price</Label>
+                    <Input
+                      id="maxPrice"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="999.99"
+                      value={filterMaxPrice}
+                      onChange={(e) => setFilterMaxPrice(e.target.value)}
+                      className="w-28"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pb-1">
+                    <input
+                      id="inStock"
+                      type="checkbox"
+                      checked={filterInStock === true}
+                      onChange={(e) => setFilterInStock(e.target.checked || undefined)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <Label htmlFor="inStock" className="text-xs text-slate-500 cursor-pointer">In Stock Only</Label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => { setCurrentPage(1); fetchProducts(1); }}>
+                      Apply
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setFilterMinPrice("");
+                      setFilterMaxPrice("");
+                      setFilterInStock(undefined);
+                      setCurrentPage(1);
+                    }}>
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {loading ? (
               <TableSkeleton rows={8} cols={7} />
@@ -274,7 +405,7 @@ export default function AdminProductsClient({
                           </td>
                           <td className="p-4">
                             <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" title="Edit product">
+                              <Button size="sm" variant="outline" onClick={() => handleEditClick(product)} title="Edit product">
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(product)} title="Delete product">
@@ -292,6 +423,33 @@ export default function AdminProductsClient({
           </CardContent>
         </Card>
 
+        {/* Pagination */}
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-4 px-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Page {currentPage} of {Math.ceil(totalCount / PAGE_SIZE)} ({totalCount} total)
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1 || loading}
+                onClick={() => fetchProducts(currentPage - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE) || loading}
+                onClick={() => fetchProducts(currentPage + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+
         <ConfirmDialog
           open={deleteDialog.open}
           onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
@@ -302,6 +460,16 @@ export default function AdminProductsClient({
           cancelText="Cancel"
           variant="destructive"
           loading={deleting}
+        />
+
+        <ProductFormDialog
+          open={showFormDialog}
+          onOpenChange={setShowFormDialog}
+          mode={formDialogMode}
+          product={formDialogProduct}
+          categories={categories}
+          onSuccess={fetchProducts}
+          onCategoryCreated={(cat) => setCategories((prev) => [...prev, cat])}
         />
       </div>
     </div>

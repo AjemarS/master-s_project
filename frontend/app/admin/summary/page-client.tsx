@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
-import { Users, Package, ArrowRight, TrendingUp, AlertCircle } from "lucide-react";
+import { Users, Package, ArrowRight, TrendingUp, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import { authClient, User } from "~/lib/auth-client";
 import { UserWithRole } from "better-auth/plugins/admin";
 import type { Product } from "~/lib/types";
@@ -41,6 +41,16 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  interface ServiceHealth {
+    status: "healthy" | "unhealthy" | "loading";
+    label: string;
+  }
+
+  const [services, setServices] = useState<Record<string, ServiceHealth>>({
+    auth: { status: "loading", label: "Auth Service" },
+    product: { status: "loading", label: "Product Service" },
+  });
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -50,15 +60,14 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
 
         const recentDate = new Date();
         recentDate.setDate(recentDate.getDate() - 7);
+        const userList = usersData.data?.users || [];
         const recentUsers =
-          usersData.data!.users.filter((u: UserData) => new Date(u.createdAt) > recentDate)
-            .length || 0;
+          userList.filter((u: UserData) => new Date(u.createdAt) > recentDate).length;
 
         setStats((prev) => ({
           ...prev,
-          totalUsers: usersData.data!.users?.length || 0,
-          activeUsers:
-            usersData.data!.users?.filter((u: UserData) => u.status === "active").length || 0,
+          totalUsers: userList.length,
+          activeUsers: userList.filter((u: UserData) => u.status === "active").length,
           recentUsersCount: recentUsers,
         }));
       } catch (error) {
@@ -72,6 +81,34 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
     };
 
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost/api").replace(/\/api$/, "");
+      try {
+        const res = await fetch(`${baseUrl}/health`);
+        if (!res.ok) throw new Error("Health check failed");
+        const data = await res.json();
+        setServices({
+          auth: {
+            status: data.services?.auth?.status === "healthy" ? "healthy" : "unhealthy",
+            label: "Auth Service",
+          },
+          product: {
+            status: data.services?.product?.status === "healthy" ? "healthy" : "unhealthy",
+            label: "Product Service",
+          },
+        });
+      } catch {
+        setServices({
+          auth: { status: "unhealthy", label: "Auth Service" },
+          product: { status: "unhealthy", label: "Product Service" },
+        });
+      }
+    };
+
+    checkHealth();
   }, []);
 
   if (loading) {
@@ -231,26 +268,25 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <div>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">Auth Service</div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">{process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth"}</div>
+              {Object.values(services).map((svc) => (
+                <div key={svc.label} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {svc.status === "loading" ? (
+                      <div className="h-5 w-5 rounded-full bg-slate-300 animate-pulse" />
+                    ) : svc.status === "healthy" ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-500" />
+                    )}
+                    <div>
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{svc.label}</div>
+                    </div>
                   </div>
+                  <Badge variant={svc.status === "healthy" ? "default" : "destructive"}>
+                    {svc.status === "loading" ? "Checking..." : svc.status === "healthy" ? "Online" : "Offline"}
+                  </Badge>
                 </div>
-                <Badge variant="default">Online</Badge>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <div>
-                    <div className="font-medium text-slate-900 dark:text-slate-100">Product Service</div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">{process.env.NEXT_PUBLIC_API_URL || "http://localhost/api"}</div>
-                  </div>
-                </div>
-                <Badge variant="default">Online</Badge>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
