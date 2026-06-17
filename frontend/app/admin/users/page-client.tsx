@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Badge } from "~/ui/primitives/badge";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
+import { Label } from "~/ui/primitives/label";
 import {
   Dialog,
   DialogContent,
@@ -24,13 +26,18 @@ import {
   Shield,
   Mail,
   Calendar,
-  UserCog,
+  Pencil,
   Ban,
   CheckCircle,
+  Trash2,
+  Filter,
+  X,
 } from "lucide-react";
 import { UserWithRole } from "better-auth/plugins/admin";
 import { adminService } from "./actions";
 import { TableSkeleton } from "../components";
+import { useDebounce } from "~/lib/hooks/use-debounce";
+import { UserDialog } from "./user-dialog";
 
 interface UsersPageClientProps {
   initialUsers: UserWithRole[];
@@ -38,10 +45,15 @@ interface UsersPageClientProps {
 }
 
 export default function UsersPageClient({ initialUsers, initialError }: UsersPageClientProps) {
+  const PAGE_SIZE = 20;
+
   const [users, setUsers] = useState<UserWithRole[]>(initialUsers);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [loading, setLoading] = useState(initialUsers.length === 0);
   const [error, setError] = useState<string | null>(initialError);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(initialUsers.length);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
@@ -54,25 +66,93 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
     reason: string;
   }>({ open: false, userId: null, reason: "" });
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const response = await adminService.listUsers({ searchValue: searchTerm });
-        if (response.data) setUsers(response.data.users);
-      } catch (err) {
-        setError("Failed to load users. Please try again later.");
-        console.error("Error fetching users:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [userDialogMode, setUserDialogMode] = useState<"create" | "edit">("create");
+  const [userDialogUser, setUserDialogUser] = useState<UserWithRole | null>(null);
 
-    // Fetch if no initial data or search term changed
-    if (initialUsers.length === 0 || searchTerm) {
-      fetchUsers();
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterRole, setFilterRole] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+
+  const fetchUsers = useCallback(async (page = 1) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const offset = (page - 1) * PAGE_SIZE;
+      const query: Record<string, unknown> = {
+        searchValue: debouncedSearchTerm,
+        limit: PAGE_SIZE,
+        offset,
+      };
+
+      // Server-side filter: only one filterField at a time
+      if (filterRole) {
+        query.filterField = "role";
+        query.filterValue = filterRole;
+        query.filterOperator = "eq";
+      } else if (filterStatus === "active") {
+        query.filterField = "banned";
+        query.filterValue = false;
+        query.filterOperator = "eq";
+      } else if (filterStatus === "banned") {
+        query.filterField = "banned";
+        query.filterValue = true;
+        query.filterOperator = "eq";
+      }
+
+      const response = await adminService.listUsers(query);
+      if (response.data) {
+        let resultUsers = response.data.users;
+        // Client-side filter: when both role and status are active
+        if (filterRole && filterStatus === "active") {
+          resultUsers = resultUsers.filter((u) => u.role === filterRole && !u.banned);
+        } else if (filterRole && filterStatus === "banned") {
+          resultUsers = resultUsers.filter((u) => u.role === filterRole && u.banned);
+        }
+        setUsers(resultUsers);
+        setTotalCount(response.data.total ?? resultUsers.length);
+        setCurrentPage(page);
+      }
+    } catch (err) {
+      setError("Failed to load users. Please try again later.");
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [searchTerm, initialUsers.length]);
+  }, [debouncedSearchTerm, filterRole, filterStatus]);
+
+  useEffect(() => {
+    if (debouncedSearchTerm || filterRole || filterStatus || initialUsers.length === 0) {
+      setCurrentPage(1);
+      fetchUsers(1);
+    } else {
+      setCurrentPage(1);
+      setTotalCount(initialUsers.length);
+    }
+  }, [debouncedSearchTerm, fetchUsers, initialUsers.length, filterRole, filterStatus]);
+
+  const handleDeleteUser = (user: UserWithRole) => {
+    setConfirmDialog({
+      open: true,
+      title: "Remove User",
+      description: `Are you sure you want to permanently remove ${user.name || user.email}? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await adminService.removeUser(user.id);
+          setUsers((prev) => prev.filter((u) => u.id !== user.id));
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+          toast.success("User removed", {
+            description: `${user.name || user.email} has been removed.`,
+          });
+        } catch (err) {
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+          toast.error("Failed to remove user", {
+            description: err instanceof Error ? err.message : "An unexpected error occurred.",
+          });
+        }
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -93,7 +173,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
               </h1>
               <p className="text-slate-600 dark:text-slate-400">Better-Auth Admin Plugin Integration</p>
             </div>
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={() => { setUserDialogMode("create"); setUserDialogUser(null); setShowUserDialog(true); }}>
               <Plus className="h-4 w-4" />
               Invite User
             </Button>
@@ -151,6 +231,10 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                   Manage user roles, permissions, and account status
                 </CardDescription>
               </div>
+              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+                {showFilters ? <X className="h-4 w-4 mr-2" /> : <Filter className="h-4 w-4 mr-2" />}
+                {showFilters ? "Close" : "Filter"}
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -166,6 +250,50 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                 />
               </div>
             </div>
+
+            {/* Filter Panel */}
+            {showFilters && (
+              <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-slate-500">Role</Label>
+                    <select
+                      value={filterRole}
+                      onChange={(e) => setFilterRole(e.target.value)}
+                      className="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                    >
+                      <option value="">All roles</option>
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-slate-500">Status</Label>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                    >
+                      <option value="">All statuses</option>
+                      <option value="active">Active</option>
+                      <option value="banned">Banned</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2 pb-px">
+                    <Button size="sm" onClick={() => { setCurrentPage(1); fetchUsers(1); }}>
+                      Apply
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setFilterRole("");
+                      setFilterStatus("");
+                      setCurrentPage(1);
+                    }}>
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Table */}
             {loading ? (
@@ -256,27 +384,14 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                               <Button
                                 size="sm"
                                 variant="outline"
-                                title="Change role"
+                                title="Edit user"
                                 onClick={() => {
-                                  const newRole = user.role === "admin" ? "user" : "admin";
-                                  setConfirmDialog({
-                                    open: true,
-                                    title: "Change User Role",
-                                    description: `Are you sure you want to change ${user.name || user.email}'s role to "${newRole}"?`,
-                                    onConfirm: () => {
-                                      adminService.setUserRole(user.id, newRole).then(() => {
-                                        setUsers((prev) =>
-                                          prev.map((u) =>
-                                            u.id === user.id ? { ...u, role: newRole } : u
-                                          )
-                                        );
-                                      });
-                                      setConfirmDialog((prev) => ({ ...prev, open: false }));
-                                    },
-                                  });
+                                  setUserDialogMode("edit");
+                                  setUserDialogUser(user);
+                                  setShowUserDialog(true);
                                 }}
                               >
-                                <UserCog className="h-4 w-4" />
+                                <Pencil className="h-4 w-4" />
                               </Button>
                               {user.banned ? (
                                 <Button
@@ -288,15 +403,26 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                                       open: true,
                                       title: "Unban User",
                                       description: `Are you sure you want to unban ${user.name || user.email}?`,
-                                      onConfirm: () => {
-                                        adminService.unbanUser(user.id).then(() => {
-                                          setUsers((prev) =>
-                                            prev.map((u) =>
-                                              u.id === user.id ? { ...u, banned: false } : u
-                                            )
-                                          );
-                                        });
-                                        setConfirmDialog((prev) => ({ ...prev, open: false }));
+                                      onConfirm: async () => {
+                                        const prev = [...users];
+                                        setUsers((prev) =>
+                                          prev.map((u) =>
+                                            u.id === user.id ? { ...u, banned: false } : u
+                                          )
+                                        );
+                                        try {
+                                          await adminService.unbanUser(user.id);
+                                          setConfirmDialog((prev) => ({ ...prev, open: false }));
+                                          toast.success("User unbanned", {
+                                            description: `${user.name || user.email} has been unbanned.`,
+                                          });
+                                        } catch (err) {
+                                          setUsers(prev);
+                                          setConfirmDialog((prev) => ({ ...prev, open: false }));
+                                          toast.error("Failed to unban user", {
+                                            description: err instanceof Error ? err.message : "An unexpected error occurred.",
+                                          });
+                                        }
                                       },
                                     });
                                   }}
@@ -317,6 +443,14 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                                   <Ban className="h-4 w-4" />
                                 </Button>
                               )}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteUser(user)}
+                                title="Remove user"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -345,6 +479,33 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
             </div>
           </CardContent>
         </Card>
+
+        {/* Pagination */}
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-4 px-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Page {currentPage} of {Math.ceil(totalCount / PAGE_SIZE)} ({totalCount} total)
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1 || loading}
+                onClick={() => fetchUsers(currentPage - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE) || loading}
+                onClick={() => fetchUsers(currentPage + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Confirm Dialog for Role Change / Unban */}
         <Dialog
@@ -400,16 +561,27 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
               <Button
                 variant="destructive"
                 disabled={!banDialog.reason.trim()}
-                onClick={() => {
+                onClick={async () => {
                   if (banDialog.userId && banDialog.reason.trim()) {
-                    adminService.banUser(banDialog.userId, banDialog.reason).then(() => {
-                      setUsers((prev) =>
-                        prev.map((u) =>
-                          u.id === banDialog.userId ? { ...u, banned: true } : u
-                        )
-                      );
-                    });
-                    setBanDialog({ open: false, userId: null, reason: "" });
+                    const prev = [...users];
+                    setUsers((prev) =>
+                      prev.map((u) =>
+                        u.id === banDialog.userId ? { ...u, banned: true } : u
+                      )
+                    );
+                    try {
+                      await adminService.banUser(banDialog.userId, banDialog.reason);
+                      setBanDialog({ open: false, userId: null, reason: "" });
+                      toast.success("User banned", {
+                        description: `User has been banned. Reason: ${banDialog.reason}`,
+                      });
+                    } catch (err) {
+                      setUsers(prev);
+                      setBanDialog({ open: false, userId: null, reason: "" });
+                      toast.error("Failed to ban user", {
+                        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+                      });
+                    }
                   }
                 }}
               >
@@ -418,6 +590,14 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <UserDialog
+          open={showUserDialog}
+          onOpenChange={setShowUserDialog}
+          mode={userDialogMode}
+          user={userDialogUser}
+          onSuccess={() => fetchUsers(1)}
+        />
       </div>
     </div>
   );
