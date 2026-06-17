@@ -16,12 +16,12 @@ const nextConfig = {
         port: "",
         pathname: "/media/**",
       },
-      // {
-      //   protocol: "http",
-      //   hostname: "product-service",
-      //   port: "8000",
-      //   pathname: "/media/product_images/**",
-      // },
+      {
+        protocol: "http",
+        hostname: "product-service",
+        port: "8000",
+        pathname: "/media/product_images/**",
+      },
     ],
   },
 };

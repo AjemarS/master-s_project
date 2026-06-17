@@ -55,8 +55,24 @@ export function Header({ showAuth = true }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const matchedRule = rules.find((r) => pathname.startsWith(r.prefix));
-  const whereAmI: NavigationSection = matchedRule?.where ?? "main";
-  const navigation = matchedRule ? matchedRule.nav : mainNavigation;
+
+  // Determine where the user actually is, falling back to "main" if they
+  // shouldn't be in the matched section (e.g. non-admin on /admin/*).
+  let whereAmI: NavigationSection = "main";
+  if (matchedRule) {
+    if (matchedRule.where === "admin" && user?.role === "admin") {
+      whereAmI = "admin";
+    } else if (matchedRule.where === "dashboard" && user) {
+      whereAmI = "dashboard";
+    }
+  }
+
+  const navigation =
+    whereAmI === "main"
+      ? mainNavigation
+      : whereAmI === "dashboard"
+        ? dashboardNavigation
+        : adminNavigation;
 
   return (
     <header

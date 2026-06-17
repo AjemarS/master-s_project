@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import ProductsPageContent from "./page-content";
+import ProductsLoading from "./loading";
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground">Loading products...</p></div>}>
+    <Suspense fallback={<ProductsLoading />}>
       <ProductsPageContent />
     </Suspense>
   );

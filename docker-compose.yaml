@@ -79,6 +79,7 @@ services:
     environment:
       PORT: ${AUTH_PORT}
       DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth_db:5432/${AUTH_DB_NAME}
+      FRONTEND_URL: ${FRONTEND_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -87,6 +88,7 @@ services:
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       GITHUB_REDIRECT_URL: ${GITHUB_REDIRECT_URL}
+      REDIS_URL: redis://redis:6379
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -94,6 +96,8 @@ services:
       - "3001:3001"
     depends_on:
       auth_db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: npm run dev
     networks:
@@ -139,9 +143,26 @@ services:
       - microservices_network
     command: npm run dev
 
+  # Redis (for rate limiting)
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - microservices_network
+
 volumes:
   postgres_products_data:
   postgres_auth_data:
+  redis_data:
 
 networks:
   microservices_network:

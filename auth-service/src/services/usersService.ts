@@ -1,8 +1,13 @@
 // usersService.ts
 import { auth } from "../auth";
 
-const getUsers = async (query: Parameters<typeof auth.api.listUsers>[0]["query"]) => {
-  return await auth.api.listUsers({ query });
+const getUsers = async (query: Record<string, any>, headers?: Headers) => {
+  // Map express query params to Better Auth listUsers format
+  const betterAuthQuery: Record<string, any> = {};
+  if (query.search) betterAuthQuery.search = query.search as string;
+  if (query.limit) betterAuthQuery.limit = parseInt(query.limit as string, 10);
+  if (query.offset) betterAuthQuery.offset = parseInt(query.offset as string, 10);
+  return await auth.api.listUsers({ query: betterAuthQuery, headers });
 };
 
 const getUserById = async (userId: string) => {

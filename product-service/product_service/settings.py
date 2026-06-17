@@ -4,8 +4,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
-    if os.environ.get("DEBUG") == "True":
-         SECRET_KEY = "django-insecure-dev-key-change-in-production"
+    if os.environ.get("DEBUG", "False") == "True":
+        SECRET_KEY = "django-insecure-dev-key-change-in-production"
     else:
         raise ValueError("DJANGO_SECRET_KEY must be set in production")
 
@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "corsheaders",
+    "drf_spectacular",
     "products",
 ]
 
@@ -97,6 +98,7 @@ REST_FRAMEWORK = {
 
     # ----- Auth & permissions -----
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "products.authentication.GatewayAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
     ],
@@ -125,6 +127,16 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+
+    # ----- OpenAPI Schema -----
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Product Service API",
+    "DESCRIPTION": "REST API for managing products and categories",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 # ----- Logging -----

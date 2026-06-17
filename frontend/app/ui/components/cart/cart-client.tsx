@@ -44,11 +44,23 @@ export function CartClient({ className }: CartProps) {
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [isMounted, setIsMounted] = React.useState(false);
-  const isDesktop = typeof window !== "undefined" ? window.innerWidth >= 768 : false;
-  
+  const [isDesktop, setIsDesktop] = React.useState(false);
+
   React.useEffect(() => {
     setIsMounted(true);
+    setIsDesktop(window.innerWidth >= 768);
+
+    const handleResize = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const cartDescription = React.useMemo(() => {
+    if (totalItems === 0) return "Your cart is empty";
+    return `You have ${totalItems} item${totalItems !== 1 ? "s" : ""} in your cart`;
+  }, [totalItems]);
+
+  const formattedSubtotal = React.useMemo(() => `$${subtotal.toFixed(2)}`, [subtotal]);
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -91,9 +103,7 @@ export function CartClient({ className }: CartProps) {
           <div>
             <div className="text-xl font-semibold">Your Cart</div>
             <div className="text-sm text-muted-foreground">
-              {totalItems === 0
-                ? "Your cart is empty"
-                : `You have ${totalItems} item${totalItems !== 1 ? "s" : ""} in your cart`}
+              {cartDescription}
             </div>
           </div>
           {isDesktop && (
@@ -253,7 +263,7 @@ export function CartClient({ className }: CartProps) {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
+                <span className="font-medium">{formattedSubtotal}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Shipping</span>
@@ -263,7 +273,7 @@ export function CartClient({ className }: CartProps) {
               <div className="flex items-center justify-between">
                 <span className="text-base font-semibold">Total</span>
                 <span className="text-base font-semibold">
-                  ${subtotal.toFixed(2)}
+                  {formattedSubtotal}
                 </span>
               </div>
               <Button className="w-full" size="lg">
