@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { memo, useState } from "react";
 
@@ -49,11 +50,11 @@ export const isActive = (href: string, current: string) =>
 
 const Logo = memo(function Logo() {
   return (
-    <a className="flex items-center gap-2" href="/">
+    <Link className="flex items-center gap-2" href="/">
       <span className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent">
         Store
       </span>
-    </a>
+    </Link>
   );
 });
 
