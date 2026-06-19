@@ -67,6 +67,10 @@ def _create_admin_user():
     return User.objects.create_superuser("admin", "admin@test.com", "password123")
 
 
+def _create_regular_user():
+    return User.objects.create_user("regular", "regular@test.com", "password123")
+
+
 # =============================================================================
 #  Model Tests
 # =============================================================================
@@ -326,6 +330,8 @@ class ProductAPITest(APITestCase):
     # --- Create (admin only) ---
 
     def test_create_requires_admin(self):
+        user = _create_regular_user()
+        self.client.force_authenticate(user)
         payload = {
             "name": "New",
             "description": "Desc",
@@ -352,6 +358,8 @@ class ProductAPITest(APITestCase):
     # --- Update (admin only) ---
 
     def test_update_requires_admin(self):
+        user = _create_regular_user()
+        self.client.force_authenticate(user)
         response = self.client.patch(self.detail_url, {"name": "Hacked"}, format="json")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -366,6 +374,8 @@ class ProductAPITest(APITestCase):
     # --- Delete (admin only) ---
 
     def test_delete_requires_admin(self):
+        user = _create_regular_user()
+        self.client.force_authenticate(user)
         response = self.client.delete(self.detail_url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -444,6 +454,11 @@ class CartAPITest(APITestCase):
         self.cat = _create_category()
         self.product = _create_product(category=self.cat)
         self.user_id = "test-user-123"
+        # Pre-create the same user that GatewayAuthentication would create
+        self.user = User.objects.create_user(
+            username=f"gw_{self.user_id}",
+            email=f"{self.user_id}@gateway.local",
+        )
         # Simulate gateway-proxied request headers
         self.auth_headers = {
             "HTTP_X_GATEWAY_USER_ID": self.user_id,
@@ -466,7 +481,7 @@ class CartAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_cart_returns_items(self):
-        cart = Cart.objects.create(user_id=self.user_id)
+        cart = Cart.objects.create(user_id=self.user.pk)
         CartItem.objects.create(cart=cart, product=self.product, quantity=2)
         response = self.client.get(self._cart_url(), **self.auth_headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -484,7 +499,7 @@ class CartAPITest(APITestCase):
             **self.auth_headers,
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        cart = Cart.objects.get(user_id=self.user_id)
+        cart = Cart.objects.get(user_id=self.user.pk)
         self.assertEqual(cart.items.count(), 1)
         item = cart.items.first()
         self.assertEqual(item.quantity, 3)
@@ -495,8 +510,8 @@ class CartAPITest(APITestCase):
             {"product_id": self.product.pk, "quantity": 1},
             format="json",
         )
-        # IsAuthenticatedOrReadOnly blocks anonymous POST with 403
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # IsAuthenticated blocks anonymous POST with 401
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_add_item_nonexistent_product(self):
         response = self.client.post(
@@ -517,7 +532,7 @@ class CartAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_add_item_twice_increments_quantity(self):
-        cart = Cart.objects.create(user_id=self.user_id)
+        cart = Cart.objects.create(user_id=self.user.pk)
         CartItem.objects.create(cart=cart, product=self.product, quantity=1)
 
         response = self.client.post(
@@ -533,7 +548,7 @@ class CartAPITest(APITestCase):
     # --- Cart total ---
 
     def test_cart_total(self):
-        cart = Cart.objects.create(user_id=self.user_id)
+        cart = Cart.objects.create(user_id=self.user.pk)
         CartItem.objects.create(cart=cart, product=self.product, quantity=2)
         # product price is Decimal('99.99'), so 2 * 99.99 = 199.98
         response = self.client.get(self._cart_url(), **self.auth_headers)
