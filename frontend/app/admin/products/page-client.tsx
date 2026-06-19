@@ -64,6 +64,7 @@ export default function AdminProductsClient({
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [formDialogMode, setFormDialogMode] = useState<"create" | "edit">("create");
   const [formDialogProduct, setFormDialogProduct] = useState<Product | null>(null);
+  const [formDialogKey, setFormDialogKey] = useState(0);
 
   useEffect(() => {
     categoryApi.getAll().then((res) => {
@@ -112,14 +113,15 @@ export default function AdminProductsClient({
   // when the server-side fetch (in Docker) returned empty data.
   useEffect(() => {
     if (debouncedSearchTerm) {
-      setCurrentPage(1);
-      fetchProducts(1);
+      queueMicrotask(() => fetchProducts(1));
       return;
     }
 
     if (initialProducts.length > 0) {
-      setProducts(initialProducts);
-      setCurrentPage(1);
+      queueMicrotask(() => {
+        setProducts(initialProducts);
+        setCurrentPage(1);
+      });
       return;
     }
 
@@ -169,12 +171,14 @@ export default function AdminProductsClient({
     setFormDialogMode("create");
     setFormDialogProduct(null);
     setShowFormDialog(true);
+    setFormDialogKey((k) => k + 1);
   };
 
   const handleEditClick = (product: Product) => {
     setFormDialogMode("edit");
     setFormDialogProduct(product);
     setShowFormDialog(true);
+    setFormDialogKey((k) => k + 1);
   };
 
   const handleExport = () => {
@@ -463,6 +467,7 @@ export default function AdminProductsClient({
         />
 
         <ProductFormDialog
+          key={formDialogKey}
           open={showFormDialog}
           onOpenChange={setShowFormDialog}
           mode={formDialogMode}

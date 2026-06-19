@@ -15,7 +15,7 @@ import {
   redisClient,
 } from "./middleware/rateLimiter";
 import { requireAdmin, addAdminUserId, getAdminUserIds } from "./middleware/authMiddleware";
-import { hashPassword } from "@better-auth/utils/password";
+import { hashPassword } from "better-auth/crypto";
 import onFinished from "on-finished";
 
 dotenv.config();
