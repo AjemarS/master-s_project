@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 import { Cart } from "~/ui/components/cart/cart";
-import { Skeleton } from "~/ui/primitives/skeleton";
 
 import { NotificationsWidget } from "../notifications/notifications-widget";
 import { ThemeToggle } from "../theme-toggle";
@@ -49,9 +47,34 @@ export const isInDashboardOrAdmin = (section: NavigationSection) =>
 export const isActive = (href: string, current: string) =>
   current === href || (href !== "/" && current?.startsWith(href));
 
+const Logo = memo(function Logo() {
+  return (
+    <a className="flex items-center gap-2" href="/">
+      <span className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent">
+        Store
+      </span>
+    </a>
+  );
+});
+
+const HeaderLeft = memo(function HeaderLeft({
+  navigation,
+  pathname,
+}: {
+  navigation: typeof mainNavigation;
+  pathname: string;
+}) {
+  return (
+    <div className="flex items-center gap-6">
+      <Logo />
+      <DesktopNavigation navigation={navigation} pathname={pathname} />
+    </div>
+  );
+});
+
 export function Header({ showAuth = true }: HeaderProps) {
   const pathname = usePathname();
-  const { isPending, user } = useCurrentUser();
+  const { user } = useCurrentUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const matchedRule = rules.find((r) => pathname.startsWith(r.prefix));
@@ -93,25 +116,17 @@ export function Header({ showAuth = true }: HeaderProps) {
       >
         <div className="flex h-16 items-center justify-between">
           {/* Logo and Desktop Navigation */}
-          <div className="flex items-center gap-6">
-            <Link className="flex items-center gap-2" href="/">
-              <span className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent">
-                Store
-              </span>
-            </Link>
-            <DesktopNavigation navigation={navigation} isPending={isPending} pathname={pathname} />
-          </div>
+          <HeaderLeft navigation={navigation} pathname={pathname} />
 
           {/* Right side actions */}
           <div className="flex items-center gap-4">
-            {whereAmI !== "admin" &&
-              (isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <Cart />)}
+            {whereAmI !== "admin" && <Cart />}
 
-            {isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <NotificationsWidget />}
+            <NotificationsWidget />
 
-            {showAuth && <AuthSection user={user!} isPending={isPending} whereAmI={whereAmI} />}
+            {showAuth && <AuthSection user={user!} whereAmI={whereAmI} />}
 
-            {isPending ? <Skeleton className="h-9 w-9 rounded-full" /> : <ThemeToggle />}
+            <ThemeToggle />
 
             <MobileMenuButton
               isOpen={mobileMenuOpen}
@@ -125,7 +140,6 @@ export function Header({ showAuth = true }: HeaderProps) {
       {mobileMenuOpen && (
         <MobileMenu
           navigation={navigation}
-          isPending={isPending}
           pathname={pathname}
           showAuth={showAuth}
           user={user!}
