@@ -1,7 +1,9 @@
 import { useSyncExternalStore } from "react";
 
-const emptySubscribe = () => () => {};
+const noopSubscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 
 export function useMounted() {
-  return useSyncExternalStore(() => true, () => false, emptySubscribe);
+  return useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
 }
