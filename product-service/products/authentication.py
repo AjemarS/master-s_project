@@ -88,6 +88,6 @@ class GatewayAuthentication(BaseAuthentication):
             logger.error("Gateway auth error for user_id=%s: %s", user_id, exc)
             raise AuthenticationFailed("Authentication service error") from exc
 
-    # def authenticate_header(self, request):
-    #     """Value for the WWW-Authenticate header when 401 is returned."""
-    #     return 'Gateway realm="api"'
+    def authenticate_header(self, request):
+        """Value for the WWW-Authenticate header when 401 is returned."""
+        return 'Gateway realm="api"'

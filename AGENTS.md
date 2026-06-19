@@ -10,3 +10,5 @@
 - No CI/CD configured. No lint/typecheck scripts for Python services (gateway, product-service).
 - Services reference: `product-service/CONTEXT.md`, `auth-service/CONTEXT.md`,
   `gateway/CONTEXT.md`, `frontend/CONTEXT.md`.
+- **Product-service tests are the spec.** They represent desired behavior and must never be altered.
+  If a test fails, the bug is in the application code, not the test.

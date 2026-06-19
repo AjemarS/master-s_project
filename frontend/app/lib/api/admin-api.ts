@@ -100,6 +100,35 @@ export const categoryApi = {
   > {
     return apiCall(`${API_URL}/categories/`);
   },
+
+  /**
+   * Create a new category
+   */
+  async create(category: Partial<Category>): Promise<ApiResponse<Category>> {
+    return apiCall(`${API_URL}/categories/`, {
+      method: "POST",
+      body: JSON.stringify(category),
+    });
+  },
+
+  /**
+   * Update a category
+   */
+  async update(id: number, category: Partial<Category>): Promise<ApiResponse<Category>> {
+    return apiCall(`${API_URL}/categories/${id}/`, {
+      method: "PUT",
+      body: JSON.stringify(category),
+    });
+  },
+
+  /**
+   * Delete a category
+   */
+  async delete(id: number): Promise<ApiResponse<void>> {
+    return apiCall(`${API_URL}/categories/${id}/`, {
+      method: "DELETE",
+    });
+  },
 };
 
 // User API (using Better Auth admin plugin)

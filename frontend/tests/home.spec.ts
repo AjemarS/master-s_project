@@ -81,4 +81,9 @@ test.describe("Home Page", () => {
     const shopNow = page.getByRole("link", { name: "Shop Now" }).first();
     await expect(shopNow).toHaveAttribute("href", /products/);
   });
+
+  test("Sign Up Now CTA links to /sign-up (not /auth/sign-up)", async ({ page }) => {
+    const signUp = page.getByRole("link", { name: "Sign Up Now" });
+    await expect(signUp).toHaveAttribute("href", "/sign-up");
+  });
 });
