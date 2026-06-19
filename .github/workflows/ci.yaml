@@ -100,6 +100,21 @@ jobs:
       - run: python manage.py test
         working-directory: product-service
 
+  test-auth-service:
+    runs-on: ubuntu-latest
+    needs: [lint-auth-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: auth-service/package-lock.json
+      - run: npm ci
+        working-directory: auth-service
+      - run: npm run test
+        working-directory: auth-service
+
   test-frontend:
     runs-on: ubuntu-latest
     needs: [lint-frontend]
@@ -117,9 +132,86 @@ jobs:
       - run: npx playwright test
         working-directory: frontend
 
+  test-frontend-e2e:
+    runs-on: ubuntu-latest
+    needs: [lint-frontend, test-product-service, test-auth-service]
+    env:
+      TEST_ADMIN_EMAIL: admin@ci-test.local
+      TEST_ADMIN_PASSWORD: ci-e2e-admin-password
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create CI env file
+        run: |
+          cat > .env.ci << 'ENVEOF'
+          POSTGRES_DB=products_db
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          DB_HOST=products_db
+          DB_PORT=5432
+          AUTH_DB_NAME=auth_db
+          AUTH_DB_USER=postgres
+          AUTH_DB_PASSWORD=postgres
+          AUTH_PORT=3001
+          BETTER_AUTH_SECRET=ci-e2e-better-auth-secret-not-for-production
+          BETTER_AUTH_URL=http://auth-service:3001/auth
+          DJANGO_SECRET_KEY=ci-e2e-django-secret-key
+          DEBUG=True
+          ALLOWED_HOSTS=*
+          CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost
+          PRODUCT_SERVICE_URL=http://product-service:8000
+          FRONTEND_SERVICE_URL=http://frontend:3000
+          AUTH_SERVICE_URL=http://auth-service:3001
+          API_SERVICE_URL=http://gateway:8080/api
+          CORS_ORIGINS=http://localhost:3000,http://localhost
+          NEXT_PUBLIC_API_URL=http://localhost:3000/api
+          NEXT_PUBLIC_AUTH_URL=http://localhost:3000/auth
+          PROXY_AUTH_URL=http://gateway:8080/auth
+          NODE_ENV=development
+          FRONTEND_URL=http://localhost:3000
+          REDIS_URL=redis://redis:6379
+          ADMIN_EMAIL=admin@ci-test.local
+          ADMIN_PASSWORD=ci-e2e-admin-password
+          ADMIN_NAME=CI Admin
+          LOG_LEVEL=info
+          ENVEOF
+
+      - name: Build and start backend services
+        run: |
+          docker compose --env-file .env.ci up -d --build
+          docker compose stop frontend
+
+      - name: Wait for gateway
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:80/health > /dev/null 2>&1; then
+              echo "Gateway healthy"
+              break
+            fi
+            echo "Waiting for gateway... ($i/30)"
+            sleep 2
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
+
+      - name: Cleanup
+        if: always()
+        run: docker compose --env-file .env.ci down -v
+
   build-docker:
     runs-on: ubuntu-latest
-    needs: [lint-gateway, lint-product-service, lint-auth-service, lint-frontend]
+    needs: [lint-gateway, lint-product-service, lint-auth-service, lint-frontend, test-product-service, test-auth-service, test-frontend, test-frontend-e2e]
     steps:
       - uses: actions/checkout@v4
       - run: docker compose build
