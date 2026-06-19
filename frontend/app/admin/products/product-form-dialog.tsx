@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -179,39 +179,6 @@ export function ProductFormDialog({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
-
-  // Sync form state when opening dialog with different product
-  useEffect(() => {
-    if (mode === "edit" && product) {
-      setName(product.name ?? "");
-      setDescription(product.description ?? "");
-      const cid = typeof product.category === "object" ? product.category?.id : product.category;
-      setCategoryId(String(cid ?? ""));
-      setPrice(String(product.price ?? ""));
-      setOriginalPrice(String(product.original_price ?? ""));
-      setStock(String(product.stock ?? "0"));
-      setRating(String(product.rating ?? "0.0"));
-      setFeatures(product.features ?? []);
-      if (product.specs && typeof product.specs === "object") {
-        setSpecs(Object.entries(product.specs).map(([key, value]) => ({ key, value: String(value) })));
-      } else {
-        setSpecs([]);
-      }
-      setImage(null);
-    } else if (mode === "create") {
-      setName("");
-      setDescription("");
-      setCategoryId("");
-      setPrice("");
-      setOriginalPrice("");
-      setStock("0");
-      setRating("0.0");
-      setFeatures([]);
-      setSpecs([]);
-      setImage(null);
-    }
-    setFormError(null);
-  }, [mode, product, open]);
 
   const resetForm = () => {
     if (mode === "create") {

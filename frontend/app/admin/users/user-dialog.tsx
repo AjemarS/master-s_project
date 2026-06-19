@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -33,21 +33,6 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
   const [role, setRole] = useState<"admin" | "user">("user");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (mode === "edit" && user) {
-      setName(user.name ?? "");
-      setEmail(user.email ?? "");
-      setRole((user.role as "admin" | "user") ?? "user");
-      setPassword("");
-    } else if (mode === "create") {
-      setName("");
-      setEmail("");
-      setPassword("");
-      setRole("user");
-    }
-    setFormError(null);
-  }, [mode, user, open]);
 
   const resetAndClose = () => {
     setFormError(null);

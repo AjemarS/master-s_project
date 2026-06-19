@@ -69,6 +69,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [userDialogMode, setUserDialogMode] = useState<"create" | "edit">("create");
   const [userDialogUser, setUserDialogUser] = useState<UserWithRole | null>(null);
+  const [userDialogKey, setUserDialogKey] = useState(0);
 
   const [showFilters, setShowFilters] = useState(false);
   const [filterRole, setFilterRole] = useState<string>("");
@@ -123,11 +124,12 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
 
   useEffect(() => {
     if (debouncedSearchTerm || filterRole || filterStatus || initialUsers.length === 0) {
-      setCurrentPage(1);
-      fetchUsers(1);
+      queueMicrotask(() => fetchUsers(1));
     } else {
-      setCurrentPage(1);
-      setTotalCount(initialUsers.length);
+      queueMicrotask(() => {
+        setCurrentPage(1);
+        setTotalCount(initialUsers.length);
+      });
     }
   }, [debouncedSearchTerm, fetchUsers, initialUsers.length, filterRole, filterStatus]);
 
@@ -173,7 +175,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
               </h1>
               <p className="text-slate-600 dark:text-slate-400">Better-Auth Admin Plugin Integration</p>
             </div>
-            <Button className="flex items-center gap-2" onClick={() => { setUserDialogMode("create"); setUserDialogUser(null); setShowUserDialog(true); }}>
+            <Button className="flex items-center gap-2" onClick={() => { setUserDialogMode("create"); setUserDialogUser(null); setShowUserDialog(true); setUserDialogKey((k) => k + 1); }}>
               <Plus className="h-4 w-4" />
               Invite User
             </Button>
@@ -389,6 +391,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                                   setUserDialogMode("edit");
                                   setUserDialogUser(user);
                                   setShowUserDialog(true);
+                                  setUserDialogKey((k) => k + 1);
                                 }}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -592,6 +595,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
         </Dialog>
 
         <UserDialog
+          key={userDialogKey}
           open={showUserDialog}
           onOpenChange={setShowUserDialog}
           mode={userDialogMode}

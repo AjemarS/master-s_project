@@ -25,6 +25,7 @@ import {
   SheetTrigger,
 } from "~/ui/primitives/sheet";
 import { useCart } from "~/lib/hooks/use-cart";
+import { useMounted } from "~/lib/hooks/use-mounted";
 
 export type { CartItem } from "~/lib/hooks/use-cart";
 
@@ -43,17 +44,17 @@ export function CartClient({ className }: CartProps) {
   } = useCart();
 
   const [isOpen, setIsOpen] = React.useState(false);
-  const [isMounted, setIsMounted] = React.useState(false);
-  const [isDesktop, setIsDesktop] = React.useState(false);
+  const isMounted = useMounted();
 
-  React.useEffect(() => {
-    setIsMounted(true);
-    setIsDesktop(window.innerWidth >= 768);
-
-    const handleResize = () => setIsDesktop(window.innerWidth >= 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const isDesktop = React.useSyncExternalStore(
+    (onStoreChange) => {
+      const mql = window.matchMedia("(min-width: 768px)");
+      mql.addEventListener("change", onStoreChange);
+      return () => mql.removeEventListener("change", onStoreChange);
+    },
+    () => window.matchMedia("(min-width: 768px)").matches,
+    () => false
+  );
 
   const cartDescription = React.useMemo(() => {
     if (totalItems === 0) return "Your cart is empty";
