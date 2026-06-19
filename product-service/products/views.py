@@ -185,7 +185,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["name", "description"]
+    search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
 
