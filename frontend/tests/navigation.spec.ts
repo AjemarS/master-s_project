@@ -11,11 +11,8 @@ test.describe("Navigation", () => {
     page,
   }) => {
     await page.goto("/");
-    const productsLink = page.getByRole("link", { name: "Products" }).first();
-    if (await productsLink.isVisible()) {
-      await productsLink.click();
-      await page.waitForURL(/products/);
-    }
+    await page.getByRole("link", { name: "Products" }).first().waitFor({ state: "visible" });
+    await page.getByRole("link", { name: "Products" }).first().click();
     await expect(page).toHaveURL(/products/);
   });
 
@@ -31,11 +28,13 @@ test.describe("Navigation", () => {
 });
 
 test.describe("Route Protection", () => {
-  test("admin routes redirect to home without auth", async ({ page }) => {
-    await page.goto("/admin");
-    // admin routes fail closed → redirect to /
-    await expect(page).not.toHaveURL(/\/admin/);
-  });
+  const adminRoutes = ["/admin", "/admin/summary", "/admin/products", "/admin/users"];
+  for (const route of adminRoutes) {
+    test(`${route} redirects to home without auth`, async ({ page }) => {
+      await page.goto(route);
+      await expect(page).not.toHaveURL(/\/admin/);
+    });
+  }
 
   test("sign-in page is accessible without auth", async ({ page }) => {
     await page.goto("/sign-in");
