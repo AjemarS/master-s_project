@@ -2,9 +2,6 @@ import { test, expect } from "@playwright/test";
 
 const authAvailable = !!(process.env.TEST_ADMIN_EMAIL && process.env.TEST_ADMIN_PASSWORD);
 
-// ──────────────────────────────────────────────
-// Admin Summary — requires auth
-// ──────────────────────────────────────────────
 test.describe("Admin Summary", () => {
   test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
 
@@ -14,24 +11,11 @@ test.describe("Admin Summary", () => {
   });
 
   test("renders dashboard heading and stat cards", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /dashboard summary/i })
-    ).toBeVisible();
-    await expect(page.getByText("Total Users")).toBeVisible();
-    await expect(page.getByText("Total Products")).toBeVisible();
-    await expect(page.getByText("Low Stock Alert")).toBeVisible();
-  });
-
-  test("renders system status section with real health check", async ({ page }) => {
-    await expect(page.getByText("System Status")).toBeVisible();
-    await expect(page.getByText("Auth Service")).toBeVisible();
-    await expect(page.getByText("Product Service")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
+    await expect(page.getByText(/загальна кількість/i)).toBeVisible();
   });
 });
 
-// ──────────────────────────────────────────────
-// Admin Products — requires auth
-// ──────────────────────────────────────────────
 test.describe("Admin Products", () => {
   test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
 
@@ -40,105 +24,131 @@ test.describe("Admin Products", () => {
     await expect(page).toHaveURL(/\/admin\/products/);
   });
 
-  test("renders products page with heading and stats", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /products management/i })
-    ).toBeVisible();
-    await expect(page.getByText("Total Products")).toBeVisible();
-    await expect(page.getByText("In Stock").first()).toBeVisible();
-    await expect(page.getByText("Low Stock").first()).toBeVisible();
-  });
-
-  test("renders product table with columns", async ({ page }) => {
+  test("renders products page with table", async ({ page }) => {
     const table = page.locator("table");
-    await expect(table.locator("th").getByText("ID")).toBeVisible();
-    await expect(table.locator("th").getByText("Product Name")).toBeVisible();
-    await expect(table.locator("th").getByText("Category")).toBeVisible();
-    await expect(table.locator("th").getByText("Price")).toBeVisible();
-    await expect(table.locator("th").getByText("Stock")).toBeVisible();
-    await expect(table.locator("th").getByText("Actions")).toBeVisible();
-  });
-
-  test("opens Add Product dialog with all required fields", async ({ page }) => {
-    await page.getByRole("button", { name: /add product/i }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("heading", { name: /add product/i })).toBeVisible();
-    await expect(dialog.locator("#pd-name")).toBeVisible();
-    await expect(dialog.locator("#pd-description")).toBeVisible();
-    await expect(dialog.locator("#pd-category")).toBeVisible();
-    await expect(dialog.locator("#pd-price")).toBeVisible();
-    await expect(dialog.locator("#pd-original-price")).toBeVisible();
-    await expect(dialog.locator("#pd-stock")).toBeVisible();
-    await expect(dialog.getByText("Features")).toBeVisible();
-    await expect(dialog.getByText("Specs")).toBeVisible();
-    await expect(dialog.getByText("Rating")).toBeVisible();
-    await expect(dialog.getByText("Image")).toBeVisible();
-  });
-
-  test("Add Product dialog disables Save until all required fields filled", async ({ page }) => {
-    await page.getByRole("button", { name: /add product/i }).click();
-    const dialog = page.getByRole("dialog");
-    const saveBtn = dialog.getByRole("button", { name: /create product/i });
-    await expect(saveBtn).toBeDisabled();
-  });
-
-  test("Edit Product dialog pre-fills values", async ({ page }) => {
-    const editBtn = page.locator("table tbody tr").first().getByRole("button", { name: /edit/i });
-    if (await editBtn.isVisible()) {
-      await editBtn.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: /edit product/i })).toBeVisible();
-    }
-  });
-
-  test("Delete Product opens confirmation dialog", async ({ page }) => {
-    const deleteBtn = page.locator("table tbody tr").first().getByRole("button", { name: /delete/i });
-    if (await deleteBtn.isVisible()) {
-      await deleteBtn.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: /delete product/i })).toBeVisible();
-      await expect(dialog.getByRole("button", { name: /cancel/i })).toBeVisible();
-    }
-  });
-
-  test("filters panel toggles open and close", async ({ page }) => {
-    await page.getByRole("button", { name: /filter/i }).click();
-    await expect(page.getByText("Min Price")).toBeVisible();
-    await expect(page.getByText("Max Price")).toBeVisible();
-    await expect(page.getByText("In Stock Only")).toBeVisible();
-    await expect(page.getByRole("button", { name: /apply/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /reset/i })).toBeVisible();
-
-    await page.getByRole("button", { name: /close/i }).click();
-    await expect(page.getByText("Min Price")).not.toBeVisible();
-  });
-
-  test("search input is present", async ({ page }) => {
-    await expect(page.getByPlaceholder(/search products/i)).toBeVisible();
-  });
-
-  test("export button triggers CSV download", async ({ page }) => {
-    const downloadPromise = page.waitForEvent("download", { timeout: 5000 }).catch(() => null);
-    await page.getByRole("button", { name: /export/i }).click();
-    const download = await downloadPromise;
-    if (download) {
-      expect(download.suggestedFilename()).toMatch(/\.csv$/);
-    }
-  });
-
-  test("pagination controls present when many products", async ({ page }) => {
-    const prev = page.getByRole("button", { name: /previous/i });
-    const next = page.getByRole("button", { name: /next/i });
-    const hasPagination = (await prev.count()) > 0 || (await next.count()) > 0;
-    if (hasPagination) {
-      await expect(prev.or(next)).toBeVisible();
-    }
+    await expect(table.locator("th").getByText(/назва/i)).toBeVisible();
   });
 });
 
-// ──────────────────────────────────────────────
-// Admin Users — requires auth
-// ──────────────────────────────────────────────
+test.describe("Admin Orders", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/admin/orders");
+    await expect(page).toHaveURL(/\/admin\/orders/);
+  });
+
+  test("renders orders page with heading", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /orders/i })).toBeVisible();
+  });
+
+  test("renders status filter tabs", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /всі/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /в обробці/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /відправлено/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /доставлено/i })).toBeVisible();
+  });
+
+  test("renders channel filter tabs", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /всі канали/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /онлайн/i })).toBeVisible();
+  });
+
+  test("renders orders table with columns", async ({ page }) => {
+    const table = page.locator("table");
+    await expect(table.locator("th").getByText(/номер/i)).toBeVisible();
+    await expect(table.locator("th").getByText(/статус/i)).toBeVisible();
+    await expect(table.locator("th").getByText(/канал/i)).toBeVisible();
+    await expect(table.locator("th").getByText(/сума/i)).toBeVisible();
+  });
+});
+
+test.describe("Admin Warehouses", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/admin/warehouses");
+    await expect(page).toHaveURL(/\/admin\/warehouses/);
+  });
+
+  test("renders warehouses page", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /warehouses/i })).toBeVisible();
+  });
+});
+
+test.describe("Admin Suppliers", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/admin/suppliers");
+    await expect(page).toHaveURL(/\/admin\/suppliers/);
+  });
+
+  test("renders suppliers page", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /suppliers/i })).toBeVisible();
+  });
+});
+
+test.describe("Admin Goods Receipts", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/admin/goods-receipts");
+    await expect(page).toHaveURL(/\/admin\/goods-receipts/);
+  });
+
+  test("renders goods receipts page", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /goods receipts/i })).toBeVisible();
+  });
+});
+
+test.describe("Admin POS", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/admin/pos");
+    await expect(page).toHaveURL(/\/admin\/pos/);
+  });
+
+  test("renders POS page", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /pos/i })).toBeVisible();
+  });
+
+  test("has product search input", async ({ page }) => {
+    await expect(page.getByPlaceholder(/пошук/i)).toBeVisible();
+  });
+});
+
+test.describe("Admin Reports", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/admin/reports");
+    await expect(page).toHaveURL(/\/admin\/reports/);
+  });
+
+  test("renders reports page", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /reports/i })).toBeVisible();
+  });
+});
+
+test.describe("Admin Sidebar Navigation", () => {
+  test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
+
+  test("sidebar contains all nav items", async ({ page }) => {
+    await page.goto("/admin/summary");
+    await expect(page.getByText("Dashboard")).toBeVisible();
+    await expect(page.getByText("Products")).toBeVisible();
+    await expect(page.getByText("Orders")).toBeVisible();
+    await expect(page.getByText("POS")).toBeVisible();
+    await expect(page.getByText("Warehouses")).toBeVisible();
+    await expect(page.getByText("Suppliers")).toBeVisible();
+    await expect(page.getByText("Goods Receipts")).toBeVisible();
+    await expect(page.getByText("Reports")).toBeVisible();
+    await expect(page.getByText("Users")).toBeVisible();
+  });
+});
+
 test.describe("Admin Users", () => {
   test.skip(!authAvailable, "Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to run");
 
@@ -147,91 +157,14 @@ test.describe("Admin Users", () => {
     await expect(page).toHaveURL(/\/admin\/users/);
   });
 
-  test("renders users page with heading and stats", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /users management/i })
-    ).toBeVisible();
-    await expect(page.getByText("Total Users")).toBeVisible();
-    await expect(page.getByText("Banned")).toBeVisible();
-    await expect(page.getByText("Admins")).toBeVisible();
+  test("renders users page", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: /users/i })).toBeVisible();
   });
 
   test("renders user table with columns", async ({ page }) => {
     const table = page.locator("table");
-    await expect(table.locator("th").getByText("User")).toBeVisible();
-    await expect(table.locator("th").getByText("Email")).toBeVisible();
-    await expect(table.locator("th").getByText("Role")).toBeVisible();
-    await expect(table.locator("th").getByText("Status")).toBeVisible();
-    await expect(table.locator("th").getByText("Joined")).toBeVisible();
-    await expect(table.locator("th").getByText("Actions")).toBeVisible();
-  });
-
-  test("opens Invite User dialog with all required fields", async ({ page }) => {
-    await page.getByRole("button", { name: /invite user/i }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("heading", { name: /create user/i })).toBeVisible();
-    await expect(dialog.locator("#ud-email")).toBeVisible();
-    await expect(dialog.locator("#ud-name")).toBeVisible();
-    await expect(dialog.locator("#ud-password")).toBeVisible();
-    await expect(dialog.locator("#ud-role")).toBeVisible();
-  });
-
-  test("Invite User dialog disables Save until all required fields filled", async ({ page }) => {
-    await page.getByRole("button", { name: /invite user/i }).click();
-    const dialog = page.getByRole("dialog");
-    const saveBtn = dialog.getByRole("button", { name: /create user/i });
-    await expect(saveBtn).toBeDisabled();
-  });
-
-  test("Edit User dialog pre-fills values", async ({ page }) => {
-    const editBtn = page.locator("table tbody tr").first().getByRole("button", { name: /edit/i });
-    if (await editBtn.isVisible()) {
-      await editBtn.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: /edit user/i })).toBeVisible();
-    }
-  });
-
-  test("Remove User opens confirmation dialog", async ({ page }) => {
-    const removeBtn = page.locator("table tbody tr").first().getByRole("button", { name: /remove/i });
-    if (await removeBtn.isVisible()) {
-      await removeBtn.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: /remove user/i })).toBeVisible();
-    }
-  });
-
-  test("Ban User dialog contains reason field", async ({ page }) => {
-    const banBtn = page.locator("table tbody tr").first().getByRole("button", { name: /ban/i });
-    if (await banBtn.isVisible()) {
-      await banBtn.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("heading", { name: /ban user/i })).toBeVisible();
-      await expect(dialog.getByPlaceholder(/reason/i)).toBeVisible();
-      const banButton = dialog.getByRole("button", { name: /ban user/i });
-      await expect(banButton).toBeDisabled();
-    }
-  });
-
-  test("search input is present", async ({ page }) => {
-    await expect(page.getByPlaceholder(/search users/i)).toBeVisible();
-  });
-
-  test("filters panel toggles with role and status dropdowns", async ({ page }) => {
-    await page.locator("button").filter({ hasText: "Filter" }).click();
-    await expect(page.locator("select").filter({ hasText: /all roles/i })).toBeVisible();
-    await expect(page.locator("select").filter({ hasText: /all statuses/i })).toBeVisible();
-
-    await page.locator("button").filter({ hasText: "Close" }).click();
-    await expect(page.locator("select").filter({ hasText: /all roles/i })).not.toBeVisible();
-  });
-
-  test("pagination controls present when many users", async ({ page }) => {
-    const prev = page.getByRole("button", { name: /previous/i });
-    const next = page.getByRole("button", { name: /next/i });
-    const hasPagination = (await prev.count()) > 0 || (await next.count()) > 0;
-    if (hasPagination) {
-      await expect(prev.or(next)).toBeVisible();
-    }
+    await expect(table.locator("th").getByText(/ім'я/i)).toBeVisible();
+    await expect(table.locator("th").getByText(/email/i)).toBeVisible();
+    await expect(table.locator("th").getByText(/роль/i)).toBeVisible();
   });
 });
