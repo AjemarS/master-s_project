@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -79,7 +80,7 @@ class StockModelTest(TestCase):
     def test_unique_together(self):
         w = _create_warehouse()
         _create_stock(product_id=1, warehouse=w)
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             Stock.objects.create(product_id=1, warehouse=w, quantity=10)
 
 

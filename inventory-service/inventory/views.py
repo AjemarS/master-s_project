@@ -1,15 +1,13 @@
 import logging
+from uuid import uuid4
 
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-
-from uuid import uuid4
 
 from .eventbus import publish_event
 from .filters import StockFilter, StockMovementFilter
@@ -52,6 +50,17 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         logger.warning("Warehouse deleted | id=%s name=%r", instance.pk, instance.name)
         instance.delete()
+
+    @action(detail=True, methods=["get"])
+    def stock(self, request, pk=None):
+        warehouse = self.get_object()
+        stocks = Stock.objects.filter(warehouse=warehouse).select_related("warehouse")
+        page = self.paginate_queryset(stocks)
+        if page is not None:
+            serializer = StockSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = StockSerializer(stocks, many=True)
+        return Response(serializer.data)
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -244,16 +253,20 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 quantity,
             )
 
-        publish_event(
-            "inventory.stock.changed",
-            {
-                "event_id": str(uuid4()),
-                "product_id": product_id,
-                "warehouse_id": warehouse_id,
-                "quantity": stock.quantity,
-                "change": -quantity,
-            },
-        )
+            transaction.on_commit(
+                lambda: publish_event(
+                    "inventory.stock.changed",
+                    {
+                        "event_id": str(uuid4()),
+                        "product_id": product_id,
+                        "warehouse_id": warehouse_id,
+                        "quantity": Stock.objects.get(
+                            product_id=product_id, warehouse_id=warehouse_id
+                        ).quantity,
+                        "change": -quantity,
+                    },
+                )
+            )
         return Response(StockSerializer(stock).data)
 
     @action(detail=True, methods=["get"])
@@ -334,27 +347,31 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             )
 
         for item in instance.items.all():
-            publish_event(
-                "inventory.stock.changed",
-                {
-                    "event_id": str(uuid4()),
-                    "product_id": item.product_id,
-                    "warehouse_id": instance.warehouse_id,
-                    "quantity": Stock.objects.get(
-                        product_id=item.product_id, warehouse=instance.warehouse
-                    ).quantity,
-                    "change": item.quantity,
-                },
+            transaction.on_commit(
+                lambda item=item: publish_event(
+                    "inventory.stock.changed",
+                    {
+                        "event_id": str(uuid4()),
+                        "product_id": item.product_id,
+                        "warehouse_id": instance.warehouse_id,
+                        "quantity": Stock.objects.get(
+                            product_id=item.product_id, warehouse=instance.warehouse
+                        ).quantity,
+                        "change": item.quantity,
+                    },
+                )
             )
-            publish_event(
-                "inventory.goods_received",
-                {
-                    "event_id": str(uuid4()),
-                    "product_id": item.product_id,
-                    "warehouse_id": instance.warehouse_id,
-                    "quantity": item.quantity,
-                    "cost_price": str(item.cost_price),
-                    "grn_id": instance.pk,
-                },
+            transaction.on_commit(
+                lambda item=item: publish_event(
+                    "inventory.goods_received",
+                    {
+                        "event_id": str(uuid4()),
+                        "product_id": item.product_id,
+                        "warehouse_id": instance.warehouse_id,
+                        "quantity": item.quantity,
+                        "cost_price": str(item.cost_price),
+                        "grn_id": instance.pk,
+                    },
+                )
             )
         logger.info("GRN created | id=%s supplier=%s", instance.pk, instance.supplier.name)

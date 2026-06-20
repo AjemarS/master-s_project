@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -65,7 +66,7 @@ class OrderModelTest(TestCase):
 
     def test_order_number_unique(self):
         _create_order()
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             _create_order()
 
     def test_order_total_amount(self):
@@ -127,7 +128,8 @@ class OrderAPITest(APITestCase):
                 "customer_name": "John",
                 "customer_email": "john@test.com",
                 "items": [
-                    {"product_id": 1, "quantity": 2, "price": "99.99", "product_name": "Test Product"}
+                    {"product_id": 1, "quantity": 2, "price": "99.99",
+                     "product_name": "Test Product"}
                 ],
             },
             format="json",

@@ -5,11 +5,9 @@ from uuid import uuid4
 import requests
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, serializers as drf_serializers, status, viewsets
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
@@ -144,10 +142,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                     cost_price=item.get("cost_price", Decimal("0.00")),
                 )
 
+            transaction.on_commit(
+                lambda: publish_event("order.created", _build_order_event(order))
+            )
+
         if data.get("channel") == Order.ONLINE and data.get("warehouse_id"):
             self._reserve_stock(order)
 
-        publish_event("order.created", _build_order_event(order))
         logger.info("Order created | number=%s channel=%s", order.order_number, order.channel)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
@@ -193,15 +194,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.status = new_status
             order.save()
 
-            if new_status == Order.CANCELLED and order.warehouse_id:
-                self._release_stock(order)
+            transaction.on_commit(
+                lambda: publish_event("order.status_changed", _build_order_event(order))
+            )
+            if new_status == Order.CANCELLED:
+                transaction.on_commit(
+                    lambda: publish_event("order.cancelled", _build_order_event(order))
+                )
 
-            if new_status == Order.SHIPPED and order.warehouse_id:
-                self._deduct_stock(order)
+        if new_status == Order.CANCELLED and order.warehouse_id:
+            self._release_stock(order)
 
-        publish_event("order.status_changed", _build_order_event(order))
-        if new_status == Order.CANCELLED:
-            publish_event("order.cancelled", _build_order_event(order))
+        if new_status == Order.SHIPPED and order.warehouse_id:
+            self._deduct_stock(order)
+
         logger.info(
             "Order status changed | number=%s %s->%s",
             order.order_number, old_status, new_status,
@@ -294,8 +300,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                     cost_price=item.get("cost_price", Decimal("0.00")),
                 )
 
+            transaction.on_commit(
+                lambda: publish_event("order.created", _build_order_event(order))
+            )
+
         self._deduct_stock(order)
-        publish_event("order.created", _build_order_event(order))
         logger.info("POS sale created | number=%s", order.order_number)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
