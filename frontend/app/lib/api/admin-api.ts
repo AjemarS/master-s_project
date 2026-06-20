@@ -1,5 +1,5 @@
 import type { Product, AdminUser, Category, Warehouse, Stock, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport } from "~/lib/types";
-import { apiCall, API_URL, AUTH_URL } from "./client";
+import { apiCall, API_URL, AUTH_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
 export const productApi = {
@@ -82,11 +82,11 @@ export const userApi = {
 
 export const warehouseApi = {
   async getAll(): Promise<ApiResponse<{ results: Warehouse[]; count: number; next: string | null; previous: string | null }>> {
-    return apiCall(`${API_URL}/warehouses/`);
+    return apiCall(`${INVENTORY_API_URL}/warehouses/`);
   },
 
   async create(data: Partial<Warehouse>): Promise<ApiResponse<Warehouse>> {
-    return apiCall(`${API_URL}/warehouses/`, { method: "POST", body: JSON.stringify(data) });
+    return apiCall(`${INVENTORY_API_URL}/warehouses/`, { method: "POST", body: JSON.stringify(data) });
   },
 };
 
@@ -95,27 +95,27 @@ export const stockApi = {
     const q = new URLSearchParams();
     if (params?.warehouse_id) q.append("warehouse_id", String(params.warehouse_id));
     if (params?.product_id) q.append("product_id", String(params.product_id));
-    return apiCall(`${API_URL}/stock/${q.toString() ? `?${q}` : ""}`);
+    return apiCall(`${INVENTORY_API_URL}/stock/${q.toString() ? `?${q}` : ""}`);
   },
 };
 
 export const supplierApi = {
   async getAll(): Promise<ApiResponse<{ results: Supplier[]; count: number }>> {
-    return apiCall(`${API_URL}/suppliers/`);
+    return apiCall(`${INVENTORY_API_URL}/suppliers/`);
   },
 
   async create(data: Partial<Supplier>): Promise<ApiResponse<Supplier>> {
-    return apiCall(`${API_URL}/suppliers/`, { method: "POST", body: JSON.stringify(data) });
+    return apiCall(`${INVENTORY_API_URL}/suppliers/`, { method: "POST", body: JSON.stringify(data) });
   },
 };
 
 export const goodsReceiptApi = {
   async getAll(): Promise<ApiResponse<{ results: GoodsReceiptNote[]; count: number }>> {
-    return apiCall(`${API_URL}/goods-receipts/`);
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/`);
   },
 
   async create(data: Partial<GoodsReceiptNote>): Promise<ApiResponse<GoodsReceiptNote>> {
-    return apiCall(`${API_URL}/goods-receipts/`, { method: "POST", body: JSON.stringify(data) });
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/`, { method: "POST", body: JSON.stringify(data) });
   },
 };
 
@@ -127,37 +127,37 @@ export const orderApi = {
     if (params?.page) q.append("page", String(params.page));
     if (params?.status) q.append("status", params.status);
     if (params?.channel) q.append("channel", params.channel);
-    return apiCall(`${API_URL}/orders/${q.toString() ? `?${q}` : ""}`);
+    return apiCall(`${ORDERS_API_URL}/${q.toString() ? `?${q}` : ""}`);
   },
 
   async getById(id: number): Promise<ApiResponse<OrderDetail>> {
-    return apiCall(`${API_URL}/orders/${id}/`);
+    return apiCall(`${ORDERS_API_URL}/${id}/`);
   },
 
   async updateStatus(id: number, status: string): Promise<ApiResponse<OrderDetail>> {
-    return apiCall(`${API_URL}/orders/${id}/status/`, {
+    return apiCall(`${ORDERS_API_URL}/${id}/status/`, {
       method: "PATCH", body: JSON.stringify({ status }),
     });
   },
 
   async getMy(): Promise<ApiResponse<{ results: Order[]; count: number }>> {
-    return apiCall(`${API_URL}/orders/my/`);
+    return apiCall(`${ORDERS_API_URL}/my/`);
   },
 
   async pos(data: {
     warehouse_id: number; customer_name?: string; customer_phone?: string;
     items: { product_id: number; quantity: number; price: number }[];
   }): Promise<ApiResponse<OrderDetail>> {
-    return apiCall(`${API_URL}/orders/pos/`, { method: "POST", body: JSON.stringify(data) });
+    return apiCall(`${ORDERS_API_URL}/pos/`, { method: "POST", body: JSON.stringify(data) });
   },
 };
 
 export const reportApi = {
   async sales(): Promise<ApiResponse<SalesReport>> {
-    return apiCall(`${API_URL}/reports/sales/`);
+    return apiCall(`${ORDERS_API_URL}/reports/sales/`);
   },
 
   async revenue(): Promise<ApiResponse<RevenueReport>> {
-    return apiCall(`${API_URL}/reports/revenue/`);
+    return apiCall(`${ORDERS_API_URL}/reports/revenue/`);
   },
 };

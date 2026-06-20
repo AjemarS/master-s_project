@@ -5,6 +5,8 @@ import { cn } from "~/lib/cn";
 type PageHeaderProps = React.HTMLAttributes<HTMLDivElement> & {
   as?: React.ElementType;
   withPadding?: boolean;
+  title?: string;
+  description?: string;
 };
 
 function PageHeader({
@@ -12,6 +14,8 @@ function PageHeader({
   children,
   className,
   withPadding = true,
+  title,
+  description,
   ...props
 }: PageHeaderProps) {
   return (
@@ -27,6 +31,8 @@ function PageHeader({
       )}
       {...props}
     >
+      {title && <PageHeaderHeading>{title}</PageHeaderHeading>}
+      {description && <PageHeaderDescription>{description}</PageHeaderDescription>}
       {children}
     </Comp>
   );
