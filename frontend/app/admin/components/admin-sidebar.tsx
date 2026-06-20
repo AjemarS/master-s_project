@@ -58,7 +58,7 @@ export function AdminSidebar() {
   return (
     <div
       className={cn(
-        "relative flex h-screen flex-col border-r bg-card transition-[width] duration-200 ease-out",
+        "relative flex min-h-screen flex-col border-r bg-card transition-[width] duration-200 ease-out",
         isExpanded ? "w-64" : "w-14",
       )}
       onMouseEnter={handleMouseEnter}
@@ -89,7 +89,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto space-y-1 px-2">
+      <nav className="flex-1 space-y-1 px-2">
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -122,7 +122,7 @@ export function AdminSidebar() {
       </nav>
 
       {/* Bottom links */}
-      <div className="shrink-0 mt-auto space-y-1 border-t px-2 pt-4">
+      <div className="mt-auto space-y-1 border-t px-2 pt-4">
         <Link
           href="/"
           className={cn(
