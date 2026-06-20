@@ -31,6 +31,12 @@ logger.propagate = False
 PRODUCT_SERVICE_URL = os.environ.get(
     "PRODUCT_SERVICE_URL", "http://product-service:8000"
 )
+INVENTORY_SERVICE_URL = os.environ.get(
+    "INVENTORY_SERVICE_URL", "http://inventory-service:8001"
+)
+ORDER_SERVICE_URL = os.environ.get(
+    "ORDER_SERVICE_URL", "http://order-service:8002"
+)
 AUTH_SERVICE_URL = os.environ.get("AUTH_SERVICE_URL", "http://auth-service:3001")
 FRONTEND_SERVICE_URL = os.environ.get("FRONTEND_SERVICE_URL", "http://frontend:3000")
 
@@ -47,6 +53,8 @@ def validate_env():
     """
     required_vars = {
         "PRODUCT_SERVICE_URL": PRODUCT_SERVICE_URL,
+        "INVENTORY_SERVICE_URL": INVENTORY_SERVICE_URL,
+        "ORDER_SERVICE_URL": ORDER_SERVICE_URL,
         "AUTH_SERVICE_URL": AUTH_SERVICE_URL,
         "FRONTEND_SERVICE_URL": FRONTEND_SERVICE_URL,
     }
@@ -256,10 +264,13 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
 #   1. / (root)
 #   2. /gateway
 #   3. /health
-#   4. /api/{path:path}        → Product Service
-#   5. /media/{path:path}      → Product Service (media files)
-#   6. /auth/{path:path}       → Auth Service (includes /auth/me, /auth/sign-in/*)
-#   7. /{path:path}            → Frontend (excludes api/, auth/, media/)
+#   4. /api/inventory/{path}   → Inventory Service
+#   5. /api/orders/{path}      → Order Service
+#   6. /api/reports/{path}     → Order Service (reports)
+#   7. /api/{path:path}        → Product Service
+#   8. /media/{path:path}      → Product Service (media files)
+#   9. /auth/{path:path}       → Auth Service
+#  10. /{path:path}            → Frontend
 
 
 @app.get("/")
@@ -282,14 +293,48 @@ async def health():
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}
 
+    RABBITMQ_MGMT_URL = "http://rabbitmq:15672"
+
     return {
         "gateway": "healthy",
         "services": {
             "product": await check(f"{PRODUCT_SERVICE_URL}/api/products/"),
+            "inventory": await check(f"{INVENTORY_SERVICE_URL}/api/warehouses/"),
+            "order": await check(f"{ORDER_SERVICE_URL}/api/orders/"),
             "auth": await check(f"{AUTH_SERVICE_URL}/health"),
             "frontend": await check(f"{FRONTEND_SERVICE_URL}/favicon.ico"),
+            "rabbitmq": await check(RABBITMQ_MGMT_URL),
         },
     }
+
+
+# Inventory (MUST be before /api/{path:path} catch-all)
+@app.api_route("/api/inventory/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_inventory(request: Request, path: str):
+    user = None
+    if request.method in ["GET", "HEAD", "OPTIONS"]:
+        user = await verify_session(request)
+        return await proxy_request(request, INVENTORY_SERVICE_URL, f"/api/{path}", user=user)
+    user = await require_auth(request, require_admin=True)
+    return await proxy_request(request, INVENTORY_SERVICE_URL, f"/api/{path}", user=user)
+
+
+# Orders (MUST be before /api/{path:path} catch-all)
+@app.api_route("/api/orders/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_orders(request: Request, path: str):
+    user = None
+    if request.method in ["GET", "HEAD", "OPTIONS"]:
+        user = await verify_session(request)
+        return await proxy_request(request, ORDER_SERVICE_URL, f"/api/{path}", user=user)
+    user = await require_auth(request, require_admin=True)
+    return await proxy_request(request, ORDER_SERVICE_URL, f"/api/{path}", user=user)
+
+
+# Reports (MUST be before /api/{path:path} catch-all)
+@app.api_route("/api/reports/{path:path}", methods=["GET"])
+async def proxy_reports(request: Request, path: str):
+    user = await require_auth(request, require_admin=True)
+    return await proxy_request(request, ORDER_SERVICE_URL, f"/api/reports/{path}", user=user)
 
 
 # Products
