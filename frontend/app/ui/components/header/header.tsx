@@ -21,14 +21,16 @@ interface HeaderProps {
 export type NavigationSection = "main" | "dashboard" | "admin";
 
 export const mainNavigation = [
-  { href: "/", name: "Home" },
-  { href: "/products", name: "Products" },
+  { href: "/", name: "Головна" },
+  { href: "/products", name: "Товари" },
+  { href: "/orders", name: "Мої замовлення" },
 ];
 
 const dashboardNavigation = [
   { href: "/dashboard/stats", name: "Stats" },
   { href: "/dashboard/profile", name: "Profile" },
   { href: "/dashboard/settings", name: "Settings" },
+  { href: "/orders", name: "My Orders" },
 ];
 
 const adminNavigation = [
@@ -52,7 +54,7 @@ const Logo = memo(function Logo() {
   return (
     <Link className="flex items-center gap-2" href="/">
       <span className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent">
-        Store
+        TechHub
       </span>
     </Link>
   );

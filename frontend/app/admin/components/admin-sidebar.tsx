@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Package, LayoutDashboard, LogOut, Store } from "lucide-react";
+import { Users, Package, LayoutDashboard, LogOut, Store, Warehouse, ShoppingCart, ClipboardList, CreditCard, BarChart3, Truck } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
 import { authClient } from "~/lib/auth-client";
@@ -11,6 +11,12 @@ import { useRouter } from "next/navigation";
 const navigation = [
   { name: "Dashboard", href: "/admin/summary", icon: LayoutDashboard },
   { name: "Products", href: "/admin/products", icon: Package },
+  { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "POS", href: "/admin/pos", icon: CreditCard },
+  { name: "Warehouses", href: "/admin/warehouses", icon: Warehouse },
+  { name: "Suppliers", href: "/admin/suppliers", icon: Truck },
+  { name: "Goods Receipts", href: "/admin/goods-receipts", icon: ClipboardList },
+  { name: "Reports", href: "/admin/reports", icon: BarChart3 },
   { name: "Users", href: "/admin/users", icon: Users },
 ];
 

@@ -8,18 +8,18 @@ import { ThemeProvider } from "~/ui/components/theme-provider";
 import { Toaster } from "~/ui/primitives/sonner";
 
 const geistSans = Geist({
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
-  description: `Good store`,
-  title: `Store`,
+  description: "TechHub — інтернет-магазин побутової техніки",
+  title: "TechHub | Побутова техніка",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="uk" suppressHydrationWarning>
       <body
         className={`
           ${geistSans.variable}
