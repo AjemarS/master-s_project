@@ -86,7 +86,7 @@ export default function AdminProductsClient({
       });
       if (response.error) {
         setError(response.error.message);
-        toast.error("Failed to load products", {
+        toast.error("Помилка завантаження", {
           description: response.error.message,
         });
       } else if (response.data) {
@@ -101,9 +101,9 @@ export default function AdminProductsClient({
         setCurrentPage(page);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load products";
+      const message = err instanceof Error ? err.message : "Не вдалося завантажити товари";
       setError(message);
-      toast.error("Error", { description: message });
+      toast.error("Помилка", { description: message });
     } finally {
       setLoading(false);
     }
@@ -148,19 +148,19 @@ export default function AdminProductsClient({
     try {
       const response = await productApi.delete(deleteDialog.productId);
       if (response.error) {
-        toast.error("Failed to delete product", {
+        toast.error("Не вдалося видалити", {
           description: response.error.message,
         });
       } else {
         setProducts(products.filter((p) => p.id !== deleteDialog.productId));
-        toast.success("Product deleted", {
-          description: `${deleteDialog.productName} has been deleted.`,
+        toast.success("Товар видалено", {
+          description: `${deleteDialog.productName} видалено.`,
         });
         setDeleteDialog({ open: false, productId: null, productName: "" });
       }
     } catch (err) {
-      toast.error("Error", {
-        description: err instanceof Error ? err.message : "Failed to delete product",
+      toast.error("Помилка", {
+        description: err instanceof Error ? err.message : "Не вдалося видалити товар",
       });
     } finally {
       setDeleting(false);
@@ -182,7 +182,7 @@ export default function AdminProductsClient({
   };
 
   const handleExport = () => {
-    const headers = ["ID", "Name", "Category", "Price", "Original Price", "Stock", "In Stock", "Description"];
+    const headers = ["ID", "Назва", "Категорія", "Ціна", "Початкова ціна", "Залишок", "В наявності", "Опис"];
     const rows = products.map((p) => [
       p.id,
       `"${p.name.replace(/"/g, '""')}"`,
@@ -190,7 +190,7 @@ export default function AdminProductsClient({
       p.price,
       p.original_price || "",
       p.stock,
-      p.in_stock ? "Yes" : "No",
+      p.in_stock ? "Так" : "Ні",
       `"${(p.description || "").replace(/"/g, '""')}"`,
     ]);
 
@@ -202,7 +202,7 @@ export default function AdminProductsClient({
     a.download = `products-export-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Export complete", { description: `${products.length} products exported.` });
+    toast.success("Експорт завершено", { description: `Експортовано ${products.length} товарів.` });
   };
 
   const stats = {
@@ -219,20 +219,20 @@ export default function AdminProductsClient({
           <Link href="/admin/summary">
             <Button variant="ghost" className="mb-4 flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              Back to Summary
+              На головну
             </Button>
           </Link>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <Package className="h-10 w-10 text-purple-600" />
-                Products Management
+                Керування товарами
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">Django REST Framework API Integration</p>
+              <p className="text-slate-600 dark:text-slate-400">Каталог, ціни та залишки</p>
             </div>
             <Button className="flex items-center gap-2" onClick={handleAddClick}>
               <Plus className="h-4 w-4" />
-              Add Product
+              Додати товар
             </Button>
           </div>
         </div>
@@ -250,26 +250,26 @@ export default function AdminProductsClient({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600 dark:text-slate-400">Total Products</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">Всього товарів</div>
                 <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</div>
               </CardContent>
             </Card>
             <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600 dark:text-slate-400">In Stock</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">В наявності</div>
                 <div className="text-2xl font-bold text-green-600">{stats.active}</div>
               </CardContent>
             </Card>
             <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600 dark:text-slate-400">Low Stock</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">Малий залишок</div>
                 <div className="text-2xl font-bold text-orange-600">{stats.lowStock}</div>
               </CardContent>
             </Card>
             <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-slate-600 dark:text-slate-400">Total Value</div>
-                <div className="text-2xl font-bold text-blue-600">${stats.totalValue.toFixed(2)}</div>
+                <div className="text-sm text-slate-600 dark:text-slate-400">Вартість запасів</div>
+                <div className="text-2xl font-bold text-blue-600">{stats.totalValue.toFixed(2)} ₴</div>
               </CardContent>
             </Card>
           </div>
@@ -279,17 +279,17 @@ export default function AdminProductsClient({
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="dark:text-slate-100">Product Catalog</CardTitle>
-                <CardDescription className="dark:text-slate-400">Manage your inventory and pricing</CardDescription>
+                <CardTitle className="dark:text-slate-100">Каталог товарів</CardTitle>
+                <CardDescription className="dark:text-slate-400">Керування асортиментом та цінами</CardDescription>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => { setShowFilters(!showFilters); if (!showFilters) setCurrentPage(1); }}>
                   {showFilters ? <X className="h-4 w-4 mr-2" /> : <Filter className="h-4 w-4 mr-2" />}
-                  {showFilters ? "Close" : "Filter"}
+                  {showFilters ? "Закрити" : "Фільтр"}
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleExport}>
                   <Download className="h-4 w-4 mr-2" />
-                  Export
+                  Експорт
                 </Button>
               </div>
             </div>
@@ -299,7 +299,7 @@ export default function AdminProductsClient({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                 <Input
-                  placeholder="Search products by name or category..."
+                  placeholder="Пошук товарів за назвою..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -312,7 +312,7 @@ export default function AdminProductsClient({
               <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="minPrice" className="text-xs text-slate-500">Min Price</Label>
+                    <Label htmlFor="minPrice" className="text-xs text-slate-500">Мін. ціна</Label>
                     <Input
                       id="minPrice"
                       type="number"
@@ -325,7 +325,7 @@ export default function AdminProductsClient({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="maxPrice" className="text-xs text-slate-500">Max Price</Label>
+                    <Label htmlFor="maxPrice" className="text-xs text-slate-500">Макс. ціна</Label>
                     <Input
                       id="maxPrice"
                       type="number"
@@ -345,7 +345,7 @@ export default function AdminProductsClient({
                       onChange={(e) => setFilterInStock(e.target.checked || undefined)}
                       className="h-4 w-4 rounded border-gray-300"
                     />
-                    <Label htmlFor="inStock" className="text-xs text-slate-500 cursor-pointer">In Stock Only</Label>
+                    <Label htmlFor="inStock" className="text-xs text-slate-500 cursor-pointer">Тільки в наявності</Label>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => { setCurrentPage(1); fetchProducts(1); }}>
@@ -372,12 +372,12 @@ export default function AdminProductsClient({
                   <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
                       <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">ID</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Product Name</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Назва</th>
                       <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Category</th>
                       <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Price</th>
                       <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Stock</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Status</th>
-                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Actions</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Статус</th>
+                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дії</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -386,8 +386,8 @@ export default function AdminProductsClient({
                         <td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
                           <Package className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                           {searchTerm
-                            ? "No products found matching your search"
-                            : "No products available"}
+                            ? "Нічого не знайдено за вашим запитом"
+                            : "Немає товарів"}
                         </td>
                       </tr>
                     ) : (
@@ -404,7 +404,7 @@ export default function AdminProductsClient({
                           </td>
                           <td className="p-4">
                             <Badge variant={product.in_stock ? "default" : "secondary"}>
-                              {product.in_stock ? "In Stock" : "Out of Stock"}
+                              {product.in_stock ? "В наявності" : "Немає"}
                             </Badge>
                           </td>
                           <td className="p-4">
@@ -440,7 +440,7 @@ export default function AdminProductsClient({
                 disabled={currentPage <= 1 || loading}
                 onClick={() => fetchProducts(currentPage - 1)}
               >
-                Previous
+                Попередня
               </Button>
               <Button
                 variant="outline"
@@ -448,7 +448,7 @@ export default function AdminProductsClient({
                 disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE) || loading}
                 onClick={() => fetchProducts(currentPage + 1)}
               >
-                Next
+                Наступна
               </Button>
             </div>
           </div>
@@ -458,8 +458,8 @@ export default function AdminProductsClient({
           open={deleteDialog.open}
           onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
           onConfirm={handleDeleteConfirm}
-          title="Delete Product"
-          description={`Are you sure you want to delete "${deleteDialog.productName}"? This action cannot be undone.`}
+          title="Видалити товар"
+          description={`Ви впевнені, що хочете видалити "${deleteDialog.productName}"? Цю дію не можна скасувати.`}
           confirmText="Delete"
           cancelText="Cancel"
           variant="destructive"
