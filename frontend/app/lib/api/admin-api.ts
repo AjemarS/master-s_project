@@ -154,10 +154,10 @@ export const orderApi = {
 
 export const reportApi = {
   async sales(): Promise<ApiResponse<SalesReport>> {
-    return apiCall(`${ORDERS_API_URL}/reports/sales/`);
+    return apiCall(`${API_URL}/reports/sales/`);
   },
 
   async revenue(): Promise<ApiResponse<RevenueReport>> {
-    return apiCall(`${ORDERS_API_URL}/reports/revenue/`);
+    return apiCall(`${API_URL}/reports/revenue/`);
   },
 };
