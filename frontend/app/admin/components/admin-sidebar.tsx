@@ -58,7 +58,7 @@ export function AdminSidebar() {
   return (
     <div
       className={cn(
-        "relative flex min-h-screen flex-col border-r bg-card transition-[width] duration-200 ease-out",
+        "relative flex h-screen flex-col border-r bg-card transition-[width] duration-200 ease-out",
         isExpanded ? "w-64" : "w-14",
       )}
       onMouseEnter={handleMouseEnter}
