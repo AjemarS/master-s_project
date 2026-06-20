@@ -1,12 +1,18 @@
 from django.contrib import admin
 
-from .models import Category, Product
+from .models import Category, ProcessedEvent, Product
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ["name", "created_at", "updated_at"]
     search_fields = ["name"]
+
+
+@admin.register(ProcessedEvent)
+class ProcessedEventAdmin(admin.ModelAdmin):
+    list_display = ["event_id", "processed_at"]
+    readonly_fields = ["event_id", "processed_at"]
 
 
 @admin.register(Product)

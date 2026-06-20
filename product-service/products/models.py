@@ -90,3 +90,17 @@ class Product(models.Model):
         # Keep in_stock in sync with stock count
         self.in_stock = self.stock > 0
         super().save(*args, **kwargs)
+
+
+class ProcessedEvent(models.Model):
+    event_id = models.CharField(
+        max_length=255, unique=True, verbose_name="ID події"
+    )
+    processed_at = models.DateTimeField(auto_now_add=True, verbose_name="Оброблено")
+
+    class Meta:
+        verbose_name = "Оброблена подія"
+        verbose_name_plural = "Оброблені події"
+
+    def __str__(self):
+        return self.event_id
