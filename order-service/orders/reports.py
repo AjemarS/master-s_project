@@ -1,7 +1,5 @@
-from decimal import Decimal
 
-from django.db.models import Count, Q, Sum
-from rest_framework import status
+from django.db.models import Count, F, Sum
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -66,7 +64,28 @@ def revenue_report(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def inventory_value_report(request):
+    items_by_product = (
+        OrderItem.objects.values("product_id", "product_name")
+        .annotate(
+            total_quantity=Sum("quantity"),
+            total_cost=Sum(F("cost_price") * F("quantity")),
+        )
+        .order_by("-total_cost")
+    )
+
+    total_inventory_value = sum(
+        item["total_cost"] for item in items_by_product
+    )
+
     return Response({
-        "message": "Requires inventory service integration. Placeholder.",
-        "note": "Aggregate cost_price * quantity per product from OrderItem cost data.",
+        "total_inventory_value": float(total_inventory_value),
+        "by_product": [
+            {
+                "product_id": item["product_id"],
+                "product_name": item["product_name"],
+                "total_quantity": item["total_quantity"],
+                "total_cost": float(item["total_cost"]),
+            }
+            for item in items_by_product
+        ],
     })

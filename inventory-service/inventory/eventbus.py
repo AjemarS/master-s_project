@@ -146,9 +146,8 @@ def start_consumer():
 
 def _handle_event(routing_key, event, event_id):
     from django.db import transaction
-    from django.db.models import F
 
-    from .models import ProcessedEvent, Stock, StockMovement
+    from .models import ProcessedEvent
 
     if ProcessedEvent.objects.filter(event_id=event_id).exists():
         logger.info("Duplicate event ignored | event_id=%s", event_id)
