@@ -21,7 +21,7 @@ const navigation = [
   { name: "Користувачі", href: "/admin/users", icon: Users },
 ];
 
-const TEXT_DELAY = 180;
+const TEXT_DELAY = 150;
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -89,7 +89,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2">
+      <nav className="flex-1 overflow-y-auto space-y-1 px-2">
         {navigation.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -98,7 +98,7 @@ export function AdminSidebar() {
               href={item.href}
               className={cn(
                 "flex items-center rounded-md py-2 text-sm font-medium transition-colors duration-100",
-                isExpanded ? "gap-3 px-3" : "justify-center",
+                isExpanded ? "gap-3 px-3" : "justify-center justify-items-center",
                 isActive
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -122,7 +122,7 @@ export function AdminSidebar() {
       </nav>
 
       {/* Bottom links */}
-      <div className="mt-auto space-y-1 border-t px-2 pt-4">
+      <div className="shrink-0 mt-auto space-y-1 border-t px-2 pt-4">
         <Link
           href="/"
           className={cn(
