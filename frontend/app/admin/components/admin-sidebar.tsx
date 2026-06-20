@@ -64,11 +64,9 @@ export function AdminSidebar() {
       </button>
 
       {/* Logo */}
-      <div className={cn("flex items-center h-16 shrink-0 px-2 mb-8", isExpanded ? "gap-2" : "justify-center gap-0")}>
+      <div className={cn("flex items-center h-16 shrink-0 px-2 mb-8", isExpanded ? "justify-start gap-2" : "justify-center")}>
         <Store className="h-6 w-6 shrink-0 text-primary" />
-        <div className="overflow-hidden whitespace-nowrap">
-          <span className="text-xl font-bold">TechHub</span>
-        </div>
+        {isExpanded && <span className="text-xl font-bold">TechHub</span>}
       </div>
 
       {/* Navigation */}
@@ -81,17 +79,15 @@ export function AdminSidebar() {
               href={item.href}
               className={cn(
                 "flex items-center rounded-md py-2 text-sm font-medium transition-colors duration-100",
-                isExpanded ? "gap-3 px-3" : "justify-center",
+                isExpanded ? "gap-3 px-3 justify-start" : "justify-center",
                 isActive
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
               title={isExpanded ? undefined : item.name}
             >
-              <item.icon className="h-5 w-5 shrink-0" />
-              <div className="overflow-hidden whitespace-nowrap">
-                <span className="text-sm font-medium">{item.name}</span>
-              </div>
+              <item.icon className={cn("shrink-0", isExpanded ? "h-4 w-4" : "h-5 w-5")} />
+              {isExpanded && <span className="truncate">{item.name}</span>}
             </Link>
           );
         })}
@@ -103,28 +99,24 @@ export function AdminSidebar() {
           href="/"
           className={cn(
             "flex items-center rounded-md py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-100",
-            isExpanded ? "gap-3 px-3" : "justify-center",
+            isExpanded ? "gap-3 px-3 justify-start" : "justify-center",
           )}
           title={isExpanded ? undefined : "До магазину"}
         >
-          <ExternalLink className="h-5 w-5 shrink-0" />
-          <div className="overflow-hidden whitespace-nowrap">
-            <span className="text-sm font-medium">До магазину</span>
-          </div>
+          <ExternalLink className={cn("shrink-0", isExpanded ? "h-4 w-4" : "h-5 w-5")} />
+          {isExpanded && <span>До магазину</span>}
         </Link>
         <Button
           variant="ghost"
           className={cn(
             "w-full text-muted-foreground hover:text-destructive transition-colors duration-100",
-            isExpanded ? "gap-3 px-3" : "justify-center px-0",
+            isExpanded ? "gap-3 px-3 justify-start" : "justify-center px-0",
           )}
           onClick={handleSignOut}
           title={isExpanded ? undefined : "Вийти"}
         >
-          <LogOut className="h-5 w-5 shrink-0" />
-          <div className="overflow-hidden whitespace-nowrap">
-            <span className="text-sm font-medium">Вийти</span>
-          </div>
+          <LogOut className={cn("shrink-0", isExpanded ? "h-4 w-4" : "h-5 w-5")} />
+          {isExpanded && <span>Вийти</span>}
         </Button>
       </div>
     </div>
