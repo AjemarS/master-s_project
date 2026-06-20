@@ -4,9 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
-import { Users, Package, ArrowRight, TrendingUp, AlertCircle, CheckCircle, XCircle, LayoutDashboard, BarChart3 } from "lucide-react";
+import {
+  Users, Package, TrendingUp, AlertCircle,
+  CheckCircle, XCircle, LayoutDashboard, BarChart3,
+  ShoppingCart, Warehouse, CreditCard, Truck, ClipboardList,
+} from "lucide-react";
 import { authClient, User } from "~/lib/auth-client";
 import { UserWithRole } from "better-auth/plugins/admin";
 import type { Product } from "~/lib/types";
@@ -29,6 +32,17 @@ interface SummaryPageClientProps {
   initialProducts: Product[];
 }
 
+const NAV_ITEMS = [
+  { href: "/admin/products", icon: Package, name: "Товари", desc: "Каталог, ціни, залишки", color: "text-purple-600" },
+  { href: "/admin/orders", icon: ShoppingCart, name: "Замовлення", desc: "Статуси, фільтри, керування", color: "text-blue-600" },
+  { href: "/admin/pos", icon: CreditCard, name: "POS-термінал", desc: "Офлайн продаж у шоурумі", color: "text-emerald-600" },
+  { href: "/admin/warehouses", icon: Warehouse, name: "Склади", desc: "Залишки та запаси", color: "text-orange-600" },
+  { href: "/admin/suppliers", icon: Truck, name: "Постачальники", desc: "Керування постачанням", color: "text-sky-600" },
+  { href: "/admin/goods-receipts", icon: ClipboardList, name: "Накладні", desc: "Оприбуткування товару", color: "text-rose-600" },
+  { href: "/admin/reports", icon: BarChart3, name: "Звіти", desc: "Продажі, виручка, маржа", color: "text-violet-600" },
+  { href: "/admin/users", icon: Users, name: "Користувачі", desc: "Облікові записи та ролі", color: "text-cyan-600" },
+];
+
 export default function SummaryPageClient({ initialProducts }: SummaryPageClientProps) {
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
@@ -47,8 +61,12 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
   }
 
   const [services, setServices] = useState<Record<string, ServiceHealth>>({
-    auth: { status: "loading", label: "Auth Service" },
-    product: { status: "loading", label: "Product Service" },
+    product: { status: "loading", label: "Product" },
+    inventory: { status: "loading", label: "Inventory" },
+    order: { status: "loading", label: "Order" },
+    auth: { status: "loading", label: "Auth" },
+    frontend: { status: "loading", label: "Frontend" },
+    rabbitmq: { status: "loading", label: "RabbitMQ" },
   });
 
   useEffect(() => {
@@ -89,25 +107,30 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
         const res = await fetch(`${baseUrl}/health`);
         if (!res.ok) throw new Error("Health check failed");
         const data = await res.json();
+        const svcs = data.services || {};
         setServices({
-          auth: {
-            status: data.services?.auth?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Auth Service",
-          },
-          product: {
-            status: data.services?.product?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Product Service",
-          },
+          product: { status: svcs.product?.status === "healthy" ? "healthy" : "unhealthy", label: "Product" },
+          inventory: { status: svcs.inventory?.status === "healthy" ? "healthy" : "unhealthy", label: "Inventory" },
+          order: { status: svcs.order?.status === "healthy" ? "healthy" : "unhealthy", label: "Order" },
+          auth: { status: svcs.auth?.status === "healthy" ? "healthy" : "unhealthy", label: "Auth" },
+          frontend: { status: svcs.frontend?.status === "healthy" ? "healthy" : "unhealthy", label: "Frontend" },
+          rabbitmq: { status: svcs.rabbitmq?.status === "healthy" ? "healthy" : "unhealthy", label: "RabbitMQ" },
         });
       } catch {
         setServices({
-          auth: { status: "unhealthy", label: "Auth Service" },
-          product: { status: "unhealthy", label: "Product Service" },
+          product: { status: "unhealthy", label: "Product" },
+          inventory: { status: "unhealthy", label: "Inventory" },
+          order: { status: "unhealthy", label: "Order" },
+          auth: { status: "unhealthy", label: "Auth" },
+          frontend: { status: "unhealthy", label: "Frontend" },
+          rabbitmq: { status: "unhealthy", label: "RabbitMQ" },
         });
       }
     };
 
     checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -139,7 +162,7 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
             <LayoutDashboard className="h-10 w-10 text-purple-600" />
             Огляд системи
           </h1>
-          <p className="text-slate-600 dark:text-slate-400">Загальна статистика та стан сервісів</p>
+          <p className="text-slate-600 dark:text-slate-400">Загальна статистика та навігація</p>
         </div>
 
         {fetchError && (
@@ -151,6 +174,7 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
           </Alert>
         )}
 
+        {/* Статистика */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -204,68 +228,28 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 dark:text-slate-100">
-                <Users className="h-5 w-5" />
-                Користувачі
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Керування обліковими записами та ролями користувачів.
-              </p>
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <div>
-                  <div className="font-medium text-slate-900 dark:text-slate-100">Активних</div>
-                  <div className="text-2xl font-bold text-blue-600">{stats.activeUsers}</div>
-                </div>
-                <Badge variant="default" className="text-sm">
-                  {stats.totalUsers > 0 ? ((stats.activeUsers / stats.totalUsers) * 100).toFixed(0) : "0"}%
-                </Badge>
-              </div>
-              <Link href="/admin/users">
-                <Button className="w-full flex items-center justify-center gap-2">
-                  Керувати
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 dark:text-slate-100">
-                <Package className="h-5 w-5" />
-                Товари
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Керування каталогом товарів, цінами та залишками.
-              </p>
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <div>
-                  <div className="font-medium text-slate-900 dark:text-slate-100">Малий залишок</div>
-                  <div className="text-2xl font-bold text-orange-600">{stats.lowStock}</div>
-                </div>
-                <Badge variant="destructive" className="text-sm">
-                  Потребує уваги
-                </Badge>
-              </div>
-              <Link href="/admin/products">
-                <Button className="w-full flex items-center justify-center gap-2">
-                  Керувати
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+        {/* Навігація розділами */}
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">Розділи адмін-панелі</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {NAV_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <Card className="dark:bg-slate-800/80 dark:border-slate-700 hover:shadow-lg transition-all hover:-translate-y-0.5 cursor-pointer">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <item.icon className={`h-5 w-5 ${item.color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 dark:text-slate-100">{item.name}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{item.desc}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
 
         {/* Стан системи */}
-        <Card className="mt-6 dark:bg-slate-800/80 dark:border-slate-700">
+        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 dark:text-slate-100">
               <BarChart3 className="h-5 w-5" />
@@ -273,9 +257,9 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.values(services).map((svc) => (
-                <div key={svc.label} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(services).map(([key, svc]) => (
+                <div key={key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                   <div className="flex items-center gap-3">
                     {svc.status === "loading" ? (
                       <div className="h-5 w-5 rounded-full bg-slate-300 animate-pulse" />
@@ -284,12 +268,10 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
                     ) : (
                       <XCircle className="h-5 w-5 text-red-500" />
                     )}
-                    <div>
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{svc.label}</div>
-                    </div>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">{svc.label}</span>
                   </div>
                   <Badge variant={svc.status === "healthy" ? "default" : "destructive"}>
-                    {svc.status === "loading" ? "Перевірка..." : svc.status === "healthy" ? "Працює" : "Недоступний"}
+                    {svc.status === "loading" ? "..." : svc.status === "healthy" ? "Працює" : "Помилка"}
                   </Badge>
                 </div>
               ))}
