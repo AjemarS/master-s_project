@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { PageHeader } from "~/ui/components/page-header";
 import { MyOrdersClient } from "./page-client";
-import { TableSkeleton } from "../components/loading-skeleton";
+import { TableSkeleton } from "~/admin/components"
 
 export const dynamic = "force-dynamic";
 

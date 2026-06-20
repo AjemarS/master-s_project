@@ -35,7 +35,7 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     ordering = ["name"]
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve"):
+        if self.action in ("list", "retrieve", "stock"):
             return [IsAuthenticatedOrReadOnly()]
         return [IsAdminUser()]
 

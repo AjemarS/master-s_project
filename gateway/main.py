@@ -177,8 +177,10 @@ async def require_auth(request: Request, require_admin: bool = False):
 async def proxy_request(request: Request, target: str, path: str = "", user: dict | None = None):
     client: httpx.AsyncClient = request.app.state.client
 
-    # Формування кінцевої URL-адреси мікросервісу
+    if not path:
+        path = request.url.path
     url = f"{target}{path}"
+    logger.debug("Proxying %s %s -> %s", request.method, request.url.path, url)
 
     # Отримуємо заголовки від фронтенду
     headers = dict(request.headers)
@@ -311,30 +313,33 @@ async def health():
 # Inventory (MUST be before /api/{path:path} catch-all)
 @app.api_route("/api/inventory/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy_inventory(request: Request, path: str):
+    target_path = f"/api/{path}"
     user = None
     if request.method in ["GET", "HEAD", "OPTIONS"]:
         user = await verify_session(request)
-        return await proxy_request(request, INVENTORY_SERVICE_URL, f"/api/{path}", user=user)
+        return await proxy_request(request, INVENTORY_SERVICE_URL, target_path, user=user)
     user = await require_auth(request, require_admin=True)
-    return await proxy_request(request, INVENTORY_SERVICE_URL, f"/api/{path}", user=user)
+    return await proxy_request(request, INVENTORY_SERVICE_URL, target_path, user=user)
 
 
 # Orders (MUST be before /api/{path:path} catch-all)
 @app.api_route("/api/orders/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy_orders(request: Request, path: str):
+    target_path = f"/api/orders/{path}" if path else "/api/orders/"
     user = None
     if request.method in ["GET", "HEAD", "OPTIONS"]:
         user = await verify_session(request)
-        return await proxy_request(request, ORDER_SERVICE_URL, f"/api/{path}", user=user)
+        return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
     user = await require_auth(request, require_admin=True)
-    return await proxy_request(request, ORDER_SERVICE_URL, f"/api/{path}", user=user)
+    return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
 
 
 # Reports (MUST be before /api/{path:path} catch-all)
 @app.api_route("/api/reports/{path:path}", methods=["GET"])
 async def proxy_reports(request: Request, path: str):
+    target_path = f"/api/reports/{path}"
     user = await require_auth(request, require_admin=True)
-    return await proxy_request(request, ORDER_SERVICE_URL, f"/api/reports/{path}", user=user)
+    return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
 
 
 # Products

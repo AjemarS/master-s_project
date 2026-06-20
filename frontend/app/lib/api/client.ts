@@ -5,6 +5,8 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth";
+const INVENTORY_API_URL = `${API_URL}/inventory`;
+const ORDERS_API_URL = `${API_URL}/orders`;
 
 export interface ApiError {
   message: string;
@@ -58,7 +60,7 @@ async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiRe
   }
 }
 
-export { apiCall, API_URL, AUTH_URL };
+export { apiCall, API_URL, AUTH_URL, INVENTORY_API_URL, ORDERS_API_URL };
 
 // Cart API methods
 export const cartApi = {
