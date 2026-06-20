@@ -115,7 +115,7 @@ function CategoryCreateDialog({
         onCreated(res.data);
         onOpenChange(false);
         setName("");
-        toast.success("Category created", { description: `${name.trim()} has been created.` });
+        toast.success("Категорію створено", { description: `Категорію "${name.trim()}" створено.` });
       }
     } catch (err) {
       toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
@@ -128,17 +128,17 @@ function CategoryCreateDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onOpenChange(false); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add Category</DialogTitle>
-          <DialogDescription>Create a new product category.</DialogDescription>
+          <DialogTitle>Додати категорію</DialogTitle>
+          <DialogDescription>Створіть нову категорію товарів.</DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          <Label htmlFor="cat-name">Name</Label>
-          <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Category name" className="mt-2" autoFocus />
+          <Label htmlFor="cat-name">Назва</Label>
+          <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Назва категорії" className="mt-2" autoFocus />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating} type="button">Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating} type="button">Скасувати</Button>
           <Button onClick={handleCreate} disabled={creating || !name.trim()} type="button">
-            {creating ? "Creating..." : "Create"}
+            {creating ? "Створення..." : "Створити"}
           </Button>
         </DialogFooter>
       </DialogContent>

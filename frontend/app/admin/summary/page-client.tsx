@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
-import { Users, Package, ArrowRight, TrendingUp, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Users, Package, ArrowRight, TrendingUp, AlertCircle, CheckCircle, XCircle, LayoutDashboard, BarChart3 } from "lucide-react";
 import { authClient, User } from "~/lib/auth-client";
 import { UserWithRole } from "better-auth/plugins/admin";
 import type { Product } from "~/lib/types";
@@ -55,7 +55,6 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
     const fetchStats = async () => {
       try {
         setFetchError(null);
-        // Fetch users stats from better-auth (browser-only)
         const usersData = await authClient.admin.listUsers({ query: {} });
 
         const recentDate = new Date();
@@ -73,7 +72,7 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
       } catch (error) {
         console.error("Failed to fetch stats:", error);
         setFetchError(
-          error instanceof Error ? error.message : "Failed to load admin statistics."
+          error instanceof Error ? error.message : "Не вдалося завантажити статистику."
         );
       } finally {
         setLoading(false);
@@ -116,8 +115,11 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">Dashboard Summary</h1>
-            <p className="text-slate-600 dark:text-slate-400">Overview of your system statistics</p>
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+              <LayoutDashboard className="h-10 w-10 text-purple-600" />
+              Огляд системи
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">Загальна статистика системи</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -133,8 +135,11 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2">Dashboard Summary</h1>
-          <p className="text-slate-600 dark:text-slate-400">Overview of your system statistics</p>
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+            <LayoutDashboard className="h-10 w-10 text-purple-600" />
+            Огляд системи
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400">Загальна статистика та стан сервісів</p>
         </div>
 
         {fetchError && (
@@ -146,76 +151,74 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
           </Alert>
         )}
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Users</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Користувачів</CardTitle>
               <Users className="h-5 w-5 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalUsers}</div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
-                {stats.recentUsersCount} new this week
+                {stats.recentUsersCount} нових за тиждень
               </p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Active Users</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Активні</CardTitle>
               <Users className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.activeUsers}</div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {stats.totalUsers > 0 ? ((stats.activeUsers / stats.totalUsers) * 100).toFixed(1) : "0"}% of total
+                {stats.totalUsers > 0 ? ((stats.activeUsers / stats.totalUsers) * 100).toFixed(1) : "0"}% від загалу
               </p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-purple-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Total Products</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Товарів</CardTitle>
               <Package className="h-5 w-5 text-purple-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalProducts}</div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                ${stats.productsValue.toFixed(2)} inventory value
+                {stats.productsValue.toFixed(2)} ₴ вартість запасів
               </p>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Low Stock Alert</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">Малий залишок</CardTitle>
               <AlertCircle className="h-5 w-5 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.lowStock}</div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Products below 10 units</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Товарів менше 10 од.</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 dark:text-slate-100">
                 <Users className="h-5 w-5" />
-                Users Management
+                Користувачі
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Manage user accounts and roles using Better-Auth admin functionality.
+                Керування обліковими записами та ролями користувачів.
               </p>
               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                 <div>
-                  <div className="font-medium text-slate-900 dark:text-slate-100">Active Users</div>
+                  <div className="font-medium text-slate-900 dark:text-slate-100">Активних</div>
                   <div className="text-2xl font-bold text-blue-600">{stats.activeUsers}</div>
                 </div>
                 <Badge variant="default" className="text-sm">
@@ -224,7 +227,7 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
               </div>
               <Link href="/admin/users">
                 <Button className="w-full flex items-center justify-center gap-2">
-                  Manage Users
+                  Керувати
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -235,25 +238,25 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
             <CardHeader>
               <CardTitle className="flex items-center gap-2 dark:text-slate-100">
                 <Package className="h-5 w-5" />
-                Products Management
+                Товари
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Manage your product catalog, inventory, and pricing via Django REST API.
+                Керування каталогом товарів, цінами та залишками.
               </p>
               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                 <div>
-                  <div className="font-medium text-slate-900 dark:text-slate-100">Low Stock Items</div>
+                  <div className="font-medium text-slate-900 dark:text-slate-100">Малий залишок</div>
                   <div className="text-2xl font-bold text-orange-600">{stats.lowStock}</div>
                 </div>
                 <Badge variant="destructive" className="text-sm">
-                  Needs attention
+                  Потребує уваги
                 </Badge>
               </div>
               <Link href="/admin/products">
                 <Button className="w-full flex items-center justify-center gap-2">
-                  Manage Products
+                  Керувати
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -261,10 +264,13 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
           </Card>
         </div>
 
-        {/* System Status */}
+        {/* Стан системи */}
         <Card className="mt-6 dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
-            <CardTitle className="dark:text-slate-100">System Status</CardTitle>
+            <CardTitle className="flex items-center gap-2 dark:text-slate-100">
+              <BarChart3 className="h-5 w-5" />
+              Стан системи
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,7 +289,7 @@ export default function SummaryPageClient({ initialProducts }: SummaryPageClient
                     </div>
                   </div>
                   <Badge variant={svc.status === "healthy" ? "default" : "destructive"}>
-                    {svc.status === "loading" ? "Checking..." : svc.status === "healthy" ? "Online" : "Offline"}
+                    {svc.status === "loading" ? "Перевірка..." : svc.status === "healthy" ? "Працює" : "Недоступний"}
                   </Badge>
                 </div>
               ))}

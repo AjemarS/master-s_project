@@ -164,20 +164,20 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
           <Link href="/admin/summary">
             <Button variant="ghost" className="mb-4 flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              Back to Summary
+              На головну
             </Button>
           </Link>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <Users className="h-10 w-10 text-blue-600" />
-                Users Management
+                Користувачі
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">Better-Auth Admin Plugin Integration</p>
+              <p className="text-slate-600 dark:text-slate-400">Керування обліковими записами</p>
             </div>
             <Button className="flex items-center gap-2" onClick={() => { setUserDialogMode("create"); setUserDialogUser(null); setShowUserDialog(true); setUserDialogKey((k) => k + 1); }}>
               <Plus className="h-4 w-4" />
-              Invite User
+              Додати
             </Button>
           </div>
         </div>
@@ -199,7 +199,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
           </Card>
           <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Active</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Активні</div>
               <div className="text-2xl font-bold text-green-600">
                 {users.filter((u) => !u.banned).length}
               </div>
@@ -207,7 +207,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
           </Card>
           <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Banned</div>
+              <div className="text-sm text-slate-600 dark:text-slate-400">Заблоковані</div>
               <div className="text-2xl font-bold text-red-600">
                 {users.filter((u) => u.banned).length}
               </div>
@@ -235,7 +235,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
                 {showFilters ? <X className="h-4 w-4 mr-2" /> : <Filter className="h-4 w-4 mr-2" />}
-                {showFilters ? "Close" : "Filter"}
+                {showFilters ? "Закрити" : "Фільтр"}
               </Button>
             </div>
           </CardHeader>
@@ -245,7 +245,7 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                 <Input
-                  placeholder="Search users by name, email, or role..."
+                  placeholder="Пошук за ім'ям, email або роллю..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
