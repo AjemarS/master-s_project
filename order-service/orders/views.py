@@ -1,14 +1,17 @@
 import logging
+from datetime import timezone
 from decimal import Decimal
 from uuid import uuid4
 
 import requests
+import stripe
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone as tz
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from .eventbus import publish_event
@@ -20,6 +23,8 @@ from .serializers import (
     OrderStatusSerializer,
     POSOrderSerializer,
 )
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +93,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             return OrderListSerializer
         if self.action in ("create", "pos"):
             return OrderCreateSerializer
+        if self.action in ("pay", "stripe_webhook"):
+            return None
         return OrderDetailSerializer
 
     def get_permissions(self):
+        if self.action == "stripe_webhook":
+            return [AllowAny()]
         if self.action in ("list", "retrieve", "my"):
             return [IsAuthenticatedOrReadOnly()]
         if self.action in ("create", "pos"):
@@ -145,28 +154,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             transaction.on_commit(
                 lambda: publish_event("order.created", _build_order_event(order))
             )
-
-        if data.get("channel") == Order.ONLINE and data.get("warehouse_id"):
-            success, succeeded = self._reserve_stock(order)
-            if not success:
-                # Saga compensation: release already-reserved items
-                for pid, qty in succeeded:
-                    _call_inventory(
-                        "POST", "stock/release/",
-                        {
-                            "product_id": pid,
-                            "warehouse_id": order.warehouse_id,
-                            "quantity": qty,
-                            "reference_type": "order",
-                            "reference_id": str(order.id),
-                        },
-                    )
-                order.status = Order.CANCELLED
-                order.save(update_fields=["status"])
-                logger.warning(
-                    "Order cancelled due to reserve failure | number=%s",
-                    order.order_number,
-                )
 
         logger.info("Order created | number=%s channel=%s", order.order_number, order.channel)
 
@@ -294,6 +281,115 @@ class OrderViewSet(viewsets.ModelViewSet):
             else:
                 succeeded.append((item.product_id, item.quantity))
         return all_success, succeeded
+
+    @action(detail=True, methods=["post"])
+    def pay(self, request, pk=None):
+        order = self.get_object()
+
+        if order.payment_status != Order.UNPAID:
+            return Response(
+                {"error": "Order already paid", "payment_status": order.payment_status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            session = stripe.checkout.Session.create(
+                line_items=[
+                    {
+                        "price_data": {
+                            "currency": "uah",
+                            "product_data": {"name": item.product_name or f"Product #{item.product_id}"},
+                            "unit_amount": int(item.price * 100),
+                        },
+                        "quantity": item.quantity,
+                    }
+                    for item in order.items.all()
+                ],
+                mode="payment",
+                client_reference_id=str(order.id),
+                customer_email=order.customer_email or None,
+                metadata={"order_id": order.id},
+                success_url=request.build_absolute_uri("/checkout/success?order_id=" + str(order.id)),
+                cancel_url=request.build_absolute_uri("/checkout?order_id=" + str(order.id)),
+            )
+
+            order.stripe_session_id = session.id
+            order.save(update_fields=["stripe_session_id"])
+
+            return Response({"checkout_url": session.url, "session_id": session.id})
+
+        except stripe.error.StripeError as e:
+            logger.error("Stripe session creation failed | order=%s error=%s", order.order_number, e)
+            return Response(
+                {"error": "Payment session creation failed"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+    @action(detail=False, methods=["post"])
+    def stripe_webhook(self, request):
+        payload = request.body
+        sig_header = request.META.get("HTTP_STRIPE_SIGNATURE", "")
+
+        try:
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+            )
+        except ValueError:
+            return Response({"error": "Invalid payload"}, status=status.HTTP_400_BAD_REQUEST)
+        except stripe.error.SignatureVerificationError:
+            return Response({"error": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            order_id = session.get("metadata", {}).get("order_id")
+            if not order_id:
+                logger.warning("Stripe webhook missing order_id in metadata")
+                return Response({"error": "Missing order_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                order = Order.objects.get(pk=order_id)
+            except Order.DoesNotExist:
+                logger.error("Stripe webhook order not found | id=%s", order_id)
+                return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if order.payment_status == Order.PAID:
+                logger.info("Stripe webhook duplicate | order=%s already paid", order.order_number)
+                return Response({"status": "already_paid"})
+
+            with transaction.atomic():
+                order.payment_status = Order.PAID
+                order.stripe_payment_intent_id = session.get("payment_intent", "")
+                order.paid_at = tz.now()
+                order.status = Order.CONFIRMED
+                order.save()
+
+            if order.warehouse_id:
+                success, succeeded = self._reserve_stock(order)
+                if not success:
+                    for pid, qty in succeeded:
+                        _call_inventory(
+                            "POST", "stock/release/",
+                            {
+                                "product_id": pid,
+                                "warehouse_id": order.warehouse_id,
+                                "quantity": qty,
+                                "reference_type": "order",
+                                "reference_id": str(order.id),
+                            },
+                        )
+                    order.status = Order.CANCELLED
+                    order.payment_status = Order.REFUNDED
+                    order.save(update_fields=["status", "payment_status"])
+                    logger.error(
+                        "Order cancelled after payment due to reserve failure | number=%s",
+                        order.order_number,
+                    )
+                    return Response({"status": "reserve_failed"})
+
+            publish_event("order.created", _build_order_event(order))
+            logger.info("Payment confirmed | order=%s", order.order_number)
+
+        return Response({"status": "ok"})
 
     @action(detail=False, methods=["get"])
     def my(self, request):

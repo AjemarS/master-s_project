@@ -266,13 +266,14 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
 #   1. / (root)
 #   2. /gateway
 #   3. /health
-#   4. /api/inventory/{path}   → Inventory Service
-#   5. /api/orders/{path}      → Order Service
-#   6. /api/reports/{path}     → Order Service (reports)
-#   7. /api/{path:path}        → Product Service
-#   8. /media/{path:path}      → Product Service (media files)
-#   9. /auth/{path:path}       → Auth Service
-#  10. /{path:path}            → Frontend
+#   4. /api/payments/webhook   → Order Service (Stripe, no auth)
+#   5. /api/inventory/{path}   → Inventory Service
+#   6. /api/orders/{path}      → Order Service
+#   7. /api/reports/{path}     → Order Service (reports)
+#   8. /api/{path:path}        → Product Service
+#   9. /media/{path:path}      → Product Service (media files)
+#  10. /auth/{path:path}       → Auth Service
+#  11. /{path:path}            → Frontend
 
 
 @app.get("/")
@@ -308,6 +309,12 @@ async def health():
             "rabbitmq": await check(RABBITMQ_MGMT_URL),
         },
     }
+
+
+# Stripe webhook (MUST be before /api/orders/{path} — no auth, Stripe calls it)
+@app.post("/api/payments/webhook/")
+async def proxy_stripe_webhook(request: Request):
+    return await proxy_request(request, ORDER_SERVICE_URL, "/api/orders/stripe-webhook/")
 
 
 # Inventory (MUST be before /api/{path:path} catch-all)
