@@ -147,8 +147,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         if data.get("channel") == Order.ONLINE and data.get("warehouse_id"):
-            success = self._reserve_stock(order)
+            success, succeeded = self._reserve_stock(order)
             if not success:
+                # Saga compensation: release already-reserved items
+                for pid, qty in succeeded:
+                    _call_inventory(
+                        "POST", "stock/release/",
+                        {
+                            "product_id": pid,
+                            "warehouse_id": order.warehouse_id,
+                            "quantity": qty,
+                            "reference_type": "order",
+                            "reference_id": str(order.id),
+                        },
+                    )
                 order.status = Order.CANCELLED
                 order.save(update_fields=["status"])
                 logger.warning(
@@ -162,6 +174,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def _reserve_stock(self, order):
         all_success = True
+        succeeded = []
         for item in order.items.all():
             result, error = _call_inventory(
                 "POST",
@@ -180,7 +193,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.order_number, item.product_id, error,
                 )
                 all_success = False
-        return all_success
+            else:
+                succeeded.append((item.product_id, item.quantity))
+        return all_success, succeeded
 
     @action(detail=True, methods=["patch"])
     def status(self, request, pk=None):
@@ -216,7 +231,18 @@ class OrderViewSet(viewsets.ModelViewSet):
             self._release_stock(order)
 
         if new_status == Order.SHIPPED and order.warehouse_id:
-            self._deduct_stock(order)
+            success, succeeded = self._deduct_stock(order)
+            if not success:
+                order.status = old_status
+                order.save(update_fields=["status"])
+                logger.error(
+                    "Status change reverted due to deduct failure | order=%s %s->%s",
+                    order.order_number, old_status, new_status,
+                )
+                return Response(
+                    {"error": "Stock deduct failed, status reverted", "detail": "Inventory service error"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
 
         logger.info(
             "Order status changed | number=%s %s->%s",
@@ -245,6 +271,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 )
 
     def _deduct_stock(self, order):
+        all_success = True
+        succeeded = []
         for item in order.items.all():
             result, error = _call_inventory(
                 "POST",
@@ -262,6 +290,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "Stock deduct failed | order=%s product=%s error=%s",
                     order.order_number, item.product_id, error,
                 )
+                all_success = False
+            else:
+                succeeded.append((item.product_id, item.quantity))
+        return all_success, succeeded
 
     @action(detail=False, methods=["get"])
     def my(self, request):
@@ -314,7 +346,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                 lambda: publish_event("order.created", _build_order_event(order))
             )
 
-        self._deduct_stock(order)
-        logger.info("POS sale created | number=%s", order.order_number)
+        success, succeeded = self._deduct_stock(order)
+        if not success:
+            order.status = Order.CANCELLED
+            order.save(update_fields=["status"])
+            logger.error(
+                "POS sale cancelled due to deduct failure | number=%s",
+                order.order_number,
+            )
+
+        logger.info("POS sale created | number=%s success=%s", order.order_number, success)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)

@@ -124,7 +124,6 @@ class OrderAPITest(APITestCase):
             "/api/orders/",
             {
                 "channel": "online",
-                "warehouse_id": 1,
                 "customer_name": "John",
                 "customer_email": "john@test.com",
                 "items": [
@@ -138,6 +137,31 @@ class OrderAPITest(APITestCase):
         data = response.data
         self.assertEqual(data["channel"], "online")
         self.assertEqual(data["status"], "pending")
+        self.assertEqual(len(data["items"]), 1)
+        self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+
+    def test_create_order_with_warehouse_inventory_unavailable(self):
+        """Saga compensation: cancelled when inventory service unavailable."""
+        user = _create_admin_user()
+        self.client.force_authenticate(user=user)
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "channel": "online",
+                "warehouse_id": 1,
+                "customer_name": "John",
+                "customer_email": "john@test.com",
+                "items": [
+                    {"product_id": 1, "quantity": 2, "price": "99.99",
+                     "product_name": "Test Product"}
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.data
+        self.assertEqual(data["channel"], "online")
+        self.assertEqual(data["status"], "cancelled")
         self.assertEqual(len(data["items"]), 1)
         self.assertAlmostEqual(float(data["total_amount"]), 199.98)
 
