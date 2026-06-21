@@ -122,7 +122,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve", "movements"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("transfer", "adjust"):
+        if self.action in ("transfer", "adjust", "release"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
@@ -414,6 +414,13 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             logger.info(
                 "Stock adjusted | product=%s warehouse=%s delta=%+d new=%d",
                 product_id, warehouse_id, delta, new_quantity,
+            )
+
+            transaction.on_commit(
+                lambda: _check_and_publish_low_stock(
+                    product_id, warehouse_id, stock.quantity,
+                    warehouse_name=stock.warehouse.name,
+                )
             )
 
         return Response(StockSerializer(stock).data)

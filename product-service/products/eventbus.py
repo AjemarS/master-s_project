@@ -130,17 +130,19 @@ def _handle_stock_changed(event):
     from products.models import Product
 
     product_id = event.get("product_id")
-    quantity = event.get("quantity", 0)
+    change = event.get("change", 0)
 
     if not product_id:
         logger.warning("inventory.stock.changed missing product_id")
         return
 
     try:
-        Product.objects.filter(pk=product_id).update(stock=quantity)
+        Product.objects.filter(pk=product_id).update(
+            stock=F("stock") + change,
+        )
         Product.objects.filter(pk=product_id, stock__gt=0).update(in_stock=True)
         Product.objects.filter(pk=product_id, stock=0).update(in_stock=False)
-        logger.info("Stock synced | product=%s total_stock=%s", product_id, quantity)
+        logger.info("Stock synced | product=%s delta=%+d", product_id, change)
     except Exception as e:
         logger.error("Stock sync failed | product=%s error=%s", product_id, e)
 
