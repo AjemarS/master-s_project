@@ -27,7 +27,7 @@ function ResetForm() {
 
     setLoading(true);
     try {
-      const result = await authClient.resetPassword({ newPassword: password });
+      const result = await authClient.resetPassword({ newPassword: password, token });
       if (result?.error) {
         setError(result.error.message || "Failed to reset password");
       } else {

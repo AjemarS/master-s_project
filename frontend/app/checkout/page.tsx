@@ -43,10 +43,10 @@ export default function CheckoutPage() {
         customer_email: email.trim(),
         customer_phone: phone.trim(),
         items: items.map((i) => ({
-          product_id: i.product,
-          product_name: i.product_name,
+          product_id: Number(i.id),
+          product_name: i.name,
           quantity: i.quantity,
-          price: i.product_price,
+          price: i.price,
         })),
       });
 
@@ -63,8 +63,9 @@ export default function CheckoutPage() {
         return;
       }
 
+      const checkoutUrl = pay.data!.checkout_url;
+      router.push(checkoutUrl);
       clearCart();
-      router.push(pay.data!.checkout_url);
     } catch (err) {
       toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
       setSubmitting(false);
@@ -119,9 +120,9 @@ export default function CheckoutPage() {
                 <div className="space-y-2">
                   <h3 className="font-semibold text-sm text-slate-600">Order Items</h3>
                   {items.map((item) => (
-                    <div key={item.product} className="flex justify-between text-sm py-1">
-                      <span>{item.product_name} x{item.quantity}</span>
-                      <span className="font-medium">{(item.product_price * item.quantity).toFixed(2)} ₴</span>
+                    <div key={item.id} className="flex justify-between text-sm py-1">
+                      <span>{item.name} x{item.quantity}</span>
+                      <span className="font-medium">{(item.price * item.quantity).toFixed(2)} ₴</span>
                     </div>
                   ))}
                   <div className="border-t pt-2 flex justify-between font-bold">
