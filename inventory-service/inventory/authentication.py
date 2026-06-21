@@ -52,6 +52,8 @@ class GatewayAuthentication(BaseAuthentication):
                 if changed:
                     user.save()
 
+            user.gateway_role = role
+
             logger.debug(
                 "Gateway auth: user=%s role=%s created=%s", user_id, role, created
             )

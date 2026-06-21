@@ -62,7 +62,7 @@ export default async function HomePage() {
                     вашого дому
                   </span>
                 </h1>
-                <p className="max-w-[700px] text-lg text-muted-foreground md:text-xl">
+                <p className="max-w-175 text-lg text-muted-foreground md:text-xl">
                   Надійна техніка від провідних виробників. Вигідні ціни, швидка доставка та професійний сервіс.
                 </p>
               </div>

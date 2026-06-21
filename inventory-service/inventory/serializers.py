@@ -170,3 +170,20 @@ class DeductStockSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
     reference_type = serializers.CharField(required=False, allow_blank=True, default="order")
     reference_id = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class TransferStockSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    from_warehouse_id = serializers.IntegerField()
+    to_warehouse_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+    reference_type = serializers.CharField(required=False, allow_blank=True, default="transfer")
+    reference_id = serializers.CharField(required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class AdjustStockSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    warehouse_id = serializers.IntegerField()
+    new_quantity = serializers.IntegerField(min_value=0)
+    reason = serializers.CharField(required=False, allow_blank=True, default="")

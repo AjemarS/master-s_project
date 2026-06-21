@@ -6,19 +6,20 @@ import { useState, useCallback, useRef } from "react";
 import { Users, Package, LayoutDashboard, LogOut, Store, Warehouse, ShoppingCart, ClipboardList, CreditCard, BarChart3, Truck, ExternalLink, Pin, PinOff } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
+import { useCurrentUser } from "~/lib/auth-client";
 import { authClient } from "~/lib/auth-client";
 import { useRouter } from "next/navigation";
 
-const navigation = [
-  { name: "Огляд", href: "/admin/summary", icon: LayoutDashboard },
-  { name: "Товари", href: "/admin/products", icon: Package },
-  { name: "Замовлення", href: "/admin/orders", icon: ShoppingCart },
-  { name: "POS", href: "/admin/pos", icon: CreditCard },
-  { name: "Склади", href: "/admin/warehouses", icon: Warehouse },
-  { name: "Постачальники", href: "/admin/suppliers", icon: Truck },
-  { name: "Накладні", href: "/admin/goods-receipts", icon: ClipboardList },
-  { name: "Звіти", href: "/admin/reports", icon: BarChart3 },
-  { name: "Користувачі", href: "/admin/users", icon: Users },
+const allNavigation = [
+  { name: "Огляд", href: "/admin/summary", icon: LayoutDashboard, roles: ["admin", "cashier", "warehouse_worker"] },
+  { name: "Товари", href: "/admin/products", icon: Package, roles: ["admin"] },
+  { name: "Замовлення", href: "/admin/orders", icon: ShoppingCart, roles: ["admin", "cashier"] },
+  { name: "POS", href: "/admin/pos", icon: CreditCard, roles: ["admin", "cashier"] },
+  { name: "Склади", href: "/admin/warehouses", icon: Warehouse, roles: ["admin", "warehouse_worker"] },
+  { name: "Постачальники", href: "/admin/suppliers", icon: Truck, roles: ["admin", "warehouse_worker"] },
+  { name: "Накладні", href: "/admin/goods-receipts", icon: ClipboardList, roles: ["admin", "warehouse_worker"] },
+  { name: "Звіти", href: "/admin/reports", icon: BarChart3, roles: ["admin"] },
+  { name: "Користувачі", href: "/admin/users", icon: Users, roles: ["admin"] },
 ];
 
 const TEXT_DELAY = 150;
@@ -26,6 +27,12 @@ const TEXT_DELAY = 150;
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useCurrentUser();
+
+  const userRole = user?.role || "admin";
+  const navigation = allNavigation.filter((item) =>
+    item.roles.includes(userRole) || userRole === "admin"
+  );
 
   const [pinned, setPinned] = useState(false);
   const [hovered, setHovered] = useState(false);

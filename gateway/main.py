@@ -155,19 +155,19 @@ async def verify_session(request: Request) -> dict | None:
         return None
 
 
-async def require_auth(request: Request, require_admin: bool = False):
+async def require_auth(request: Request, allowed_roles: list[str] | None = None):
     """
-    Middleware helper: перевіряє автентифікацію та опціонально роль admin.
-    Кидає HTTPException при невдачі.
+    Verifies authentication and optional role check.
+    If allowed_roles is None, any authenticated user passes.
+    If allowed_roles is provided, admin always passes, other users must match the list.
     """
     user = await verify_session(request)
-
     if user is None:
         raise HTTPException(status_code=401, detail="Authentication required")
-
-    if require_admin and user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
+    if allowed_roles is not None:
+        role = user.get("role", "user")
+        if role != "admin" and role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Access denied")
     return user
 
 
@@ -318,7 +318,11 @@ async def proxy_inventory(request: Request, path: str):
     if request.method in ["GET", "HEAD", "OPTIONS"]:
         user = await verify_session(request)
         return await proxy_request(request, INVENTORY_SERVICE_URL, target_path, user=user)
-    user = await require_auth(request, require_admin=True)
+    # Warehouse worker can manage goods receipts, transfers, and adjustments
+    if any(path.startswith(p) for p in ("goods-receipts/", "stock/transfer/", "stock/adjust/")):
+        user = await require_auth(request, allowed_roles=["warehouse_worker"])
+    else:
+        user = await require_auth(request, allowed_roles=["admin"])
     return await proxy_request(request, INVENTORY_SERVICE_URL, target_path, user=user)
 
 
@@ -330,7 +334,15 @@ async def proxy_orders(request: Request, path: str):
     if request.method in ["GET", "HEAD", "OPTIONS"]:
         user = await verify_session(request)
         return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
-    user = await require_auth(request, require_admin=True)
+    # Online checkout: any authenticated user
+    if not path:
+        user = await require_auth(request)
+    # POS sale: cashier or admin
+    elif path.startswith("pos/"):
+        user = await require_auth(request, allowed_roles=["cashier"])
+    # Everything else (status changes, etc.): admin only
+    else:
+        user = await require_auth(request, allowed_roles=["admin"])
     return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
 
 
@@ -338,7 +350,7 @@ async def proxy_orders(request: Request, path: str):
 @app.api_route("/api/reports/{path:path}", methods=["GET"])
 async def proxy_reports(request: Request, path: str):
     target_path = f"/api/reports/{path}"
-    user = await require_auth(request, require_admin=True)
+    user = await require_auth(request, allowed_roles=["admin"])
     return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
 
 
@@ -355,7 +367,7 @@ async def proxy_products(request: Request, path: str):
 
     # Write operations require authentication + admin role
     # This protects the entire product CRUD API from unauthorized modifications
-    user = await require_auth(request, require_admin=True)
+    user = await require_auth(request, allowed_roles=["admin"])
 
     return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/{path}", user=user)
 

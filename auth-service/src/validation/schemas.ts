@@ -14,7 +14,7 @@ export const updateUserSchema = z.object({
 
 export const setRoleSchema = z.object({
   userId: z.string().min(1),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "cashier", "warehouse_worker"]),
 });
 
 export const enableTwoFactorSchema = z.object({

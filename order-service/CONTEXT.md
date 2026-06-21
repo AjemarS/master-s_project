@@ -10,4 +10,4 @@
 - Run: `python manage.py runserver 0.0.0.0:8002`.
 - Test: `python manage.py test`.
 - API docs: `/api/docs/` (Swagger), `/api/redoc/` (ReDoc).
-- RabbitMQ publisher (TODO): `order.created`, `order.cancelled`, `order.status_changed`.
+- RabbitMQ: publishes `order.created`, `order.cancelled`, `order.status_changed` to `techhub.events` exchange.

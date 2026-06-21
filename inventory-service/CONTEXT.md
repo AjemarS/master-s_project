@@ -8,4 +8,4 @@
 - Run: `python manage.py runserver 0.0.0.0:8001`.
 - Test: `python manage.py test`.
 - API docs: `/api/docs/` (Swagger), `/api/redoc/` (ReDoc).
-- RabbitMQ publisher (TODO): `inventory.stock.changed` on deduct/receipt.
+- RabbitMQ: publishes `inventory.stock.changed`, `inventory.goods_received`. Consumes `order.created`, `order.cancelled` via `inventory-consumer` container (idempotent via `ProcessedEvent`).
