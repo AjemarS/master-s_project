@@ -131,7 +131,7 @@ export function AdminOrdersClient() {
   useEffect(() => {
     queueMicrotask(() => fetchOrders(1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [statusFilter, channelFilter]);
 
   const handleExpandOrder = async (orderId: number) => {
     if (expandedOrderId === orderId) {

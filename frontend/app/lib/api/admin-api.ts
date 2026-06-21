@@ -19,7 +19,7 @@ export const productApi = {
     if (params?.category) queryParams.append("category", params.category.toString());
     if (params?.minPrice) queryParams.append("min_price", params.minPrice.toString());
     if (params?.maxPrice) queryParams.append("max_price", params.maxPrice.toString());
-    if (params?.inStock !== undefined) queryParams.append("inStock", params.inStock.toString());
+    if (params?.inStock !== undefined) queryParams.append("in_stock", params.inStock.toString());
     const url = `${API_URL}/products/${queryParams.toString() ? `?${queryParams}` : ""}`;
     return apiCall(url);
   },
@@ -175,5 +175,9 @@ export const reportApi = {
 
   async revenue(): Promise<ApiResponse<RevenueReport>> {
     return apiCall(`${API_URL}/reports/revenue/`);
+  },
+
+  async inventoryValue(): Promise<ApiResponse<{ total_value: string; item_count: number }>> {
+    return apiCall(`${API_URL}/reports/inventory-value/`);
   },
 };

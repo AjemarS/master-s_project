@@ -120,7 +120,7 @@ export default async function HomePage() {
               <Link
                 aria-label={`Переглянути ${category.name}`}
                 className="group relative flex flex-col space-y-4 overflow-hidden rounded-2xl border bg-card shadow transition-all duration-300 hover:shadow-lg"
-                href={`/products?category=${category.name.toLowerCase()}`}
+                href={`/products?category=${category.id}`}
                 key={category.name}
               >
                 <div className="relative aspect-4/3 overflow-hidden">
