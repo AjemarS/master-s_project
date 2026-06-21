@@ -52,9 +52,13 @@ class OrderModelTest(TestCase):
 
     def test_status_transitions(self):
         order = _create_order()
+        self.assertTrue(order.can_transition_to(Order.CONFIRMED))
+        self.assertTrue(order.can_transition_to(Order.CANCELLED))
+        self.assertFalse(order.can_transition_to(Order.SHIPPED))
+
+        order.status = Order.CONFIRMED
         self.assertTrue(order.can_transition_to(Order.SHIPPED))
         self.assertTrue(order.can_transition_to(Order.CANCELLED))
-        self.assertFalse(order.can_transition_to(Order.DELIVERED))
 
         order.status = Order.SHIPPED
         self.assertTrue(order.can_transition_to(Order.DELIVERED))
@@ -140,8 +144,8 @@ class OrderAPITest(APITestCase):
         self.assertEqual(len(data["items"]), 1)
         self.assertAlmostEqual(float(data["total_amount"]), 199.98)
 
-    def test_create_order_with_warehouse_inventory_unavailable(self):
-        """Saga compensation: cancelled when inventory service unavailable."""
+    def test_create_order_with_warehouse(self):
+        """Order with warehouse_id stays pending (reservation deferred to webhook)."""
         user = _create_admin_user()
         self.client.force_authenticate(user=user)
         response = self.client.post(
@@ -161,7 +165,8 @@ class OrderAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         data = response.data
         self.assertEqual(data["channel"], "online")
-        self.assertEqual(data["status"], "cancelled")
+        self.assertEqual(data["status"], "pending")
+        self.assertEqual(data["payment_status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
         self.assertAlmostEqual(float(data["total_amount"]), 199.98)
 
@@ -181,12 +186,12 @@ class OrderAPITest(APITestCase):
         order = _create_order()
         response = self.client.patch(
             f"/api/orders/{order.pk}/status/",
-            {"status": "shipped"},
+            {"status": "confirmed"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
-        self.assertEqual(order.status, Order.SHIPPED)
+        self.assertEqual(order.status, Order.CONFIRMED)
 
     def test_order_status_transition_invalid(self):
         user = _create_admin_user()

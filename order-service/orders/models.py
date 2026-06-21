@@ -12,22 +12,34 @@ class Order(models.Model):
     ]
 
     PENDING = "pending"
+    CONFIRMED = "confirmed"
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
     STATUS_CHOICES = [
-        (PENDING, "Очікує"),
+        (PENDING, "Очікує оплати"),
+        (CONFIRMED, "Підтверджено"),
         (SHIPPED, "Відправлено"),
         (DELIVERED, "Доставлено"),
         (CANCELLED, "Скасовано"),
     ]
 
     STATUS_TRANSITIONS = {
-        PENDING: [SHIPPED, CANCELLED],
+        PENDING: [CONFIRMED, CANCELLED],
+        CONFIRMED: [SHIPPED, CANCELLED],
         SHIPPED: [DELIVERED, CANCELLED],
         DELIVERED: [],
         CANCELLED: [],
     }
+
+    UNPAID = "unpaid"
+    PAID = "paid"
+    REFUNDED = "refunded"
+    PAYMENT_STATUS_CHOICES = [
+        (UNPAID, "Не оплачено"),
+        (PAID, "Оплачено"),
+        (REFUNDED, "Повернено"),
+    ]
 
     order_number = models.CharField(
         max_length=50, unique=True, verbose_name="Номер замовлення"
@@ -53,6 +65,16 @@ class Order(models.Model):
     total_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Загальна сума"
     )
+    payment_status = models.CharField(
+        max_length=20, choices=PAYMENT_STATUS_CHOICES, default=UNPAID, verbose_name="Статус оплати"
+    )
+    stripe_session_id = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Stripe Session ID"
+    )
+    stripe_payment_intent_id = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Stripe Payment Intent ID"
+    )
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата оплати")
     notes = models.TextField(blank=True, verbose_name="Примітки")
     created_by = models.CharField(
         max_length=255, blank=True, verbose_name="Створено користувачем"

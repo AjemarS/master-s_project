@@ -120,6 +120,22 @@ export const goodsReceiptApi = {
 };
 
 export const orderApi = {
+  async create(data: {
+    channel?: string;
+    warehouse_id?: number;
+    customer_name?: string;
+    customer_phone?: string;
+    customer_email?: string;
+    notes?: string;
+    items: { product_id: number; product_name?: string; quantity: number; price: number }[];
+  }): Promise<ApiResponse<OrderDetail>> {
+    return apiCall(`${ORDERS_API_URL}/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async pay(id: number): Promise<ApiResponse<{ checkout_url: string; session_id: string }>> {
+    return apiCall(`${ORDERS_API_URL}/${id}/pay/`, { method: "POST" });
+  },
+
   async getAll(params?: { page?: number; status?: string; channel?: string }): Promise<
     ApiResponse<{ results: Order[]; count: number; next: string | null; previous: string | null }>
   > {
