@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { admin, twoFactor } from "better-auth/plugins";
 import { Pool } from "pg";
+import { sendResetPasswordEmail, sendVerificationEmail } from "./email/sender";
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -14,7 +15,7 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3001/auth",
 
   trustedOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:3001"],
-  appName: "Store",
+  appName: "TechHub",
   plugins: [
     admin({
       adminUserIds: (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean),
@@ -24,8 +25,14 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
+    requireEmailVerification: true,
     minPasswordLength: 8,
+    sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
+      await sendVerificationEmail(user.email, url);
+    },
+    sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
+      await sendResetPasswordEmail(user.email, url);
+    },
   },
 
   session: {
