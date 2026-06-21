@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, ShoppingCart, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { cn } from "~/lib/cn";
@@ -43,6 +44,7 @@ export function CartClient({ className }: CartProps) {
     clearCart,
   } = useCart();
 
+  const router = useRouter();
   const [isOpen, setIsOpen] = React.useState(false);
   const isMounted = useMounted();
 
@@ -277,7 +279,7 @@ export function CartClient({ className }: CartProps) {
                   {formattedSubtotal}
                 </span>
               </div>
-              <Button className="w-full" size="lg">
+               <Button className="w-full" size="lg" onClick={() => { setIsOpen(false); router.push("/checkout"); }}>
                 Checkout
               </Button>
               <div className="flex items-center justify-between">
