@@ -55,13 +55,23 @@ def _inventory_url(path):
     return f"{settings.INVENTORY_SERVICE_URL}/api/{path}"
 
 
-def _call_inventory(method, path, json_data=None):
+def _call_inventory(method, path, json_data=None, request=None):
     url = _inventory_url(path)
+    headers = {}
+    if request:
+        for meta_key, header_name in [
+            ("HTTP_X_GATEWAY_USER_ID", "X-Gateway-User-Id"),
+            ("HTTP_X_GATEWAY_USER_ROLE", "X-Gateway-User-Role"),
+            ("HTTP_X_GATEWAY_USER_USERNAME", "X-Gateway-User-Username"),
+            ("HTTP_X_GATEWAY_USER_EMAIL", "X-Gateway-User-Email"),
+        ]:
+            if meta_key in request.META:
+                headers[header_name] = request.META[meta_key]
     try:
         if method == "POST":
-            resp = requests.post(url, json=json_data, timeout=10)
+            resp = requests.post(url, json=json_data, timeout=10, headers=headers)
         elif method == "GET":
-            resp = requests.get(url, timeout=10)
+            resp = requests.get(url, timeout=10, headers=headers)
         else:
             return None, "Unsupported method"
         if resp.status_code in (200, 201):
@@ -173,6 +183,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "reference_type": "order",
                     "reference_id": str(order.id),
                 },
+                request=self.request,
             )
             if error:
                 logger.error(
@@ -250,6 +261,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "reference_type": "order",
                     "reference_id": str(order.id),
                 },
+                request=self.request,
             )
             if error:
                 logger.error(
@@ -271,6 +283,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "reference_type": "order",
                     "reference_id": str(order.id),
                 },
+                request=self.request,
             )
             if error:
                 logger.error(
@@ -309,8 +322,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 client_reference_id=str(order.id),
                 customer_email=order.customer_email or None,
                 metadata={"order_id": order.id},
-                success_url=request.build_absolute_uri("/checkout/success?order_id=" + str(order.id)),
-                cancel_url=request.build_absolute_uri("/checkout?order_id=" + str(order.id)),
+                success_url=settings.PUBLIC_BASE_URL + "/checkout/success?order_id=" + str(order.id),
+                cancel_url=settings.PUBLIC_BASE_URL + "/checkout?order_id=" + str(order.id),
             )
 
             order.stripe_session_id = session.id
@@ -376,6 +389,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                                 "reference_type": "order",
                                 "reference_id": str(order.id),
                             },
+                            request=request,
                         )
                     order.status = Order.CANCELLED
                     order.payment_status = Order.REFUNDED
