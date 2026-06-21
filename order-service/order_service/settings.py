@@ -89,6 +89,8 @@ INVENTORY_SERVICE_URL = os.environ.get(
     "INVENTORY_SERVICE_URL", "http://inventory-service:8001"
 )
 
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost")
+
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
