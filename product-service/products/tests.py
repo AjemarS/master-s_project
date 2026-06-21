@@ -18,6 +18,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from .cart_models import Cart, CartItem
+from .eventbus import _handle_stock_changed
 from .models import Category, Product
 from .serializers import CategorySerializer, ProductSerializer
 
@@ -566,4 +567,49 @@ class CartAPITest(APITestCase):
         )
         # The view clamps quantity < 1, so it should fail
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class EventbusHandlerTest(TestCase):
+    def setUp(self):
+        self.category = Category.objects.create(name="Appliances")
+        self.product = Product.objects.create(
+            name="Test Fridge",
+            category=self.category,
+            price=Decimal("999.99"),
+            original_price=Decimal("1299.99"),
+            stock=50,
+            in_stock=True,
+        )
+
+    def test_handle_stock_changed_increments_stock(self):
+        _handle_stock_changed({
+            "product_id": self.product.pk,
+            "change": 10,
+        })
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 60)
+        self.assertTrue(self.product.in_stock)
+
+    def test_handle_stock_changed_decrements_stock(self):
+        _handle_stock_changed({
+            "product_id": self.product.pk,
+            "change": -20,
+        })
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 30)
+        self.assertTrue(self.product.in_stock)
+
+    def test_handle_stock_changed_sets_in_stock_false(self):
+        _handle_stock_changed({
+            "product_id": self.product.pk,
+            "change": -50,
+        })
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 0)
+        self.assertFalse(self.product.in_stock)
+
+    def test_handle_stock_changed_missing_product_id(self):
+        _handle_stock_changed({"change": 10})
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock, 50)
 

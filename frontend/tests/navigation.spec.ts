@@ -54,4 +54,30 @@ test.describe("Route Protection", () => {
       page.getByRole("heading", { name: /two-factor/i })
     ).toBeVisible();
   });
+
+  test("forgot-password page is accessible without auth", async ({ page }) => {
+    await page.goto("/forgot-password");
+    await expect(page).toHaveURL(/forgot-password/);
+    await expect(page.locator("#fp-email")).toBeVisible();
+  });
+
+  test("reset-password page is accessible without auth", async ({ page }) => {
+    await page.goto("/reset-password");
+    await expect(page).toHaveURL(/reset-password/);
+  });
+
+  test("checkout page is accessible without auth", async ({ page }) => {
+    await page.goto("/checkout");
+    await expect(page).toHaveURL(/checkout/);
+  });
+
+  test("account page redirects without auth", async ({ page }) => {
+    await page.goto("/account");
+    await expect(page).not.toHaveURL(/\/account/);
+  });
+
+  test("account notifications page redirects without auth", async ({ page }) => {
+    await page.goto("/account/notifications");
+    await expect(page).not.toHaveURL(/account/);
+  });
 });

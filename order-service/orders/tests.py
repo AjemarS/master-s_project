@@ -217,10 +217,14 @@ class OrderAPITest(APITestCase):
 class POSAPITest(APITestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = _create_admin_user()
-        self.client.force_authenticate(user=self.user)
+
+    def _auth_admin(self):
+        user = User.objects.create_superuser("admin", "admin@test.com", "password123")
+        self.client.force_authenticate(user=user)
+        return user
 
     def test_pos_order(self):
+        self._auth_admin()
         response = self.client.post(
             "/api/orders/pos/",
             {
@@ -234,6 +238,44 @@ class POSAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["channel"], "offline")
+
+    def test_pos_order_without_warehouse_fails(self):
+        self._auth_admin()
+        response = self.client.post(
+            "/api/orders/pos/",
+            {
+                "customer_name": "POS Customer",
+                "items": [
+                    {"product_id": 1, "quantity": 1, "price": "199.99"}
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_status_transition_confirmed_to_shipped(self):
+        """Status to shipped triggers deduct saga (fails gracefully when inventory unreachable)."""
+        self._auth_admin()
+        order = _create_order(status=Order.CONFIRMED, warehouse_id=1)
+        response = self.client.patch(
+            f"/api/orders/{order.pk}/status/",
+            {"status": "shipped"},
+            format="json",
+        )
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_502_BAD_GATEWAY])
+
+    def test_create_order_cancel_releases_stock(self):
+        """Cancelling an order triggers release saga (fails gracefully when inventory unreachable)."""
+        self._auth_admin()
+        order = _create_order(order_number="ORD-CANCEL-001", warehouse_id=1)
+        response = self.client.patch(
+            f"/api/orders/{order.pk}/status/",
+            {"status": "cancelled"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.CANCELLED)
 
 
 class ReportsAPITest(APITestCase):
