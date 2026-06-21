@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:3001/auth",
+  baseURL: process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth",
   plugins: [
     inferAdditionalFields({
       user: {
