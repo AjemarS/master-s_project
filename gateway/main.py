@@ -318,7 +318,7 @@ async def health():
 # Stripe webhook (MUST be before /api/orders/{path} — no auth, Stripe calls it)
 @app.post("/api/payments/webhook/")
 async def proxy_stripe_webhook(request: Request):
-    return await proxy_request(request, ORDER_SERVICE_URL, "/api/orders/stripe-webhook/")
+    return await proxy_request(request, ORDER_SERVICE_URL, "/api/orders/stripe_webhook/")
 
 
 # Inventory (MUST be before /api/{path:path} catch-all)
@@ -371,6 +371,12 @@ async def proxy_notifications(request: Request, path: str):
     user = await require_auth(request)
     return await proxy_request(request, NOTIFICATION_SERVICE_URL, f"/api/notifications/{path}", user=user)
 
+
+# Cart (MUST be before /api/{path:path} catch-all — any authenticated user, not just admin)
+@app.api_route("/api/cart/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy_cart(request: Request, path: str):
+    user = await require_auth(request)
+    return await proxy_request(request, PRODUCT_SERVICE_URL, f"/api/cart/{path}", user=user)
 
 # Products
 # Public read access, authenticated write access
