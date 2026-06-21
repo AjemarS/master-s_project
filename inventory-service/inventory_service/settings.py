@@ -116,6 +116,7 @@ REST_FRAMEWORK = {
 }
 
 PRODUCT_SERVICE_URL = os.environ.get("PRODUCT_SERVICE_URL", "http://product-service:8000")
+LOW_STOCK_THRESHOLD = int(os.environ.get("LOW_STOCK_THRESHOLD", "5"))
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Inventory Service API",

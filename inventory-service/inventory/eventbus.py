@@ -100,6 +100,12 @@ def declare_queues(channel):
         exchange=EXCHANGE_NAME,
         routing_key="inventory.goods_received",
     )
+    channel.queue_declare(queue="notification.low_stock", durable=True)
+    channel.queue_bind(
+        queue="notification.low_stock",
+        exchange=EXCHANGE_NAME,
+        routing_key="inventory.low_stock",
+    )
 
 
 def health_check():
