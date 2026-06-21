@@ -1,6 +1,7 @@
 import logging
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
@@ -27,6 +28,24 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+LOW_STOCK_THRESHOLD = getattr(settings, "LOW_STOCK_THRESHOLD", 5)
+
+
+def _check_and_publish_low_stock(product_id: int, warehouse_id: int, quantity: int, warehouse_name: str = ""):
+    """Publish inventory.low_stock if quantity is at or below threshold."""
+    if quantity <= LOW_STOCK_THRESHOLD:
+        publish_event(
+            "inventory.low_stock",
+            {
+                "event_id": str(uuid4()),
+                "product_id": product_id,
+                "warehouse_id": warehouse_id,
+                "warehouse_name": warehouse_name,
+                "quantity": quantity,
+            },
+        )
+        logger.info("Low stock alert | product=%s warehouse=%s qty=%d", product_id, warehouse_id, quantity)
 
 
 class WarehouseViewSet(viewsets.ModelViewSet):
@@ -260,20 +279,26 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 quantity,
             )
 
-            transaction.on_commit(
-                lambda: publish_event(
+            def publish_stock_changed():
+                current = Stock.objects.get(
+                    product_id=product_id, warehouse_id=warehouse_id
+                )
+                publish_event(
                     "inventory.stock.changed",
                     {
                         "event_id": str(uuid4()),
                         "product_id": product_id,
                         "warehouse_id": warehouse_id,
-                        "quantity": Stock.objects.get(
-                            product_id=product_id, warehouse_id=warehouse_id
-                        ).quantity,
+                        "quantity": current.quantity,
                         "change": -quantity,
                     },
                 )
-            )
+                _check_and_publish_low_stock(
+                    product_id, warehouse_id, current.quantity,
+                    warehouse_name=stock.warehouse.name,
+                )
+
+            transaction.on_commit(publish_stock_changed)
         return Response(StockSerializer(stock).data)
 
     @action(detail=False, methods=["post"])
@@ -337,6 +362,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 reference_id=reference_id,
                 notes=notes,
                 created_by=request.user.username if request.user.is_authenticated else "",
+            )
+
+            _check_and_publish_low_stock(
+                product_id, from_warehouse_id, source.quantity,
+                warehouse_name=source.warehouse.name,
             )
 
             logger.info(

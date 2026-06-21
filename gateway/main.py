@@ -39,6 +39,9 @@ ORDER_SERVICE_URL = os.environ.get(
 )
 AUTH_SERVICE_URL = os.environ.get("AUTH_SERVICE_URL", "http://auth-service:3001")
 FRONTEND_SERVICE_URL = os.environ.get("FRONTEND_SERVICE_URL", "http://frontend:3000")
+NOTIFICATION_SERVICE_URL = os.environ.get(
+    "NOTIFICATION_SERVICE_URL", "http://notification-service:8003"
+)
 
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost").split(",")
 
@@ -270,10 +273,11 @@ async def proxy_request(request: Request, target: str, path: str = "", user: dic
 #   5. /api/inventory/{path}   → Inventory Service
 #   6. /api/orders/{path}      → Order Service
 #   7. /api/reports/{path}     → Order Service (reports)
-#   8. /api/{path:path}        → Product Service
-#   9. /media/{path:path}      → Product Service (media files)
-#  10. /auth/{path:path}       → Auth Service
-#  11. /{path:path}            → Frontend
+#   8. /api/notifications/{path} → Notification Service
+#   9. /api/{path:path}        → Product Service
+#  10. /media/{path:path}      → Product Service (media files)
+#  11. /auth/{path:path}       → Auth Service
+#  12. /{path:path}            → Frontend
 
 
 @app.get("/")
@@ -359,6 +363,13 @@ async def proxy_reports(request: Request, path: str):
     target_path = f"/api/reports/{path}"
     user = await require_auth(request, allowed_roles=["admin"])
     return await proxy_request(request, ORDER_SERVICE_URL, target_path, user=user)
+
+
+# Notifications (MUST be before /api/{path:path} catch-all)
+@app.api_route("/api/notifications/{path:path}", methods=["GET", "PATCH"])
+async def proxy_notifications(request: Request, path: str):
+    user = await require_auth(request)
+    return await proxy_request(request, NOTIFICATION_SERVICE_URL, f"/api/notifications/{path}", user=user)
 
 
 # Products

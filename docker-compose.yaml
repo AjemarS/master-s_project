@@ -288,6 +288,25 @@ services:
       - microservices_network
     command: python manage.py consume_events
 
+  # Notification Service (Node.js - RabbitMQ consumer + Resend)
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification_service
+    restart: unless-stopped
+    environment:
+      PORT: "8003"
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@techhub.shop}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices_network
+
   # API Gateway (FastAPI)
   gateway:
     build:
@@ -301,6 +320,7 @@ services:
       - ORDER_SERVICE_URL=${ORDER_SERVICE_URL}
       - FRONTEND_SERVICE_URL=${FRONTEND_SERVICE_URL}
       - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
       - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "80:8080"
