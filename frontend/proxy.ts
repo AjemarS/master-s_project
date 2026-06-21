@@ -4,58 +4,47 @@ import type { NextRequest } from "next/server";
 // Routes that require authentication
 const protectedRoutes = ["/dashboard", "/admin"];
 
-// Routes that require admin role
-const adminRoutes = ["/admin"];
+// Role-based route access map.
+// Admin always has access to all protected routes.
+const roleRouteAccess: Record<string, string[]> = {
+  "/admin": ["admin", "cashier", "warehouse_worker"],
+};
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if the route is protected
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
-  const isAdmin = adminRoutes.some((route) => pathname.startsWith(route));
+  if (!isProtected) return NextResponse.next();
 
-  if (!isProtected) {
-    return NextResponse.next();
-  }
-
-  // Forward the auth check to the auth service via the gateway
   try {
-    // Forward cookies to check session
     const cookieHeader = request.headers.get("cookie") || "";
-    
-    // Use a server-side URL through gateway.
-    // PROXY_AUTH_URL (server-side, through gateway, set in docker-compose)
-    //   → Docker: http://gateway:8080/auth
-    //   → Local:  http://localhost/auth
-    // NEXT_PUBLIC_AUTH_URL (browser-facing, through gateway, for backwards compat)
     const authUrl = process.env.PROXY_AUTH_URL || process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth";
     const response = await fetch(`${authUrl}/me`, {
       headers: { cookie: cookieHeader },
-      // Don't follow redirects
       redirect: "manual",
     });
 
-    // If the response is not 200, the user is not authenticated
-    if (response.status !== 200) {
-      return redirectToSignIn(request);
-    }
+    if (response.status !== 200) return redirectToSignIn(request);
 
     const session = await response.json();
+    if (!session?.user) return redirectToSignIn(request);
 
-    if (!session?.user) {
-      return redirectToSignIn(request);
-    }
+    const userRole = session.user.role;
 
-    // For admin routes, verify admin role
-    if (isAdmin && session.user.role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
+    // Check role-based route access
+    for (const [route, allowedRoles] of Object.entries(roleRouteAccess)) {
+      if (pathname.startsWith(route)) {
+        if (userRole !== "admin" && !allowedRoles.includes(userRole)) {
+          return NextResponse.redirect(new URL("/", request.url));
+        }
+        break;
+      }
     }
 
     return NextResponse.next();
   } catch {
-    // If auth service is unreachable, fail closed for admin routes (security)
-    // Fail open for dashboard routes (availability)
-    if (isAdmin) {
+    // Fail closed for admin panel (security), fail open for dashboard (availability)
+    if (pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/", request.url));
     }
     return NextResponse.next();

@@ -1,4 +1,4 @@
-import { BarChart, LogOut, Settings, Shield, UserIcon } from "lucide-react";
+import { BarChart, LogOut, Settings, Shield, UserIcon, CreditCard, Warehouse } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "~/lib/cn";
@@ -14,7 +14,7 @@ import {
 
 interface HeaderUserDropdownProps {
   isDashboard: boolean;
-  isAdmin: boolean;
+  role: string;
   userEmail: string;
   userImage?: null | string;
   userName: string;
@@ -22,11 +22,15 @@ interface HeaderUserDropdownProps {
 
 export function HeaderUserDropdown({
   isDashboard = false,
-  isAdmin,
+  role,
   userEmail,
   userImage,
   userName,
 }: HeaderUserDropdownProps) {
+  const isAdmin = role === "admin";
+  const isCashier = role === "cashier";
+  const isWarehouseWorker = role === "warehouse_worker";
+  const showAdmin = isAdmin || isCashier || isWarehouseWorker;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -87,11 +91,27 @@ export function HeaderUserDropdown({
             Settings
           </Link>
         </DropdownMenuItem>
-        {isAdmin && (
+        {showAdmin && (
           <DropdownMenuItem asChild>
             <Link className="cursor-pointer" href="/admin/summary">
               <Shield className="mr-2 h-4 w-4" />
-              Admin
+              {isCashier ? "POS" : isWarehouseWorker ? "Склад" : "Admin"}
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {isCashier && (
+          <DropdownMenuItem asChild>
+            <Link className="cursor-pointer" href="/admin/pos">
+              <CreditCard className="mr-2 h-4 w-4" />
+              POS
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {isWarehouseWorker && (
+          <DropdownMenuItem asChild>
+            <Link className="cursor-pointer" href="/admin/warehouses">
+              <Warehouse className="mr-2 h-4 w-4" />
+              Склади
             </Link>
           </DropdownMenuItem>
         )}

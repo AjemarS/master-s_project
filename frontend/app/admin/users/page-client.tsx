@@ -262,10 +262,12 @@ export default function UsersPageClient({ initialUsers, initialError }: UsersPag
                     <select
                       value={filterRole}
                       onChange={(e) => setFilterRole(e.target.value)}
-                      className="flex h-9 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                      className="flex h-9 w-40 rounded-md border border-input bg-background px-3 py-1 text-sm"
                     >
                       <option value="">All roles</option>
                       <option value="user">User</option>
+                      <option value="cashier">Cashier</option>
+                      <option value="warehouse_worker">Warehouse Worker</option>
                       <option value="admin">Admin</option>
                     </select>
                   </div>

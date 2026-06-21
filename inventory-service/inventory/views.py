@@ -12,7 +12,9 @@ from rest_framework.response import Response
 from .eventbus import publish_event
 from .filters import StockFilter, StockMovementFilter
 from .models import GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
+from .permissions import IsAdminOrWarehouseWorker
 from .serializers import (
+    AdjustStockSerializer,
     DeductStockSerializer,
     GoodsReceiptNoteCreateSerializer,
     GoodsReceiptNoteSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
     StockMovementSerializer,
     StockSerializer,
     SupplierSerializer,
+    TransferStockSerializer,
     WarehouseSerializer,
 )
 
@@ -98,7 +101,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["product_id"]
 
     def get_permissions(self):
-        return [IsAuthenticatedOrReadOnly()]
+        if self.action in ("list", "retrieve", "movements"):
+            return [IsAuthenticatedOrReadOnly()]
+        if self.action in ("transfer", "adjust"):
+            return [IsAdminOrWarehouseWorker()]
+        return [IsAdminUser()]
 
     @action(detail=False, methods=["post"])
     def reserve(self, request):
@@ -269,6 +276,118 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             )
         return Response(StockSerializer(stock).data)
 
+    @action(detail=False, methods=["post"])
+    def transfer(self, request):
+        serializer = TransferStockSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product_id = serializer.validated_data["product_id"]
+        from_warehouse_id = serializer.validated_data["from_warehouse_id"]
+        to_warehouse_id = serializer.validated_data["to_warehouse_id"]
+        quantity = serializer.validated_data["quantity"]
+        reference_type = serializer.validated_data.get("reference_type", "transfer")
+        reference_id = serializer.validated_data.get("reference_id", "")
+        notes = serializer.validated_data.get("notes", "")
+
+        if from_warehouse_id == to_warehouse_id:
+            return Response(
+                {"error": "Source and destination warehouses must be different"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            source = Stock.objects.select_for_update().get(
+                product_id=product_id, warehouse_id=from_warehouse_id
+            )
+            dest, _ = Stock.objects.get_or_create(
+                product_id=product_id,
+                warehouse_id=to_warehouse_id,
+                defaults={"quantity": 0},
+            )
+            dest = Stock.objects.select_for_update().get(pk=dest.pk)
+
+            available = source.quantity - source.reserved
+            if available < quantity:
+                return Response(
+                    {
+                        "error": "Insufficient available stock at source",
+                        "available": available,
+                        "requested": quantity,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            Stock.objects.filter(
+                product_id=product_id, warehouse_id=from_warehouse_id
+            ).update(quantity=F("quantity") - quantity)
+            Stock.objects.filter(
+                product_id=product_id, warehouse_id=to_warehouse_id
+            ).update(quantity=F("quantity") + quantity)
+
+            source.refresh_from_db()
+            dest.refresh_from_db()
+
+            StockMovement.objects.create(
+                product_id=product_id,
+                from_warehouse_id=from_warehouse_id,
+                to_warehouse_id=to_warehouse_id,
+                quantity=quantity,
+                type=StockMovement.TRANSFER,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                notes=notes,
+                created_by=request.user.username if request.user.is_authenticated else "",
+            )
+
+            logger.info(
+                "Stock transfer | product=%s from=%s to=%s quantity=%d",
+                product_id, from_warehouse_id, to_warehouse_id, quantity,
+            )
+
+        return Response({
+            "source": StockSerializer(source).data,
+            "destination": StockSerializer(dest).data,
+        })
+
+    @action(detail=False, methods=["post"])
+    def adjust(self, request):
+        serializer = AdjustStockSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product_id = serializer.validated_data["product_id"]
+        warehouse_id = serializer.validated_data["warehouse_id"]
+        new_quantity = serializer.validated_data["new_quantity"]
+        reason = serializer.validated_data.get("reason", "")
+
+        with transaction.atomic():
+            stock = Stock.objects.select_for_update().get(
+                product_id=product_id, warehouse_id=warehouse_id
+            )
+
+            delta = new_quantity - stock.quantity
+
+            Stock.objects.filter(
+                product_id=product_id, warehouse_id=warehouse_id
+            ).update(quantity=F("quantity") + delta)
+            stock.refresh_from_db()
+
+            StockMovement.objects.create(
+                product_id=product_id,
+                to_warehouse_id=warehouse_id,
+                quantity=abs(delta),
+                type=StockMovement.ADJUSTMENT,
+                reference_type="adjustment",
+                notes=f"{reason} (delta: {delta:+d})" if reason else f"Delta: {delta:+d}",
+                created_by=request.user.username if request.user.is_authenticated else "",
+            )
+
+            logger.info(
+                "Stock adjusted | product=%s warehouse=%s delta=%+d new=%d",
+                product_id, warehouse_id, delta, new_quantity,
+            )
+
+        return Response(StockSerializer(stock).data)
+
     @action(detail=True, methods=["get"])
     def movements(self, request, pk=None):
         stock = self.get_object()
@@ -311,6 +430,8 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticatedOrReadOnly()]
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
     def perform_create(self, serializer):

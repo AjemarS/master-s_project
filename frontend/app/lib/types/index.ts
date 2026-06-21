@@ -35,7 +35,7 @@ export interface AdminUser {
   id: string;
   email: string;
   name: string | null;
-  role: "user" | "admin";
+  role: "user" | "admin" | "cashier" | "warehouse_worker";
   status?: string;
   banned?: boolean;
   createdAt: string;

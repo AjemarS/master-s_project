@@ -93,7 +93,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve", "my"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("pos",):
+        if self.action in ("create", "pos"):
             return [IsAuthenticated()]
         return [IsAdminUser()]
 
@@ -147,13 +147,21 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         if data.get("channel") == Order.ONLINE and data.get("warehouse_id"):
-            self._reserve_stock(order)
+            success = self._reserve_stock(order)
+            if not success:
+                order.status = Order.CANCELLED
+                order.save(update_fields=["status"])
+                logger.warning(
+                    "Order cancelled due to reserve failure | number=%s",
+                    order.order_number,
+                )
 
         logger.info("Order created | number=%s channel=%s", order.order_number, order.channel)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
 
     def _reserve_stock(self, order):
+        all_success = True
         for item in order.items.all():
             result, error = _call_inventory(
                 "POST",
@@ -171,6 +179,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "Stock reserve failed | order=%s product=%s error=%s",
                     order.order_number, item.product_id, error,
                 )
+                all_success = False
+        return all_success
 
     @action(detail=True, methods=["patch"])
     def status(self, request, pk=None):

@@ -46,12 +46,14 @@
 
 ## 2. Ролі користувачів
 
-| Роль | Інтерфейс | Основні дії |
-|------|-----------|-------------|
-| **Покупець (Customer)** | Веб-вітрина (storefront) | Перегляд каталогу, кошик, оформлення замовлення, відстеження статусу |
-| **Касир (Cashier)** | POS-інтерфейс (admin area) | Офлайн-продаж через термінал у шоурумі, пошук товару, вибиття чеку |
-| **Комірник (Warehouse Worker)** | Адмін-панель (goods receipt) | Оприбуткування товару від постачальника, переміщення між складами |
-| **Адміністратор (Admin)** | Адмін-панель (повний доступ) | Управління каталогом, перегляд замовлень, звіти, керування користувачами |
+| Роль | Значення в коді | Інтерфейс | Основні дії |
+|------|:---:|-----------|-------------|
+| **Покупець (Customer)** | `user` | Веб-вітрина (storefront) | Перегляд каталогу, кошик, оформлення замовлення, відстеження статусу |
+| **Касир (Cashier)** | `cashier` | POS-інтерфейс | Офлайн-продаж через термінал у шоурумі, пошук товару, вибиття чеку |
+| **Комірник (Warehouse Worker)** | `warehouse_worker` | Адмін-панель (склад) | Оприбуткування товару від постачальника, переміщення між складами |
+| **Адміністратор (Admin)** | `admin` | Адмін-панель (повний доступ) | Управління каталогом, перегляд замовлень, звіти, керування користувачами |
+
+> **Примітка:** Роль `warehouse_admin` (керівник складу) відкладена. Наразі адміністратор виконує функції керування комірниками та виправлення помилок. Роль можна додати пізніше за потреби.
 
 Кожна роль має різні потреби та рівень доступу, що виправдовує поділ системи на окремі сервіси.
 
@@ -593,37 +595,45 @@ Network: microservices_network (bridge)
 - [x] Product Service (Django + DRF) — каталог, категорії, кошик
 - [x] Frontend (Next.js) — базова вітрина, сторінки продуктів
 
-### Фаза 2 — Складський облік (Inventory Service)
+### Фаза 2 — Складський облік (Inventory Service) ✅ Частково
 
-- [ ] Створення сервісу (Django проект, Dockerfile, docker-compose інтеграція)
-- [ ] Моделі: `Warehouse`, `Stock`, `StockMovement`, `Supplier`, `GoodsReceiptNote`, `GoodsReceiptItem`
-- [ ] API: CRUD складів, залишки, журнал руху, постачальники, оприбуткування
-- [ ] Бізнес-логіка: атомарне резервування/списання/повернення залишків (`select_for_update`)
-- [ ] Gateway маршрутизація `/api/inventory/*` → inventory-service
-- [ ] RabbitMQ: publisher для `inventory.stock.changed`
-- [ ] Admin UI: управління складами та оприбуткуванням (Django Admin + Next.js)
+- [x] Створення сервісу (Django проект, Dockerfile, docker-compose інтеграція)
+- [x] Моделі: `Warehouse`, `Stock`, `StockMovement`, `Supplier`, `GoodsReceiptNote`, `GoodsReceiptItem`
+- [x] API: CRUD складів, залишки, журнал руху, постачальники, оприбуткування
+- [x] Бізнес-логіка: атомарне резервування/списання/повернення залишків (`select_for_update`)
+- [x] Gateway маршрутизація `/api/inventory/*` → inventory-service
+- [x] RabbitMQ: publisher для `inventory.stock.changed` + consumer для `order.created`/`order.cancelled`
+- [x] Admin UI: перегляд складів, залишків, постачальників, накладних (read-only)
+- [ ] Роль `warehouse_worker` в auth-сервісі (заблоковано: всі мутації вимагають `admin`)
+- [ ] UI для створення GRN, складів, постачальників
+- [ ] Endpoint для внутрішнього переміщення (transfer) між складами
+- [ ] Валідація product_id через Product Service
 
-### Фаза 3 — Замовлення (Order Service)
+### Фаза 3 — Замовлення (Order Service) ✅ Частково
 
-- [ ] Створення сервісу (Django проект, Dockerfile, docker-compose інтеграція)
-- [ ] Моделі: `Order`, `OrderItem`
-- [ ] API: CRUD замовлень, зміна статусу, POS checkout, звіти
-- [ ] Бізнес-логіка: Saga для checkout (створення замовлення + резервування), статусна машина замовлення
-- [ ] Інтеграція з Inventory Service (HTTP: резервування, списання, повернення)
-- [ ] Gateway маршрутизація `/api/orders/*` → order-service
-- [ ] RabbitMQ: publisher для `order.created`, `order.cancelled`
-- [ ] Admin UI: управління замовленнями, POS-інтерфейс
-- [ ] Звіти: виручка, собівартість, маржинальність
+- [x] Створення сервісу (Django проект, Dockerfile, docker-compose інтеграція)
+- [x] Моделі: `Order`, `OrderItem`
+- [x] API: CRUD замовлень, зміна статусу, POS checkout, звіти
+- [x] Бізнес-логіка: Saga для checkout (створення замовлення + резервування), статусна машина замовлення
+- [x] Інтеграція з Inventory Service (HTTP: резервування, списання, повернення)
+- [x] Gateway маршрутизація `/api/orders/*` → order-service
+- [x] RabbitMQ: publisher для `order.created`, `order.cancelled`, `order.status_changed`
+- [x] Admin UI: управління замовленнями, POS-інтерфейс, звіти
+- [x] Звіти: виручка, собівартість, маржинальність
+- [ ] Роль `cashier` в auth-сервісі (заблоковано: всі мутації вимагають `admin`)
+- [ ] Gateway дозволяє покупцям створювати замовлення (POST /api/orders/ → будь-який authenticated user)
+- [ ] Gateway дозволяє касирам POS-продажі (POST /api/orders/pos/ → cashier або admin)
+- [ ] Saga-компенсація: невдале резервування → скасування замовлення
 
-### Фаза 4 — Інтеграція та події (RabbitMQ)
+### Фаза 4 — Інтеграція та події (RabbitMQ) ✅ Частково
 
-- [ ] Запуск RabbitMQ у docker-compose
-- [ ] Налаштування exchange/черг
+- [x] Запуск RabbitMQ у docker-compose
+- [x] Налаштування exchange/черг (techhub.events, 4 черги)
+- [x] Inventory Service: споживач `order.created` → резервування (async)
+- [x] Inventory Service: споживач `order.cancelled` → повернення залишку (async)
+- [x] Ідемпотентність споживачів (deduplication за `event_id` через `ProcessedEvent`)
 - [ ] Product Service: споживач `inventory.stock.changed` → оновлення `total_stock`
-- [ ] Inventory Service: споживач `order.created` → резервування
-- [ ] Inventory Service: споживач `order.cancelled` → повернення залишку
-- [ ] Ідемпотентність споживачів (deduplication за `event_id`)
-- [ ] Health-check для RabbitMQ з'єднань
+- [ ] Product Service: споживач `inventory.goods_received` → оновлення каталогу
 
 ### Фаза 5 — Контент та візуал (Frontend)
 
@@ -645,4 +655,4 @@ Network: microservices_network (bridge)
 
 ---
 
-> **Поточний статус**: Фаза 1 завершена ✅. Проєкт знаходиться на початку Фази 2 — створення Inventory Service.
+> **Поточний статус**: Фази 1–3 завершені ✅ — всі сервіси створені, API працює, RabbitMQ працює. Основний блокер: **ролі `cashier` та `warehouse_worker` відсутні в auth-сервісі**, через що Gateway блокує POS-продажі, створення замовлень покупцями та оприбуткування комірниками. Деталі — див. `REPORT.md`.

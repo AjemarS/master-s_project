@@ -30,7 +30,7 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"admin" | "user">("user");
+  const [role, setRole] = useState<"admin" | "user" | "cashier" | "warehouse_worker">("user");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -145,10 +145,12 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
             <select
               id="ud-role"
               value={role}
-              onChange={(e) => setRole(e.target.value as "admin" | "user")}
+              onChange={(e) => setRole(e.target.value as "admin" | "user" | "cashier" | "warehouse_worker")}
               className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <option value="user">User</option>
+              <option value="cashier">Cashier</option>
+              <option value="warehouse_worker">Warehouse Worker</option>
               <option value="admin">Admin</option>
             </select>
           </div>
