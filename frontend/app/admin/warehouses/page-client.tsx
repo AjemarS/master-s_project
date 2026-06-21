@@ -2,11 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+} from "~/ui/primitives/dialog";
+import { Input } from "~/ui/primitives/input";
+import { Label } from "~/ui/primitives/label";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, Warehouse, Package, ArrowLeft } from "lucide-react";
+import { AlertCircle, Warehouse, Package, ArrowLeft, Plus } from "lucide-react";
 import { warehouseApi, stockApi } from "~/lib/api/admin-api";
 import type { Warehouse, Stock } from "~/lib/types";
 import { TableSkeleton } from "../components";
@@ -16,24 +22,60 @@ export function WarehousesClient() {
   const [stock, setStock] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formType, setFormType] = useState<"warehouse" | "showroom">("warehouse");
+  const [formAddress, setFormAddress] = useState("");
+  const [formActive, setFormActive] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const fetch = async () => {
       setLoading(true);
       try {
         const [whRes, stRes] = await Promise.all([warehouseApi.getAll(), stockApi.getAll()]);
+        if (cancelled) return;
         if (whRes.error) throw new Error(whRes.error.message);
         if (stRes.error) throw new Error(stRes.error.message);
         setWarehouses(whRes.data?.results || []);
         setStock(stRes.data?.results || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetch();
+    return () => { cancelled = true; };
   }, []);
+
+  const handleCreate = async () => {
+    if (!formName.trim()) return;
+    setSaving(true);
+    try {
+      const res = await warehouseApi.create({
+        name: formName.trim(),
+        type: formType,
+        address: formAddress.trim(),
+        is_active: formActive,
+      });
+      if (res.error) {
+        toast.error("Failed to create warehouse", { description: res.error.message });
+      } else {
+        toast.success("Warehouse created", { description: `${formName.trim()} created.` });
+        setShowCreate(false);
+        setFormName(""); setFormType("warehouse"); setFormAddress(""); setFormActive(true);
+        const [whRes, stRes] = await Promise.all([warehouseApi.getAll(), stockApi.getAll()]);
+        if (!whRes.error) setWarehouses(whRes.data?.results || []);
+        if (!stRes.error) setStock(stRes.data?.results || []);
+      }
+    } catch (err) {
+      toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -53,6 +95,9 @@ export function WarehousesClient() {
               </h1>
               <p className="text-slate-600 dark:text-slate-400">Управління складами та рівнями запасів</p>
             </div>
+            <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Створити склад
+            </Button>
           </div>
         </div>
 
@@ -213,6 +258,47 @@ export function WarehousesClient() {
           </div>
         )}
       </div>
+
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) setShowCreate(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Створити склад</DialogTitle>
+            <DialogDescription>Додайте новий склад або шоурум.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Назва *</Label>
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Тип</Label>
+              <select value={formType} onChange={(e) => setFormType(e.target.value as "warehouse" | "showroom")}
+                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value="warehouse">Склад</option>
+                <option value="showroom">Шоурум</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Адреса</Label>
+              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Активний</Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <input type="checkbox" checked={formActive} onChange={(e) => setFormActive(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300" />
+                <span className="text-sm text-slate-600">{formActive ? "Так" : "Ні"}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)} disabled={saving}>Скасувати</Button>
+            <Button onClick={handleCreate} disabled={saving || !formName.trim()}>
+              {saving ? "Створення..." : "Створити"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2,11 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+} from "~/ui/primitives/dialog";
+import { Input } from "~/ui/primitives/input";
+import { Label } from "~/ui/primitives/label";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, Truck, ArrowLeft } from "lucide-react";
+import { AlertCircle, Truck, ArrowLeft, Plus } from "lucide-react";
 import { supplierApi } from "~/lib/api/admin-api";
 import type { Supplier } from "~/lib/types";
 import { TableSkeleton } from "../components";
@@ -15,22 +21,59 @@ export function SuppliersClient() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formContact, setFormContact] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formAddress, setFormAddress] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     const fetch = async () => {
       setLoading(true);
       try {
         const res = await supplierApi.getAll();
+        if (cancelled) return;
         if (res.error) throw new Error(res.error.message);
         setSuppliers(res.data?.results || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load suppliers");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load suppliers");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetch();
+    return () => { cancelled = true; };
   }, []);
+
+  const handleCreate = async () => {
+    if (!formName.trim()) return;
+    setSaving(true);
+    try {
+      const res = await supplierApi.create({
+        name: formName.trim(),
+        contact_person: formContact.trim(),
+        phone: formPhone.trim(),
+        email: formEmail.trim(),
+        address: formAddress.trim(),
+      });
+      if (res.error) {
+        toast.error("Failed to create supplier", { description: res.error.message });
+      } else {
+        toast.success("Supplier created", { description: `${formName.trim()} created.` });
+        setShowCreate(false);
+        setFormName(""); setFormContact(""); setFormPhone(""); setFormEmail(""); setFormAddress("");
+        const refetch = await supplierApi.getAll();
+        if (!refetch.error) setSuppliers(refetch.data?.results || []);
+      }
+    } catch (err) {
+      toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -50,6 +93,9 @@ export function SuppliersClient() {
               </h1>
               <p className="text-slate-600 dark:text-slate-400">Управління постачальниками</p>
             </div>
+            <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Додати постачальника
+            </Button>
           </div>
         </div>
 
@@ -116,6 +162,43 @@ export function SuppliersClient() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) setShowCreate(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Додати постачальника</DialogTitle>
+            <DialogDescription>Додайте нового постачальника.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Назва *</Label>
+              <Input value={formName} onChange={(e) => setFormName(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Контактна особа</Label>
+              <Input value={formContact} onChange={(e) => setFormContact(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Телефон</Label>
+              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Email</Label>
+              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Адреса</Label>
+              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)} disabled={saving}>Скасувати</Button>
+            <Button onClick={handleCreate} disabled={saving || !formName.trim()}>
+              {saving ? "Створення..." : "Створити"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

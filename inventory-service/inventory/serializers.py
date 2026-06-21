@@ -8,6 +8,7 @@ from .models import (
     Supplier,
     Warehouse,
 )
+from .validators import validate_product_exists
 
 
 class WarehouseSerializer(serializers.ModelSerializer):
@@ -91,6 +92,10 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
 
 class GoodsReceiptItemSerializer(serializers.ModelSerializer):
+    def validate_product_id(self, value):
+        validate_product_exists(value)
+        return value
+
     class Meta:
         model = GoodsReceiptItem
         fields = [
@@ -163,6 +168,10 @@ class ReserveStockSerializer(serializers.Serializer):
     reference_type = serializers.CharField(required=False, allow_blank=True, default="order")
     reference_id = serializers.CharField(required=False, allow_blank=True, default="")
 
+    def validate_product_id(self, value):
+        validate_product_exists(value)
+        return value
+
 
 class DeductStockSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
@@ -170,6 +179,10 @@ class DeductStockSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
     reference_type = serializers.CharField(required=False, allow_blank=True, default="order")
     reference_id = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_product_id(self, value):
+        validate_product_exists(value)
+        return value
 
 
 class TransferStockSerializer(serializers.Serializer):
@@ -181,9 +194,17 @@ class TransferStockSerializer(serializers.Serializer):
     reference_id = serializers.CharField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
+    def validate_product_id(self, value):
+        validate_product_exists(value)
+        return value
+
 
 class AdjustStockSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     warehouse_id = serializers.IntegerField()
     new_quantity = serializers.IntegerField(min_value=0)
     reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_product_id(self, value):
+        validate_product_exists(value)
+        return value
