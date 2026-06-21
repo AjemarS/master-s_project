@@ -38,6 +38,10 @@ def _create_admin_user():
     return User.objects.create_superuser("admin", "admin@test.com", "password123")
 
 
+def _create_regular_user():
+    return User.objects.create_user("user", "user@test.com", "password123")
+
+
 class WarehouseModelTest(TestCase):
     def test_create_warehouse(self):
         w = _create_warehouse("Central Warehouse")
@@ -238,6 +242,38 @@ class StockAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.stock.refresh_from_db()
         self.assertEqual(self.stock.reserved, 30)
+
+    def test_adjust_stock_success(self):
+        self.stock.reserved = 10
+        self.stock.save()
+        user = _create_admin_user()
+        self.client.force_authenticate(user=user)
+        response = self.client.post(
+            "/api/stock/adjust/",
+            {
+                "product_id": 1,
+                "warehouse_id": self.warehouse.pk,
+                "new_quantity": 200,
+                "reason": "Inventory count",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.stock.refresh_from_db()
+        self.assertEqual(self.stock.quantity, 200)
+        self.assertEqual(self.stock.reserved, 10)
+
+    def test_adjust_stock_unauthorized(self):
+        user = _create_regular_user()
+        self.client.force_authenticate(user=user)
+        response = self.client.post(
+            "/api/stock/adjust/",
+            {
+                "product_id": 1,
+                "warehouse_id": self.warehouse.pk,
+                "new_quantity": 200,
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class GoodsReceiptAPITest(APITestCase):
