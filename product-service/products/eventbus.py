@@ -146,12 +146,26 @@ def _handle_stock_changed(event):
 
 
 def _handle_goods_received(event):
+    from django.db.models import F
+
     from products.models import Product
 
     product_id = event.get("product_id")
     quantity = event.get("quantity", 0)
+    cost_price = event.get("cost_price", "0")
 
-    if product_id:
+    if not product_id:
+        logger.warning("inventory.goods_received missing product_id")
+        return
+
+    try:
+        Product.objects.filter(pk=product_id).update(stock=F("stock") + quantity)
+        Product.objects.filter(pk=product_id, stock__gt=0).update(in_stock=True)
         logger.info(
-            "Goods received event | product=%s qty=%s", product_id, quantity
+            "Goods received processed | product=%s qty=%s cost=%s",
+            product_id, quantity, cost_price,
+        )
+    except Exception as e:
+        logger.error(
+            "Goods received failed | product=%s error=%s", product_id, e
         )
