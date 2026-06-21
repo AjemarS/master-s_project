@@ -275,7 +275,11 @@ async function seedAdminUser() {
     if (result.rows.length > 0) {
       const userId = result.rows[0].id;
       addAdminUserId(userId);
-      logger.info("Existing user promoted to admin", { userId, email: adminEmail });
+      await pool.query(
+        'UPDATE "user" SET "emailVerified" = true, role = $1 WHERE id = $2',
+        ["admin", userId]
+      );
+      logger.info("Existing user promoted to admin", { userId, email: adminEmail, emailVerified: true });
       return;
     }
 
