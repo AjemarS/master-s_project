@@ -26,7 +26,7 @@ export const adminService = {
   },
 
   /** Set a user's role */
-  async setUserRole(userId: string, role: "user" | "admin") {
+  async setUserRole(userId: string, role: "user" | "admin" | "cashier" | "warehouse_worker") {
     const payload = {
       userId,
       role,
@@ -45,7 +45,7 @@ export const adminService = {
   },
 
   /** Create a user */
-  async createUser(user: { email: string; password: string; name: string; role?: "admin" | "user" }) {
+  async createUser(user: { email: string; password: string; name: string; role?: "admin" | "user" | "cashier" | "warehouse_worker" }) {
     return await authClient.admin.createUser(user);
   },
 

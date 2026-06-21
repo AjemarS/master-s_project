@@ -115,6 +115,8 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+PRODUCT_SERVICE_URL = os.environ.get("PRODUCT_SERVICE_URL", "http://product-service:8000")
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Inventory Service API",
     "DESCRIPTION": "REST API for warehouse management, stock tracking, and goods receipt",
