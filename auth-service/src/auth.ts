@@ -12,9 +12,14 @@ export const auth = betterAuth({
 
   secret: process.env.BETTER_AUTH_SECRET,
 
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3001/auth",
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost/auth",
 
-  trustedOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:3001"],
+  trustedOrigins: [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ],
   appName: "TechHub",
   plugins: [
     admin({
@@ -64,9 +69,9 @@ export const auth = betterAuth({
   },
 
   redirects: {
-    afterSignIn: "http://localhost/",
-    afterSignUp: "http://localhost/sign-in",
-    afterSignOut: "http://localhost/",
+    afterSignIn: (process.env.FRONTEND_URL || "http://localhost") + "/",
+    afterSignUp: (process.env.FRONTEND_URL || "http://localhost") + "/sign-in",
+    afterSignOut: (process.env.FRONTEND_URL || "http://localhost") + "/",
   },
 
   user: {
