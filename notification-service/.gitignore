@@ -1,0 +1,46 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+.next/ # For Next.js projects
+out/ # For Nuxt.js projects
+
+# Environment variables
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor and OS specific files
+.DS_Store
+Thumbs.db
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Test and coverage reports
+coverage/
+.nyc_output/
+
+# IDE specific files (e.g., WebStorm, IntelliJ)
+.idea/
+
+# Yarn Plug'n'Play
+.pnp.*
+
+# Optional: If you are using a specific framework or tool, add its specific ignore patterns
+# For example, if using TypeScript
+*.tsbuildinfo
+
+# Optional: If you have local configuration files that should not be committed
+# config/local.js
+# database.sqlite

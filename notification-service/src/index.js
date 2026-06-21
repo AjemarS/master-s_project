@@ -264,25 +264,29 @@ app.patch("/api/notifications/preferences/:userId", express.json(), (req, res) =
   res.json(USER_PREFS[req.params.userId]);
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`[server] Notification service listening on port ${PORT}`);
-  startConsumer().catch((err) => {
-    console.error(`[fatal] Failed to start consumer: ${err.message}`);
-    process.exit(1);
+if (process.env.NODE_ENV !== "test") {
+  const server = app.listen(PORT, () => {
+    console.log(`[server] Notification service listening on port ${PORT}`);
+    startConsumer().catch((err) => {
+      console.error(`[fatal] Failed to start consumer: ${err.message}`);
+      process.exit(1);
+    });
   });
-});
 
-// ── Graceful shutdown ───────────────────────────────────────────
-process.on("SIGTERM", async () => {
-  console.log("[shutdown] SIGTERM received");
-  server.close(() => {});
-  await stopConsumer();
-  process.exit(0);
-});
+  // ── Graceful shutdown ───────────────────────────────────────────
+  process.on("SIGTERM", async () => {
+    console.log("[shutdown] SIGTERM received");
+    server.close(() => {});
+    await stopConsumer();
+    process.exit(0);
+  });
 
-process.on("SIGINT", async () => {
-  console.log("[shutdown] SIGINT received");
-  server.close(() => {});
-  await stopConsumer();
-  process.exit(0);
-});
+  process.on("SIGINT", async () => {
+    console.log("[shutdown] SIGINT received");
+    server.close(() => {});
+    await stopConsumer();
+    process.exit(0);
+  });
+}
+
+module.exports = { handleEvent, sendEmail, htmlWrap, TEMPLATES, ADMIN_EMAIL, FROM_EMAIL };
