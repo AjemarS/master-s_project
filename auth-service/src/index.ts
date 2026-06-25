@@ -7,6 +7,7 @@ import logger from "./logger";
 import dotenv from "dotenv";
 import { twoFactorRoutes } from "./routes/twoFactorRoutes";
 import { usersRoutes } from "./routes/usersRoutes";
+import { impersonateRoutes } from "./routes/impersonateRoutes";
 import {
   checkLoginRateLimit,
   recordFailedAttempt,
@@ -173,6 +174,7 @@ app.use("/auth/sign-in/email", async (req: Request, res: Response, next: NextFun
 app.use("/auth/two-factor", twoFactorRoutes);
 
 app.use("/auth/admin", requireAdmin, usersRoutes);
+app.use("/auth", impersonateRoutes);
 
 // Session revocation (own session)
 app.post("/auth/sessions/revoke", async (req, res) => {
@@ -315,6 +317,40 @@ async function seedAdminUser() {
   }
 }
 
+async function seedNonAdminUsers() {
+  const seedUsers = [
+    { name: "Cashier", email: "cashier@techhub.local", role: "cashier" },
+    { name: "Warehouse Worker", email: "warehouse@techhub.local", role: "warehouse_worker" },
+    { name: "Customer", email: "customer@techhub.local", role: "user" },
+  ];
+
+  for (const user of seedUsers) {
+    try {
+      const existing = await pool.query('SELECT id FROM "user" WHERE email = $1', [user.email]);
+      if (existing.rows.length > 0) continue;
+
+      const userId = crypto.randomUUID();
+      const passwordHash = await hashPassword("password123");
+
+      await pool.query(
+        `INSERT INTO "user" (id, name, email, "emailVerified", role, status, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+        [userId, user.name, user.email, true, user.role, "active"]
+      );
+
+      await pool.query(
+        `INSERT INTO "account" (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        [crypto.randomUUID(), userId, "credential", userId, passwordHash]
+      );
+
+      logger.info("Seed user created", { userId, email: user.email, role: user.role });
+    } catch (error: any) {
+      logger.warn("Failed to seed user", { email: user.email, error: error.message });
+    }
+  }
+}
+
 // Initialize rate limiter
 initRateLimiter()
   .then(() => logger.info("Rate limiter initialized (Redis)"))
@@ -328,6 +364,7 @@ initRateLimiter()
 let server: ReturnType<typeof app.listen>;
 
 seedAdminUser().finally(() => {
+  seedNonAdminUsers();
   server = app.listen(PORT, () => {
     logger.info("Auth service running", { port: PORT });
     const providers = [

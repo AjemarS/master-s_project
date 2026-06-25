@@ -11,34 +11,37 @@ class Order(models.Model):
         (OFFLINE, "Офлайн (POS)"),
     ]
 
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
-    SHIPPED = "shipped"
+    UNPAID = "unpaid"
+    PAID = "paid"
+    DELIVERING = "delivering"
     DELIVERED = "delivered"
+    COMPLETED = "completed"
     CANCELLED = "cancelled"
     STATUS_CHOICES = [
-        (PENDING, "Очікує оплати"),
-        (CONFIRMED, "Підтверджено"),
-        (SHIPPED, "Відправлено"),
+        (UNPAID, "Не сплачено"),
+        (PAID, "Сплачено"),
+        (DELIVERING, "В дорозі"),
         (DELIVERED, "Доставлено"),
+        (COMPLETED, "Виконано"),
         (CANCELLED, "Скасовано"),
     ]
 
     STATUS_TRANSITIONS = {
-        PENDING: [CONFIRMED, CANCELLED],
-        CONFIRMED: [SHIPPED, CANCELLED],
-        SHIPPED: [DELIVERED, CANCELLED],
-        DELIVERED: [],
+        UNPAID: [PAID, CANCELLED],
+        PAID: [DELIVERING, CANCELLED],
+        DELIVERING: [DELIVERED, CANCELLED],
+        DELIVERED: [COMPLETED, CANCELLED],
+        COMPLETED: [],
         CANCELLED: [],
     }
 
-    UNPAID = "unpaid"
-    PAID = "paid"
-    REFUNDED = "refunded"
+    PAYMENT_UNPAID = "unpaid"
+    PAYMENT_PAID = "paid"
+    PAYMENT_REFUNDED = "refunded"
     PAYMENT_STATUS_CHOICES = [
-        (UNPAID, "Не оплачено"),
-        (PAID, "Оплачено"),
-        (REFUNDED, "Повернено"),
+        (PAYMENT_UNPAID, "Не оплачено"),
+        (PAYMENT_PAID, "Оплачено"),
+        (PAYMENT_REFUNDED, "Повернено"),
     ]
 
     order_number = models.CharField(
@@ -48,7 +51,7 @@ class Order(models.Model):
         max_length=20, choices=CHANNEL_CHOICES, default=ONLINE, verbose_name="Канал"
     )
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default=PENDING, verbose_name="Статус"
+        max_length=20, choices=STATUS_CHOICES, default=UNPAID, verbose_name="Статус"
     )
     warehouse_id = models.IntegerField(
         null=True, blank=True, verbose_name="ID складу виконання"
@@ -66,7 +69,7 @@ class Order(models.Model):
         max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Загальна сума"
     )
     payment_status = models.CharField(
-        max_length=20, choices=PAYMENT_STATUS_CHOICES, default=UNPAID, verbose_name="Статус оплати"
+        max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_UNPAID, verbose_name="Статус оплати"
     )
     stripe_session_id = models.CharField(
         max_length=255, blank=True, default="", verbose_name="Stripe Session ID"

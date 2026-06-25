@@ -1,3 +1,4 @@
+from datetime import datetime
 
 from django.db.models import Count, F, Sum
 from rest_framework.decorators import api_view, permission_classes
@@ -7,27 +8,44 @@ from rest_framework.response import Response
 from .models import Order, OrderItem
 
 
+def _parse_date_params(request):
+    raw_from = request.query_params.get("from")
+    raw_to = request.query_params.get("to")
+    filters = {}
+    if raw_from:
+        try:
+            filters["created_at__gte"] = datetime.fromisoformat(raw_from)
+        except (ValueError, TypeError):
+            pass
+    if raw_to:
+        try:
+            filters["created_at__lte"] = datetime.fromisoformat(raw_to)
+        except (ValueError, TypeError):
+            pass
+    return filters
+
+
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def sales_report(request):
-    items = OrderItem.objects.filter(order__status__in=["shipped", "delivered"])
-    total_revenue = sum(item.price * item.quantity for item in items)
-    total_cost = sum(item.cost_price * item.quantity for item in items)
-    total_qty = sum(item.quantity for item in items)
+    date_filter = _parse_date_params(request)
+    order_filter = {"status__in": ["delivered", "completed"]}
+    order_filter.update(date_filter)
+
+    orders_qs = Order.objects.filter(**order_filter)
+    items_qs = OrderItem.objects.filter(order__in=orders_qs)
+
+    total_revenue = sum(item.price * item.quantity for item in items_qs)
+    total_cost = sum(item.cost_price * item.quantity for item in items_qs)
+    total_qty = sum(item.quantity for item in items_qs)
 
     by_channel = (
-        Order.objects.filter(status__in=["shipped", "delivered"])
-        .values("channel")
-        .annotate(
-            count=Count("id"),
-            revenue=Sum("total_amount"),
-        )
+        orders_qs.values("channel")
+        .annotate(count=Count("id"), revenue=Sum("total_amount"))
     )
 
     return Response({
-        "total_orders": Order.objects.filter(
-            status__in=["shipped", "delivered"]
-        ).count(),
+        "total_orders": orders_qs.count(),
         "total_quantity": total_qty,
         "total_revenue": float(total_revenue),
         "total_cost": float(total_cost),
@@ -42,13 +60,15 @@ def sales_report(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def revenue_report(request):
-    orders = Order.objects.filter(status__in=["shipped", "delivered"])
-    total_revenue = sum(o.total_amount for o in orders)
+    date_filter = _parse_date_params(request)
+    order_filter = {"status__in": ["delivered", "completed"]}
+    order_filter.update(date_filter)
 
-    items = OrderItem.objects.filter(
-        order__status__in=["shipped", "delivered"]
-    )
-    total_cost = sum(item.cost_price * item.quantity for item in items)
+    orders_qs = Order.objects.filter(**order_filter)
+    items_qs = OrderItem.objects.filter(order__in=orders_qs)
+
+    total_revenue = sum(o.total_amount for o in orders_qs)
+    total_cost = sum(item.cost_price * item.quantity for item in items_qs)
 
     return Response({
         "total_revenue": float(total_revenue),
@@ -57,7 +77,7 @@ def revenue_report(request):
         "margin_percent": round(
             float((total_revenue - total_cost) / total_revenue * 100), 2
         ) if total_revenue else 0,
-        "order_count": orders.count(),
+        "order_count": orders_qs.count(),
     })
 
 

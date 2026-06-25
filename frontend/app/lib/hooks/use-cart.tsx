@@ -4,10 +4,7 @@ import * as React from "react";
 import { cartApi } from "../api/client";
 import { useCurrentUser } from "../auth-client";
 import { getImageUrl } from "../utils/image-url";
-
-/* -------------------------------------------------------------------------- */
-/*                                   Types                                    */
-/* -------------------------------------------------------------------------- */
+import type { CartResponse } from "../types";
 
 export interface CartItem {
   category: string;
@@ -19,181 +16,99 @@ export interface CartItem {
 }
 
 export interface CartContextType {
-  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  clearCart: () => void;
+  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => Promise<void>;
+  clearCart: () => Promise<void>;
   itemCount: number;
   items: CartItem[];
-  removeItem: (id: string) => void;
+  removeItem: (id: string) => Promise<void>;
   subtotal: number;
-  updateQuantity: (id: string, quantity: number) => void;
+  updateQuantity: (id: string, quantity: number) => Promise<void>;
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                Context                                     */
-/* -------------------------------------------------------------------------- */
 
 const CartContext = React.createContext<CartContextType | undefined>(undefined);
 
-/* -------------------------------------------------------------------------- */
-/*                         Local-storage helpers                              */
-/* -------------------------------------------------------------------------- */
-
-const STORAGE_KEY = "cart";
-const DEBOUNCE_MS = 500;
-
-const loadCartFromStorage = (): CartItem[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed as CartItem[];
-    }
-  } catch {
-    // Corrupted storage
-  }
-  return [];
-};
-
-/* -------------------------------------------------------------------------- */
-/*                               Provider                                     */
-/* -------------------------------------------------------------------------- */
+function cartResponseToItems(res: CartResponse): CartItem[] {
+  return res.items.map((item) => ({
+    category: "",
+    id: String(item.product),
+    image: getImageUrl(item.product_image),
+    name: item.product_name,
+    price: Number(item.product_price),
+    quantity: item.quantity,
+  }));
+}
 
 export function CartProvider({ children }: React.PropsWithChildren) {
-  const [items, setItems] = React.useState<CartItem[]>(loadCartFromStorage);
+  const [items, setItems] = React.useState<CartItem[]>([]);
   const { user } = useCurrentUser();
-  const prevUserId = React.useRef<string | null>(null);
-  const isMerging = React.useRef(false);
+  const [loaded, setLoaded] = React.useState(false);
 
-  /* -------------------- Persist to localStorage (debounced) ------------- */
-  const saveTimeout = React.useRef<null | ReturnType<typeof setTimeout>>(null);
-
+  // Load cart from server on mount and on login change
   React.useEffect(() => {
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-      } catch {
-        // Storage full or unavailable
+    // Ensure session_id exists in localStorage before fetching
+    cartApi.getSessionId();
+    queueMicrotask(() => setLoaded(false));
+    cartApi.get().then((res) => {
+      if (res.data) {
+        setItems(cartResponseToItems(res.data));
       }
-    }, DEBOUNCE_MS);
-
-    return () => {
-      if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    };
-  }, [items]);
-
-  /* -------------------- Server-side cart sync on login ------------------ */
-  React.useEffect(() => {
-    const userId = user?.id || null;
-
-    // User logged in — merge local cart to server
-    if (userId && prevUserId.current !== userId && !isMerging.current) {
-      isMerging.current = true;
-      const localItems = loadCartFromStorage();
-      if (localItems.length > 0) {
-        cartApi
-          .merge(
-            localItems.map((item) => ({
-              id: item.id,
-              quantity: item.quantity,
-            }))
-          )
-          .then(() => {
-            // After merge, fetch server cart and replace local
-            return cartApi.get();
-          })
-          .then((response) => {
-            if (response.data?.items) {
-              const serverItems: CartItem[] = response.data.items.map(
-                (item) => ({
-                  category: "",
-                  id: String(item.product),
-                  image: getImageUrl(item.product_image),
-                  name: item.product_name,
-                  price: item.product_price,
-                  quantity: item.quantity,
-                })
-              );
-              setItems(serverItems);
-              isMerging.current = false;
-            }
-          })
-          .catch(() => {
-            isMerging.current = false;
-          });
-      } else {
-        // No local items, just fetch server cart
-        cartApi
-          .get()
-          .then((response) => {
-            if (response.data?.items) {
-              const serverItems: CartItem[] = response.data.items.map(
-                (item) => ({
-                  category: "",
-                  id: String(item.product),
-                  image: getImageUrl(item.product_image),
-                  name: item.product_name,
-                  price: item.product_price,
-                  quantity: item.quantity,
-                })
-              );
-              setItems(serverItems);
-            }
-          })
-          .catch(() => {})
-          .finally(() => {
-            isMerging.current = false;
-          });
-      }
-    }
-
-    // User logged out — clear and reset to local
-    if (!userId && prevUserId.current) {
-      setItems(loadCartFromStorage());
-    }
-
-    prevUserId.current = userId;
+      setLoaded(true);
+    }).catch(() => setLoaded(true));
   }, [user?.id]);
 
-  /* ----------------------------- Actions -------------------------------- */
-  const addItem = React.useCallback(
-    (newItem: Omit<CartItem, "quantity">, qty = 1) => {
-      if (qty <= 0) return;
-      setItems((prev) => {
-        const existing = prev.find((i) => i.id === newItem.id);
-        if (existing) {
-          return prev.map((i) =>
-            i.id === newItem.id
-              ? { ...i, quantity: i.quantity + qty }
-              : i
-          );
-        }
-        return [...prev, { ...newItem, quantity: qty }];
-      });
-    },
-    []
-  );
+  // Merge anonymous cart on login (only if session cart has items)
+  React.useEffect(() => {
+    if (!user?.id) return;
+    // Check if session cart exists and has items before merging
+    const sessionId = localStorage.getItem("techhub_session_id");
+    if (!sessionId) return;
+    cartApi.merge().then((res) => {
+      if (res.data) {
+        setItems(cartResponseToItems(res.data));
+      } else {
+        cartApi.get().then((r) => {
+          if (r.data) setItems(cartResponseToItems(r.data));
+        });
+      }
+    });
+  }, [user?.id]);
 
-  const removeItem = React.useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const refreshCart = React.useCallback(() => {
+    cartApi.get().then((res) => {
+      if (res.data) setItems(cartResponseToItems(res.data));
+    });
   }, []);
 
-  const updateQuantity = React.useCallback((id: string, qty: number) => {
-    setItems((prev) =>
-      prev.flatMap((i) => {
-        if (i.id !== id) return i;
-        if (qty <= 0) return [];
-        if (qty === i.quantity) return i;
-        return { ...i, quantity: qty };
-      })
-    );
-  }, []);
+  const addItem = React.useCallback(async (newItem: Omit<CartItem, "quantity">, qty = 1) => {
+    const id = parseInt(newItem.id, 10);
+    if (isNaN(id)) return;
+    await cartApi.addItem(id, qty);
+    refreshCart();
+  }, [refreshCart]);
 
-  const clearCart = React.useCallback(() => setItems([]), []);
+  const removeItem = React.useCallback(async (idStr: string) => {
+    const id = parseInt(idStr, 10);
+    if (isNaN(id)) return;
+    await cartApi.removeItem(id);
+    refreshCart();
+  }, [refreshCart]);
 
-  /* --------------------------- Derived data ----------------------------- */
+  const updateQuantity = React.useCallback(async (idStr: string, qty: number) => {
+    const id = parseInt(idStr, 10);
+    if (isNaN(id)) return;
+    if (qty <= 0) {
+      await cartApi.removeItem(id);
+    } else {
+      await cartApi.updateItem(id, qty);
+    }
+    refreshCart();
+  }, [refreshCart]);
+
+  const clearCart = React.useCallback(async () => {
+    await cartApi.clear();
+    refreshCart();
+  }, [refreshCart]);
+
   const itemCount = React.useMemo(
     () => items.reduce((t, i) => t + i.quantity, 0),
     [items]
@@ -204,26 +119,13 @@ export function CartProvider({ children }: React.PropsWithChildren) {
     [items]
   );
 
-  /* ----------------------------- Context value -------------------------- */
   const value = React.useMemo<CartContextType>(
-    () => ({
-      addItem,
-      clearCart,
-      itemCount,
-      items,
-      removeItem,
-      subtotal,
-      updateQuantity,
-    }),
+    () => ({ addItem, clearCart, itemCount, items, removeItem, subtotal, updateQuantity }),
     [items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal]
   );
 
   return <CartContext value={value}>{children}</CartContext>;
 }
-
-/* -------------------------------------------------------------------------- */
-/*                                 Hook                                      */
-/* -------------------------------------------------------------------------- */
 
 export function useCart(): CartContextType {
   const ctx = React.use(CartContext);

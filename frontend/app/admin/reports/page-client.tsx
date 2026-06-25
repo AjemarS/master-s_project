@@ -1,39 +1,55 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
+import { Input } from "~/ui/primitives/input";
+import { Label } from "~/ui/primitives/label";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, TrendingUp, DollarSign, BarChart3, PieChart, ArrowLeft, ShoppingCart } from "lucide-react";
+import { AlertCircle, TrendingUp, DollarSign, BarChart3, PieChart, ArrowLeft, ShoppingCart, Package, Calendar } from "lucide-react";
 import { reportApi } from "~/lib/api/admin-api";
 import type { SalesReport, RevenueReport } from "~/lib/types";
 import { StatsGridSkeleton } from "../components";
+import { PieChart as RechartPie, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export function ReportsClient() {
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [revenue, setRevenue] = useState<RevenueReport | null>(null);
+  const [inventoryValue, setInventoryValue] = useState<{ total_value: number; item_count: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const [salesRes, revenueRes] = await Promise.all([reportApi.sales(), reportApi.revenue()]);
-        if (salesRes.error) throw new Error(salesRes.error.message);
-        if (revenueRes.error) throw new Error(revenueRes.error.message);
-        setSales(salesRes.data ?? null);
-        setRevenue(revenueRes.data ?? null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load reports");
-      } finally {
-        setLoading(false);
+  const fetchReports = useCallback(async (from?: string, to?: string) => {
+    setLoading(true);
+    try {
+      const [salesRes, revenueRes, invRes] = await Promise.all([
+        reportApi.sales(from, to), reportApi.revenue(from, to), reportApi.inventoryValue(),
+      ]);
+      if (salesRes.error) throw new Error(salesRes.error.message);
+      if (revenueRes.error) throw new Error(revenueRes.error.message);
+      setSales(salesRes.data ?? null);
+      setRevenue(revenueRes.data ?? null);
+      if (invRes.data) {
+        setInventoryValue({
+          total_value: Number(invRes.data.total_value),
+          item_count: invRes.data.item_count,
+        });
       }
-    };
-    fetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load reports");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    queueMicrotask(() => fetchReports());
+  }, []);
+
+  const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#3b82f6"];
   const formatCurrency = (val: number) => `${Number(val).toFixed(2)} ₴`;
 
   return (
@@ -68,7 +84,31 @@ export function ReportsClient() {
           <StatsGridSkeleton count={5} />
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Date range */}
+            <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+              <CardContent className="pt-6">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-slate-500" />
+                    <Label className="text-xs text-slate-500">Від</Label>
+                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-40" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-slate-500">До</Label>
+                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-40" />
+                  </div>
+                  <Button size="sm" onClick={() => fetchReports(dateFrom || undefined, dateTo || undefined)}>
+                    Оновити
+                  </Button>
+                  {(dateFrom || dateTo) && (
+                    <Button size="sm" variant="outline" onClick={() => { setDateFrom(""); setDateTo(""); fetchReports(); }}>
+                      Скинути
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-blue-500">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
@@ -138,41 +178,91 @@ export function ReportsClient() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-cyan-500">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <Package className="h-4 w-4 text-cyan-600" />
+                    Вартість запасів
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-cyan-600">
+                    {formatCurrency(inventoryValue?.total_value ?? 0)}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {inventoryValue?.item_count ?? 0} позицій
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
             {sales?.by_channel && sales.by_channel.length > 0 && (
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700">
-                <CardHeader>
-                  <CardTitle className="dark:text-slate-100">Розподіл за каналами</CardTitle>
-                  <CardDescription className="dark:text-slate-400">
-                    Онлайн vs офлайн продажі
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                        <tr>
-                          <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Канал</th>
-                          <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Замовлень</th>
-                          <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дохід</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sales.by_channel.map((ch, i) => (
-                          <tr key={i} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-200">
-                              {ch.channel === "online" ? "Онлайн" : "Офлайн (POS)"}
-                            </td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{ch.count}</td>
-                            <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(ch.revenue)}</td>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="dark:text-slate-100">Розподіл за каналами</CardTitle>
+                    <CardDescription className="dark:text-slate-400">
+                      Онлайн vs офлайн продажі
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                          <tr>
+                            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Канал</th>
+                            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Замовлень</th>
+                            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дохід</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+                        </thead>
+                        <tbody>
+                          {sales.by_channel.map((ch, i) => (
+                            <tr key={i} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                              <td className="p-4 font-medium text-slate-900 dark:text-slate-200">
+                                {ch.channel === "online" ? "Онлайн" : "Офлайн (POS)"}
+                              </td>
+                              <td className="p-4 text-slate-600 dark:text-slate-400">{ch.count}</td>
+                              <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(ch.revenue)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="dark:text-slate-100">Дохід за каналами</CardTitle>
+                    <CardDescription className="dark:text-slate-400">Розподіл виручки</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <RechartPie>
+                        <Pie
+                          data={sales.by_channel.map((ch) => ({
+                            name: ch.channel === "online" ? "Онлайн" : "POS",
+                            value: ch.revenue,
+                          }))}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={90}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {sales.by_channel.map((_, i) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Legend />
+                      </RechartPie>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         )}

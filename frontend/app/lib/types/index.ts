@@ -67,15 +67,17 @@ export interface CartItemResponse {
   product_name: string;
   product_price: number;
   product_image: string | null;
+  product_stock: number;
   quantity: number;
-  added_at: string;
+  created_at: string;
 }
 
 export interface CartResponse {
   id: number;
-  user_id: string;
+  user_id: string | null;
+  session_id: string | null;
   items: CartItemResponse[];
-  total: number;
+  subtotal: number;
   item_count: number;
   created_at: string;
   updated_at: string;
@@ -158,7 +160,7 @@ export interface Order {
   id: number;
   order_number: string;
   channel: "online" | "offline";
-  status: "pending" | "shipped" | "delivered" | "cancelled";
+  status: "unpaid" | "paid" | "delivering" | "delivered" | "completed" | "cancelled";
   warehouse_id: number | null;
   customer_name: string;
   customer_phone: string;

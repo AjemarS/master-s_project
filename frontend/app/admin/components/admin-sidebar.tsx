@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useCallback, useRef } from "react";
-import { Users, Package, LayoutDashboard, LogOut, Store, Warehouse, ShoppingCart, ClipboardList, CreditCard, BarChart3, Truck, ExternalLink, Pin, PinOff } from "lucide-react";
+import { Users, Package, LayoutDashboard, LogOut, Store, Warehouse, ShoppingCart, ClipboardList, CreditCard, BarChart3, Truck, ExternalLink, Pin, PinOff, ArrowRightLeft, FolderTree } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
 import { useCurrentUser } from "~/lib/auth-client";
@@ -12,12 +12,14 @@ import { useRouter } from "next/navigation";
 
 const allNavigation = [
   { name: "Огляд", href: "/admin/summary", icon: LayoutDashboard, roles: ["admin", "cashier", "warehouse_worker"] },
-  { name: "Товари", href: "/admin/products", icon: Package, roles: ["admin"] },
+  { name: "Товари", href: "/admin/products", icon: Package, roles: ["admin", "cashier"] },
   { name: "Замовлення", href: "/admin/orders", icon: ShoppingCart, roles: ["admin", "cashier"] },
   { name: "POS", href: "/admin/pos", icon: CreditCard, roles: ["admin", "cashier"] },
+  { name: "Категорії", href: "/admin/categories", icon: FolderTree, roles: ["admin"] },
   { name: "Склади", href: "/admin/warehouses", icon: Warehouse, roles: ["admin", "warehouse_worker"] },
   { name: "Постачальники", href: "/admin/suppliers", icon: Truck, roles: ["admin", "warehouse_worker"] },
   { name: "Накладні", href: "/admin/goods-receipts", icon: ClipboardList, roles: ["admin", "warehouse_worker"] },
+  { name: "Рух товарів", href: "/admin/stock-movements", icon: ArrowRightLeft, roles: ["admin", "warehouse_worker"] },
   { name: "Звіти", href: "/admin/reports", icon: BarChart3, roles: ["admin"] },
   { name: "Користувачі", href: "/admin/users", icon: Users, roles: ["admin"] },
 ];

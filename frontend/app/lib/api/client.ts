@@ -21,13 +21,23 @@ export interface ApiResponse<T> {
 
 async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
+    };
+
+    // Auto-attach session_id for anonymous cart
+    if (typeof window !== "undefined") {
+      const sessionId = localStorage.getItem("techhub_session_id");
+      if (sessionId) {
+        headers["X-Session-Id"] = sessionId;
+      }
+    }
+
     const response = await fetch(url, {
       ...options,
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -81,9 +91,14 @@ export const cartApi = {
       body: JSON.stringify({ product_id: productId }),
     }),
   clear: () => apiCall(`${API_URL}/cart/clear/`, { method: "POST" }),
-  merge: (items: { id: string; quantity: number }[]) =>
-    apiCall(`${API_URL}/cart/merge/`, {
-      method: "POST",
-      body: JSON.stringify({ items }),
-    }),
+  merge: () => apiCall<import("../types").CartResponse>(`${API_URL}/cart/merge/`, { method: "POST" }),
+  getSessionId: (): string => {
+    if (typeof window === "undefined") return "";
+    let sid = localStorage.getItem("techhub_session_id");
+    if (!sid) {
+      sid = crypto.randomUUID();
+      localStorage.setItem("techhub_session_id", sid);
+    }
+    return sid;
+  },
 };

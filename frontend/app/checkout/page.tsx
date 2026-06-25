@@ -82,7 +82,7 @@ export default function CheckoutPage() {
             <CardDescription>Continue with your existing order #{orderId}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Button onClick={() => router.push(`/orders`)}>
+            <Button onClick={() => router.push(`/order/${orderId}`)}>
               View Order Status
             </Button>
             <Button variant="outline" asChild>
