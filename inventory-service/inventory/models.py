@@ -55,6 +55,9 @@ class Stock(models.Model):
     )
     quantity = models.IntegerField(default=0, verbose_name="Кількість")
     reserved = models.IntegerField(default=0, verbose_name="Зарезервовано")
+    average_cost = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name="Середня собівартість"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 

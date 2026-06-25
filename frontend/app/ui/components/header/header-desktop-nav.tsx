@@ -1,10 +1,10 @@
 import { memo } from "react";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/cn";
-import { isActive, mainNavigation } from "./header";
+import { isActive, type NavItem } from "./header";
 
 interface DesktopNavigationProps {
-  navigation: typeof mainNavigation;
+  navigation: NavItem[];
   pathname: string;
 }
 

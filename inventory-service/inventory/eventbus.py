@@ -163,7 +163,7 @@ def _handle_event(routing_key, event, event_id):
         ProcessedEvent.objects.create(event_id=event_id)
 
         if routing_key == "order.created":
-            _handle_order_created(event)
+            logger.info("order.created received (sync reserve via Stripe webhook)")
         elif routing_key == "order.cancelled":
             _handle_order_cancelled(event)
 

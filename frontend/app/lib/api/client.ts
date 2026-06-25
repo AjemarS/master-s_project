@@ -26,6 +26,10 @@ async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiRe
       ...(options.headers as Record<string, string>),
     };
 
+    // Auto-attach locale for bilingual content
+    const locale = typeof window !== "undefined" ? localStorage.getItem("techhub_locale") || "ua" : "ua";
+    headers["Accept-Language"] = locale;
+
     // Auto-attach session_id for anonymous cart
     if (typeof window !== "undefined") {
       const sessionId = localStorage.getItem("techhub_session_id");

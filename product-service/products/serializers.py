@@ -1,28 +1,59 @@
+from decimal import Decimal
+from django.conf import settings
 from rest_framework import serializers
 
 from .models import Category, Product
 
 
+def _get_locale(request):
+    """Extract locale from Accept-Language header. Default: uk."""
+    if not request:
+        return "uk"
+    lang = request.META.get("HTTP_ACCEPT_LANGUAGE", "uk")
+    if lang.startswith("en"):
+        return "en"
+    return "uk"
+
+
+def _localized(obj, field_base, locale):
+    """Return field_base_{locale} if set, fallback to field_base."""
+    val = getattr(obj, f"{field_base}_{locale}", "") or getattr(obj, field_base, "")
+    return val
+
+
 class CategorySerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
+    children = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
         fields = [
-            "id",
-            "name",
-            "image",
-            "product_count",
-            "created_at",
-            "updated_at",
+            "id", "name", "name_uk", "name_en", "parent",
+            "image", "product_count", "children",
+            "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
         extra_kwargs = {
             "name": {"required": True, "allow_blank": False, "max_length": 100},
+            "name_uk": {"required": False, "allow_blank": True},
+            "name_en": {"required": False, "allow_blank": True},
+            "parent": {"required": False, "allow_null": True},
         }
 
     def get_product_count(self, obj):
         return obj.products.count()
+
+    def get_children(self, obj):
+        children = obj.children.all()
+        if children:
+            return CategorySerializer(children, many=True, context=self.context).data
+        return []
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        locale = _get_locale(self.context.get("request"))
+        data["name"] = _localized(instance, "name", locale)
+        return data
 
     def validate_name(self, value):
         if not value.strip():
@@ -40,32 +71,29 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source="category.name", read_only=True)
+    category_name = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             "id",
-            "name",
-            "description",
-            "category",
-            "category_name",
-            "price",
-            "original_price",
-            "image_url",
-            "stock",
-            "in_stock",
-            "features",
-            "specs",
-            "rating",
-            "created_at",
-            "updated_at",
+            "name", "name_uk", "name_en",
+            "description", "description_uk", "description_en",
+            "category", "category_name",
+            "price", "original_price",
+            "image_url", "stock", "in_stock",
+            "features", "specs", "rating",
+            "created_at", "updated_at",
         ]
         read_only_fields = ["in_stock", "created_at", "updated_at"]
         extra_kwargs = {
             "name": {"required": True, "allow_blank": False, "max_length": 200},
+            "name_uk": {"required": False, "allow_blank": True},
+            "name_en": {"required": False, "allow_blank": True},
             "description": {"required": True, "allow_blank": False},
+            "description_uk": {"required": False, "allow_blank": True},
+            "description_en": {"required": False, "allow_blank": True},
             "price": {"required": True, "min_value": 0},
             "original_price": {"required": False, "min_value": 0},
             "category": {"required": True},
@@ -76,10 +104,25 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         if obj.image:
-            # Return relative path so the frontend can construct the
-            # correct absolute URL from its configured API base.
             return obj.image.url
         return None
+
+    def get_category_name(self, obj):
+        locale = _get_locale(self.context.get("request"))
+        return _localized(obj.category, "name", locale)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        locale = _get_locale(self.context.get("request"))
+        data["name"] = _localized(instance, "name", locale)
+        data["description"] = _localized(instance, "description", locale)
+        if locale == "en":
+            rate = Decimal(str(getattr(settings, "UAH_TO_USD_RATE", 41.5)))
+            price = Decimal(str(instance.price))
+            orig = Decimal(str(instance.original_price))
+            data["price_usd"] = round(float(price / rate), 2)
+            data["original_price_usd"] = round(float(orig / rate), 2)
+        return data
 
     def validate_name(self, value):
         if not value.strip():
@@ -93,9 +136,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def validate_stock(self, value):
         if value < 0:
-            raise serializers.ValidationError(
-                "Stock quantity cannot be negative."
-            )
+            raise serializers.ValidationError("Stock quantity cannot be negative.")
         return value
 
     def validate_rating(self, value):
@@ -103,9 +144,7 @@ class ProductSerializer(serializers.ModelSerializer):
         if value is not None:
             if Decimal("0") <= value <= Decimal("5"):
                 return value
-            raise serializers.ValidationError(
-                "Rating must be between 0 and 5."
-            )
+            raise serializers.ValidationError("Rating must be between 0 and 5.")
         return value
 
     def validate_features(self, value):
@@ -114,9 +153,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Features must be a list.")
             for item in value:
                 if not isinstance(item, str):
-                    raise serializers.ValidationError(
-                        "Each feature must be a string."
-                    )
+                    raise serializers.ValidationError("Each feature must be a string.")
         return value
 
     def validate_specs(self, value):

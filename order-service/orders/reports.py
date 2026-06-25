@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db.models import Count, F, Sum
+from django.db.models.functions import TruncDate
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -98,7 +99,8 @@ def inventory_value_report(request):
     )
 
     return Response({
-        "total_inventory_value": float(total_inventory_value),
+        "total_value": float(total_inventory_value),
+        "item_count": len(items_by_product),
         "by_product": [
             {
                 "product_id": item["product_id"],
@@ -107,5 +109,36 @@ def inventory_value_report(request):
                 "total_cost": float(item["total_cost"]),
             }
             for item in items_by_product
+        ],
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def daily_sales_report(request):
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    orders = Order.objects.filter(
+        status__in=["paid", "delivering", "delivered", "completed"],
+        created_at__gte=thirty_days_ago,
+    )
+
+    daily = (
+        orders.annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(
+            revenue=Sum("total_amount"),
+            count=Count("id"),
+        )
+        .order_by("day")
+    )
+
+    return Response({
+        "daily": [
+            {
+                "date": entry["day"].isoformat(),
+                "revenue": float(entry["revenue"]),
+                "orders": entry["count"],
+            }
+            for entry in daily
         ],
     })

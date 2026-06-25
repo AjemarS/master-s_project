@@ -1,658 +1,478 @@
-# TechHub — Концепція інформаційної системи
+# TechHub — Master's Project Concept
 
-> **Thesis**: *"Розробка та розгортання інформаційної системи для роздрібної торгівлі побутовою технікою"*
-> ("Development and Deployment of an Information System for Household Appliances Retail")
+> **Thesis**: *"Development and Deployment of an Information System for Household Appliances Retail"*
 
----
+## Current State (June 2026)
 
-## Зміст
-
-1. [Постановка проблеми](#1-постановка-проблеми)
-2. [Ролі користувачів](#2-ролі-користувачів)
-3. [Архітектура системи](#3-архітектура-системи)
-4. [Бізнес-процеси](#4-бізнес-процеси)
-5. [Архітектура даних](#5-архітектура-даних)
-6. [Подієво-керована інтеграція (RabbitMQ)](#6-подієво-керована-інтеграція-rabbitmq)
-7. [Ключові архітектурні рішення](#7-ключові-архітектурні-рішення)
-8. [Виклики розподілених систем](#8-виклики-розподілених-систем)
-9. [Безпека та контроль доступу](#9-безпека-та-контроль-доступу)
-10. [Дизайн API](#10-дизайн-api)
-11. [Фронтенд](#11-фронтенд)
-12. [Локалізація та i18n](#12-локалізація-та-i18n)
-13. [Нефункціональні вимоги](#13-нефункціональні-вимоги)
-14. [Розгортання](#14-розгортання)
-15. [Стратегія тестування](#15-стратегія-тестування)
-16. [План розробки](#16-план-розробки)
+System fully functional. Microservices run via Docker Compose. All core retail features implemented. Bilingual (UA/EN) frontend and backend.
 
 ---
 
-## 1. Постановка проблеми
+## 1. Architecture
 
-Традиційні системи роздрібної торгівлі побутовою технікою страждають від **фрагментації**:
-
-- Онлайн-магазин і фізичний шоурум часто працюють на різних системах, які не синхронізують залишки в реальному часі.
-- Складський облік ведеться окремо від каталогу товарів — немає єдиної картини запасів.
-- Постачання товару (оприбуткування від постачальників) не пов'язане з подальшим продажем — важко відстежити шлях товару.
-- Фінансовий облік (собівартість → виручка → маржа) вимагає ручного зведення даних.
-
-**Мета системи TechHub** — побудувати єдину інформаційну систему, яка:
-
-1. Об'єднує онлайн-продажі та офлайн-продажі (шоурум/POS) на спільному інвентарі.
-2. Відстежує рух кожної одиниці товару: постачальник → склад → шоурум → клієнт.
-3. Надає фінансову аналітику (виручка, собівартість, маржинальність) у реальному часі.
-4. Демонструє мікросервісну архітектуру як сучасний підхід до побудови торгових систем.
-
----
-
-## 2. Ролі користувачів
-
-| Роль | Значення в коді | Інтерфейс | Основні дії |
-|------|:---:|-----------|-------------|
-| **Покупець (Customer)** | `user` | Веб-вітрина (storefront) | Перегляд каталогу, кошик, оформлення замовлення, відстеження статусу |
-| **Касир (Cashier)** | `cashier` | POS-інтерфейс | Офлайн-продаж через термінал у шоурумі, пошук товару, вибиття чеку |
-| **Комірник (Warehouse Worker)** | `warehouse_worker` | Адмін-панель (склад) | Оприбуткування товару від постачальника, переміщення між складами |
-| **Адміністратор (Admin)** | `admin` | Адмін-панель (повний доступ) | Управління каталогом, перегляд замовлень, звіти, керування користувачами |
-
-> **Примітка:** Роль `warehouse_admin` (керівник складу) відкладена. Наразі адміністратор виконує функції керування комірниками та виправлення помилок. Роль можна додати пізніше за потреби.
-
-Кожна роль має різні потреби та рівень доступу, що виправдовує поділ системи на окремі сервіси.
-
----
-
-## 3. Архітектура системи
-
-### 3.1 Загальна схема
+### 1.1 Overview
 
 ```
                          ┌─────────────────────────┐
-                         │        Користувачі        │
-                         │   (браузер / POS / admin) │
+                         │        Users             │
+                         │   (browser/ POS / admin) │
                          └─────────────┬─────────────┘
                                        │ HTTP
                                        ▼
                          ┌─────────────────────────┐
-                         │    Gateway (FastAPI)     │
-                         │      Порт: 80            │
-                         │  Маршрутизація + Auth     │
-                         └──┬───────┬───────┬───────┘
+                         │  Gateway (Nginx + njs)  │
+                         │      Port: 80           │
+                         │  Route + Auth + CORS    │
+                         └──┬───────┬───────┬──────┘
                             │       │       │
               ┌─────────────┘       │       └─────────────┐
               ▼                     ▼                     ▼
    ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
    │ Auth Service     │  │ Product Service  │  │  Frontend (Next) │
-   │ (Express)        │  │ (Django/DRF)     │  │    Порт: 3000     │
-   │ Порт: 3001       │  │ Порт: 8000       │  │                  │
-   │ DB: auth_db      │  │ DB: products_db  │  │  Storefront      │
-   │                  │  │                  │  │  Admin panel     │
-   │ Користувачі      │  │ Каталог          │  │  POS інтерфейс   │
-   │ Сесії            │  │ Категорії        │  │                  │
-   │ 2FA              │  │ Кошик            │  │                  │
-   └──────────────────┘  └──────────────────┘  └──────────────────┘
-
+   │ (Express)        │  │ (Django/DRF)     │  │    Port: 3000     │
+   │ Port: 3001       │  │ Port: 8000       │  │                  │
+   │ DB: auth_db      │  │ DB: products_db  │  │  UA (default)    │
+   │                  │  │                  │  │  EN variants     │
+   │ Users/Sessions   │  │ Catalog          │  │  Storefront      │
+   │ Roles/2FA/OAuth  │  │ Categories       │  │  Admin panel     │
+   └──────────────────┘  │ Cart (session)   │  │  POS interface   │
+                         │ Bilingual fields │  │                  │
+                         └──────────────────┘  └──────────────────┘
          ┌──────────────────┐        ┌──────────────────┐
          │  Inventory       │        │   Order Service  │
          │  Service         │        │   (Django/DRF)   │
-         │  (Django/DRF)    │        │   Порт: 8002     │
-         │  Порт: 8001      │        │   DB: orders_db  │
+         │  (Django/DRF)    │        │   Port: 8002     │
+         │  Port: 8001      │        │   DB: orders_db  │
          │  DB: inventory_db│        │                  │
-         │                  │        │   Замовлення     │
-         │  Склади          │        │   POS-транзакції │
-         │  Залишки         │◄──────►│   Виручка/Маржа  │
-         │  Рух товару      │ HTTP   │                  │
-         │  Постачальники   │        │                  │
-         │  Оприбуткування  │        │                  │
+         │                  │        │   Orders         │
+         │  Warehouses      │        │   POS transactions│
+         │  Stock levels    │◄──────►│   Revenue/Margin  │
+         │  Stock movements │ HTTP   │   Daily sales     │
+         │  Suppliers       │        │                  │
+         │  Goods receipts  │        │                  │
          └──────────────────┘        └──────────────────┘
                   ▲                           │
                   │    ┌──────────────┐       │
                   └────┤  RabbitMQ    │◄──────┘
-                       │  Порт: 5672  │
+                       │  Port: 5672  │
                        └──────────────┘
 ```
 
-### 3.2 Відповідальність сервісів
+### 1.2 Service Responsibilities
 
-| Сервіс | Технологія | Відповідає за | Спілкується з |
-|--------|-----------|---------------|---------------|
-| **Gateway** | FastAPI | Єдина точка входу, маршрутизація, верифікація сесій, впровадження `X-Gateway-User-*` заголовків | Усі сервіси |
-| **Auth Service** | Express + Better Auth | Користувачі, сесії, ролі, 2FA, OAuth (Google/GitHub), rate limiting | — |
-| **Product Service** | Django + DRF | Каталог товарів, категорії, кошик (session-based) | — |
-| **Inventory Service** | Django + DRF | Склади, залишки за локаціями, рух товару (аудит), постачальники, оприбуткування (GRN) | Product (валідація товару) |
-| **Order Service** | Django + DRF | Замовлення (онлайн + офлайн), статті замовлень, POS-транзакції, фінансовий облік (виручка, собівартість, маржа) | Product (інфо про товар), Inventory (перевірка/списання залишків) |
-| **Frontend** | Next.js 16 | Веб-вітрина (storefront), адмін-панель, POS-інтерфейс | Gateway (для всього API) |
+| Service | Stack | Responsible for | Communicates with |
+|---------|-------|----------------|-------------------|
+| **Gateway** | Nginx + njs | Entry point, routing, auth subrequest, RBAC, CORS | All services |
+| **Auth Service** | Express + Better Auth | Users, sessions, roles, 2FA, OAuth (Google/GitHub) | — |
+| **Product Service** | Django + DRF | Product catalog, categories, cart (session-based), bilingual fields | — |
+| **Inventory Service** | Django + DRF | Warehouses, stock per location, stock movement audit, suppliers, Goods Receipt Notes | Product (product validation) |
+| **Order Service** | Django + DRF | Orders (online + offline), order items, POS transactions, financial reports | Product (product info), Inventory (reserve/deduct) |
+| **Frontend** | Next.js 16 | Storefront, admin panel, POS interface | Gateway (for all API) |
 
-### 3.3 Принципи комунікації між сервісами
+### 1.3 Communication
 
-- **Синхронні HTTP-виклики** — для операцій, де клієнт очікує негайної відповіді (перевірка наявності, списання залишків при оформленні замовлення).
-- **Асинхронні події через RabbitMQ** — для операцій, що не потребують миттєвого підтвердження (оновлення загальних залишків у Product Service, сповіщення про зміну статусу).
-
----
-
-## 4. Бізнес-процеси
-
-Бізнес-процеси перетинають межі сервісів. Кожен процес описує, які сервіси беруть участь і як вони взаємодіють.
-
-### 4.1 Постачання (Inbound)
-
-```
-Постачальник → Доставка товару → Оприбуткування (GRN) → Залишок на складі
-```
-
-| Крок | Дія | Сервіс |
-|------|-----|--------|
-| 1 | Комірник створює накладну оприбуткування (Goods Receipt Note) | Inventory Service |
-| 2 | Товар додається на склад (кількість + собівартість) | Inventory Service |
-| 3 | Inventory Service публікує подію `inventory.stock.changed` | → RabbitMQ |
-| 4 | Product Service оновлює загальний лічильник `total_stock` | Product Service (споживач) |
-
-### 4.2 Переміщення (Internal)
-
-```
-Центральний склад → Переміщення → Шоурум
-```
-
-| Крок | Дія | Сервіс |
-|------|-----|--------|
-| 1 | Комірник оформляє переміщення між складами | Inventory Service |
-| 2 | Залишок на складі-відправнику зменшується, на складі-отримувачі збільшується | Inventory Service |
-| 3 | Фіксується запис у `StockMovement` (тип: `transfer`) | Inventory Service |
-
-### 4.3 Онлайн-продаж (Online Sale)
-
-```
-Покупець → Перегляд каталогу → Кошик → Оформлення замовлення → Резервування → Відправлення → Списання
-```
-
-| Крок | Дія | Сервіс |
-|------|-----|--------|
-| 1 | Покупець переглядає каталог, додає в кошик | Product Service |
-| 2 | Покупець оформляє замовлення (checkout) | Order Service (через Gateway) |
-| 3 | Order Service створює замовлення зі статусом `pending` | Order Service |
-| 4 | Order Service викликає Inventory Service — **резервування** товару під замовлення | Inventory Service (HTTP) |
-| 5 | Order Service публікує `order.created` | → RabbitMQ |
-| 6 | Адміністратор змінює статус на `shipped` | Order Service |
-| 7 | Order Service викликає Inventory Service — **списання** товару зі складу | Inventory Service (HTTP) |
-| 8 | Inventory Service публікує `inventory.stock.changed` | → RabbitMQ |
-| 9 | Product Service оновлює `total_stock` | Product Service (споживач) |
-| 10 | Статус замовлення змінюється на `delivered` (автоматично або вручну) | Order Service |
-
-### 4.4 Офлайн-продаж (Offline/POS Sale)
-
-```
-Покупець у шоурумі → Касир через POS → Пошук товару → Оформлення продажу → Списання з шоуруму
-```
-
-| Крок | Дія | Сервіс |
-|------|-----|--------|
-| 1 | Касир шукає товар у POS-інтерфейсі | Frontend → Product Service |
-| 2 | Касир додає товар у POS-кошик, вказує дані покупця | Frontend |
-| 3 | Касир підтверджує продаж | Order Service (через Gateway) |
-| 4 | Order Service створює замовлення з `channel=offline`, `status=pending` (або `delivered` одразу) | Order Service |
-| 5 | Order Service викликає Inventory Service — **списання** з шоуруму | Inventory Service (HTTP) |
-| 6 | Inventory Service публікує `inventory.stock.changed` | → RabbitMQ |
-
-### 4.5 Скасування замовлення (Cancellation)
-
-| Крок | Дія | Сервіс |
-|------|-----|--------|
-| 1 | Адмін змінює статус на `cancelled` | Order Service |
-| 2 | Order Service викликає Inventory Service — **повернення** зарезервованого товару | Inventory Service (HTTP) |
-| 3 | Order Service публікує `order.cancelled` | → RabbitMQ |
+- **Synchronous HTTP** — real-time operations (stock check, reserve, deduct during checkout)
+- **Async RabbitMQ events** — eventual consistency operations (total_stock update, notifications)
 
 ---
 
-## 5. Архітектура даних
+## 2. Authentication & Authorization
 
-Кожен сервіс володіє власною базою даних (Database per Service).
+### 2.1 Auth Flow
 
-### 5.1 Product Service (products_db, PostgreSQL 5432)
+```
+1. Browser → Gateway → auth-service/auth/me (cookie-based subrequest)
+2. Auth-service returns X-User-* headers + JSON
+3. njs extracts X-User-* → conditionally blocks writes for unauthenticated
+4. njs injects X-Gateway-User-* headers → downstream services
+5. Downstream services trust headers via GatewayAuthentication
+```
 
-**Товари та каталог:**
+### 2.2 Route Protection
 
-| Сутність | Опис |
-|----------|------|
-| `Category` | Категорія товару (Холодильники, Пральні машини, Духовки, Дрібна техніка тощо). Ієрархічна структура. Поля українською та англійською. |
-| `Product` | Товар. Назва (uk/en), опис (uk/en), ціна, характеристики (specs), особливості (features), енергетичний клас, гарантія, зображення, `total_stock` (обчислюване поле — сума залишків з Inventory Service), рейтинг. |
-| `Cart` | Кошик покупця (session-based, не потребує авторизації). |
-| `CartItem` | Елемент кошика (товар + кількість). |
+Routes processed by `nginx/auth.js` `checkAndProxy`:
+- **Anonymous**: read-only, except cart routes and order creation
+- **Authenticated**: role-based access
+- **Admin**: full access
+- **Cashier**: POS + order creation
+- **Warehouse Worker**: goods-receipts, stock transfers
 
-### 5.2 Inventory Service (inventory_db, PostgreSQL 5434)
+### 2.3 RBAC Matrix
 
-**Складський облік та рух товару:**
-
-| Сутність | Опис |
-|----------|------|
-| `Warehouse` | Склад / шоурум. Назва, тип (`warehouse` / `showroom`), адреса, активність. |
-| `Stock` | Залишок товару на конкретному складі. `product_id` (зовнішній ключ — належить Product Service, зберігається як UUID або int), `warehouse_id`, `quantity`. Унікальне обмеження: `(product_id, warehouse_id)`. |
-| `StockMovement` | Журнал руху товару (аудит). Тип: `receipt` (оприбуткування), `transfer` (переміщення), `sale` (продаж), `adjustment` (коригування), `write_off` (списання). Поля: `product_id`, `from_warehouse_id` (опціонально), `to_warehouse_id` (опціонально), `quantity`, `reference_type`, `reference_id`, `created_by`, `created_at`. |
-| `Supplier` | Постачальник. Назва, контактна особа, телефон, email, адреса. |
-| `GoodsReceiptNote` | Накладна оприбуткування. Постачальник, дата, примітки, автор. |
-| `GoodsReceiptItem` | Позиція накладної. Товар, кількість, собівартість (`cost_price`). При створенні автоматично збільшує `Stock.quantity` на вказаному складі. |
-
-### 5.3 Order Service (orders_db, PostgreSQL 5435)
-
-**Замовлення та фінансовий облік:**
-
-| Сутність | Опис |
-|----------|------|
-| `Order` | Замовлення. Номер (автоматично), канал (`online` / `offline`), статус (`pending` / `shipped` / `delivered` / `cancelled`), склад виконання, дані покупця (ім'я, телефон, email), загальна сума, `created_at`, `updated_at`, `created_by`. |
-| `OrderItem` | Позиція замовлення. Товар (product_id), кількість, ціна на момент продажу (`price`), собівартість на момент продажу (`cost_price` — для розрахунку маржі). |
-
-### 5.4 Auth Service (auth_db, PostgreSQL 5433)
-
-Керується Better Auth (існуюча схема):
-
-| Таблиця | Опис |
-|---------|------|
-| `user` | Користувачі (email, ім'я, роль, статус) |
-| `session` | Активні сесії (токен, IP, user agent, термін дії) |
-| `account` | Зв'язані акаунти (OAuth провайдери) |
-| `verification` | Коди верифікації (email, 2FA) |
+| Resource | User | Cashier | Warehouse Worker | Admin |
+|----------|:----:|:-------:|:----------------:|:-----:|
+| Catalog (read) | ✅ | ✅ | ✅ | ✅ |
+| Cart | ✅ | ❌ | ❌ | ❌ |
+| Orders (create) | ✅ (own) | ✅ (POS) | ❌ | ✅ |
+| Orders (view) | ✅ (own) | ✅ (own POS) | ❌ | ✅ (all) |
+| Orders (status change) | ❌ | ❌ | ❌ | ✅ |
+| Warehouses (view) | ❌ | ❌ | ✅ | ✅ |
+| Goods Receipts (GRN) | ❌ | ❌ | ✅ | ✅ |
+| Suppliers | ❌ | ❌ | ❌ | ✅ |
+| Catalog (edit) | ❌ | ❌ | ❌ | ✅ |
+| Users (manage) | ❌ | ❌ | ❌ | ✅ |
+| Reports | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
-## 6. Подієво-керована інтеграція (RabbitMQ)
+## 3. i18n / Localization System
 
-### 6.1 Каталог подій
+### 3.1 Architecture
 
-| Подія | Publisher | Споживачі | Опис |
-|-------|-----------|-----------|------|
-| `inventory.stock.changed` | Inventory Service | Product Service | Зміна залишку на будь-якому складі. Product Service перераховує `total_stock`. |
-| `order.created` | Order Service | Inventory Service | Нове замовлення створено. Inventory Service резервує залишок (якщо не зроблено синхронно). |
-| `order.cancelled` | Order Service | Inventory Service | Замовлення скасовано. Inventory Service повертає зарезервований залишок. |
-| `order.status_changed` | Order Service | — (майбутнє) | Зміна статусу замовлення (для сповіщень покупцю). |
-| `inventory.goods_received` | Inventory Service | Product Service | Оприбутковано нову партію товару (може використовуватись для оновлення рейтингу новинок). |
+- **Frontend**: `next-intl` v4.13 with `localePrefix: "always"`
+- **URLs**: `/{locale}/...` — e.g., `/ua/products`, `/en/admin/summary`
+- **Default locale**: `ua` (Ukrainian)
+- **Secondary locale**: `en` (English)
+- **Root `/`** redirects to `/ua`
 
-### 6.2 Синхронна vs Асинхронна комунікація
-
-| Операція | Тип | Обґрунтування |
-|----------|-----|---------------|
-| Перевірка наявності товару | **Синхронна (HTTP)** | Клієнт повинен знати результат негайно (показати "в наявності" / "немає") |
-| Резервування залишку при checkout | **Синхронна (HTTP)** | Критичний шлях — якщо товару немає, замовлення не створюється |
-| Списання залишку при відправленні | **Синхронна (HTTP)** | Атомарна операція — замовлення + списання мають відбутись разом (Saga) |
-| Оновлення `total_stock` у Product Service | **Асинхронна (RabbitMQ)** | Не критично для користувача, може бути eventually consistent |
-| Сповіщення про нове замовлення | **Асинхронна (RabbitMQ)** | Інформаційна подія, не блокує checkout |
-
-### 6.3 Обмінники RabbitMQ
+### 3.2 Route Structure
 
 ```
-Тип: topic exchange
-
-inventory.stock.changed     → queue: product.stock.sync
-order.created               → queue: inventory.order.reserve
-order.cancelled             → queue: inventory.order.release
-inventory.goods_received    → queue: product.catalog.update
+/ua                    → UA home page
+/en                    → EN home page
+/ua/products           → UA product catalog
+/en/products           → EN product catalog
+/ua/admin/summary      → UA admin panel
+/en/admin/summary      → EN admin panel
+...same pattern for all routes
 ```
+
+### 3.3 Implementation
+
+- **Message files**: `app/messages/ua.json`, `app/messages/en.json` (~400 keys each)
+- **Locale detection**: `proxy.ts` uses `createIntlMiddleware` from `next-intl/middleware`
+- **Navigation**: locale-aware `Link`, `useRouter`, `usePathname` from `~/i18n/navigation` (wraps `next-intl/navigation`)
+- **Provider**: `NextIntlClientProvider` in `[locale]/layout.tsx`
+- **Location**: i18n config lives in `app/i18n/` (routing.ts, navigation.ts, request.ts)
+- **Metadata**: `generateMetadata` in `[locale]/layout.tsx` returns locale-specific `<title>`
+
+### 3.4 Backend Bilingual Fields
+
+- **Product**: `name_uk`/`name_en`, `description_uk`/`description_en`
+- **Category**: `name_uk`/`name_en`, `description_uk`/`description_en`
+- **Pricing**: UAH (default), USD when `Accept-Language: en` (`UAH_TO_USD_RATE = 41.5`)
+- **Serializer**: `to_representation()` reads `Accept-Language` header, falls back to `name`/`description`
+- **Gateway**: passes `Accept-Language` through to backend
+
+### 3.5 Language Switcher
+
+- **Admin sidebar**: UA/EN toggle buttons using `window.location.href`
+- **Storefront header**: UA/EN toggle buttons in right-side actions area
+- **Pattern**: `window.location.href = \/${lang.code}${pathname}` where `pathname` comes from locale-aware `usePathname` (strips locale prefix)
 
 ---
 
-## 7. Ключові архітектурні рішення
+## 4. Business Processes
 
-### 7.1 Чому мікросервіси
-
-- **Незалежне розгортання**: Оновлення каталогу не зупиняє обробку замовлень.
-- **Різні профілі навантаження**: Product Service — read-heavy (кешування), Order/Inventory — write-heavy (транзакційність).
-- **Ізоляція відмов**: Якщо Inventory Service недоступний, каталог і кошик продовжують працювати.
-- **Демонстрація компетенції**: Мікросервісна архітектура є ключовою темою магістерської роботи.
-
-### 7.2 Чому RabbitMQ, а не Kafka
-
-| Критерій | RabbitMQ | Kafka |
-|----------|----------|-------|
-| Призначення | Брокер повідомлень (push, черги, exchange) | Потокова платформа (pull, логи, партиції) |
-| Сценарій використання | Service-to-service команди, розподіл задач | Високопродуктивні потоки подій, data pipelines |
-| Споживання ресурсів | ~50 MB RAM, один контейнер | ~1+ GB RAM, потребує Zookeeper/KRaft |
-| Крива навчання | Помірна | Крута |
-| Для TechHub | ✅ Ідеально | ❌ Надлишково |
-
-### 7.3 Чому Django/DRF для нових сервісів
-
-- **Вбудована адмін-панель**: Дає готовий UI для управління складами, замовленнями, постачальниками без додаткової frontend-розробки.
-- **Консистентний патерн**: Такий самий стек, як у Product Service — спрощує розробку та підтримку.
-- **ORM + міграції**: Django ORM з перевіреним механізмом міграцій.
-- **DRF**: Готовий REST API з автодокументацією (Swagger/ReDoc), пагінацією, фільтрацією.
-- **GatewayAuthentication**: Патерн аутентифікації вже реалізований у Product Service — нові сервіси використовують той самий підхід.
-
-### 7.4 Чому Database per Service
-
-- **Справжня ізоляція**: Кожен сервіс не залежить від схеми даних іншого.
-- **Незалежне масштабування**: Можна оптимізувати БД окремо під профіль навантаження.
-- **Відсутність спільних транзакцій**: Стимулює правильну міжсервісну комунікацію (Saga, eventual consistency).
-- **Демонстрація патерну**: Database per Service — один із ключових патернів мікросервісної архітектури.
-
-### 7.5 Стратегія розподілених транзакцій — Saga
-
-Для операцій, що охоплюють кілька сервісів (наприклад, створення замовлення + списання залишку), використовується **патерн Saga**:
+### 4.1 Goods Receipt (Inbound)
 
 ```
-1. Order Service: Створити замовлення (status=pending)
-2. Order Service → Inventory Service: Зарезервувати залишок (HTTP)
-3. Якщо крок 2 успішний:
-   → Замовлення підтверджено
-   → При відправленні: списання залишку (HTTP)
-4. Якщо крок 2 неуспішний:
-   → Order Service: Скасувати замовлення (компенсуюча дія)
+Supplier → Delivery → GRN creation → Stock added to warehouse
 ```
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Worker creates Goods Receipt Note | Inventory |
+| 2 | Stock added (qty + cost_price), weighted-average cost recalculated | Inventory |
+| 3 | `inventory.stock.changed` published | → RabbitMQ |
+
+### 4.2 Internal Transfer
+
+```
+Central warehouse → Transfer → Showroom
+```
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Worker creates transfer between warehouses | Inventory |
+| 2 | Source stock decreased, destination stock increased | Inventory |
+| 3 | Entry logged in `StockMovement` (type: `transfer`) | Inventory |
+
+### 4.3 Online Sale
+
+```
+Customer → Browse → Cart → Checkout → Reserve → Ship → Deduct
+```
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Browse catalog, add to cart | Product |
+| 2 | Checkout (order create) | Order (via Gateway) |
+| 3 | Order created with status `pending` | Order |
+| 4 | Order calls Inventory → **reserve** stock | Inventory (HTTP) |
+| 5 | `order.created` published | → RabbitMQ |
+| 6 | Admin changes status to `shipped` | Order |
+| 7 | Order calls Inventory → **deduct** stock | Inventory (HTTP) |
+| 8 | `inventory.stock.changed` published | → RabbitMQ |
+| 9 | Status → `delivered` → `completed` | Order |
+
+### 4.4 Offline Sale (POS)
+
+```
+Customer in showroom → Cashier via POS → Search → Sale → Deduct
+```
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Cashier searches product in POS | Frontend → Product |
+| 2 | Cashier adds items to POS receipt, enters buyer info | Frontend |
+| 3 | Cashier confirms sale | Order (via Gateway) |
+| 4 | Order created: `channel=offline`, `status=delivered` | Order |
+| 5 | Order calls Inventory → **deduct** from showroom | Inventory (HTTP) |
+
+### 4.5 Order Cancellation
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Admin sets status to `cancelled` | Order |
+| 2 | Order calls Inventory → **return** reserved stock | Inventory (HTTP) |
+| 3 | `order.cancelled` published | → RabbitMQ |
 
 ---
 
-## 8. Виклики розподілених систем
+## 5. Data Architecture
 
-### 8.1 Атомарність залишків між сервісами
+### 5.1 Product Service (products_db, PostgreSQL)
 
-**Проблема**: Order Service списує залишок через Inventory Service, але якщо HTTP-запит успішний, а Order Service падає до оновлення статусу — залишок списано, а замовлення не оновлено.
+| Entity | Description |
+|--------|-------------|
+| `Category` | Hierarchical categories. Bilingual fields: `name_uk`/`name_en`, `description_uk`/`description_en` |
+| `Product` | Product with bilingual fields (`name_uk`/`name_en`, `description_uk`/`description_en`), pricing (UAH), energy class, warranty, images, total_stock |
+| `Cart` | Session-based cart (UUID session_id or user_id). No auth required |
+| `CartItem` | Cart item (product + quantity). Merge endpoint for anonymous→user |
 
-**Рішення**: Saga + ідемпотентність. Inventory Service підтримує ідемпотентні операції (передається `idempotency_key`), а Order Service може безпечно повторювати списання.
+### 5.2 Inventory Service (inventory_db, PostgreSQL)
 
-### 8.2 Ідемпотентність споживачів RabbitMQ
+| Entity | Description |
+|--------|-------------|
+| `Warehouse` | Warehouse/showroom. Name, type (`warehouse`/`showroom`), address, active |
+| `Stock` | Stock level per product per warehouse. Unique: `(product_id, warehouse_id)` |
+| `StockMovement` | Audit log. Types: `receipt`, `transfer`, `sale`, `adjustment`, `write_off`, `reserve`, `release`, `deduct` |
+| `Supplier` | Supplier name, contact person, phone, email, address |
+| `GoodsReceiptNote` | GRN. Supplier, date, notes, author |
+| `GoodsReceiptItem` | GRN item. Product, qty, cost_price. On create: auto-increments Stock.qty |
 
-**Проблема**: RabbitMQ гарантує at-least-once доставку — повідомлення може бути доставлене двічі.
+### 5.3 Order Service (orders_db, PostgreSQL)
 
-**Рішення**: Кожна подія містить унікальний `event_id`. Споживач перевіряє, чи вже оброблена подія з таким ID (зберігає оброблені ID у локальній таблиці `ProcessedEvent` з TTL).
+| Entity | Description |
+|--------|-------------|
+| `Order` | Order with auto-number, channel (`online`/`offline`), status (`unpaid`→`paid`→`delivering`→`delivered`→`completed`/`cancelled`), customer data, totals |
+| `OrderItem` | Order line. Product, qty, price at sale, cost_price at sale (for margin calc) |
 
-### 8.3 Валідація зовнішніх посилань
+### 5.4 Auth Service (auth_db, PostgreSQL)
 
-**Проблема**: Inventory Service зберігає `product_id`, але товар належить Product Service. Як валідувати, що товар існує?
+Managed by Better Auth:
+- `user`: email, name, role, status
+- `session`: token, IP, user agent, expiry
+- `account`: linked OAuth accounts
+- `verification`: email/2FA codes
 
-**Рішення**: При створенні запису Inventory Service робить валідаційний HTTP-запит до Product Service (`GET /api/products/{id}/`). Якщо 404 — операція відхиляється. Для швидкодії можна кешувати існування товарів.
+---
 
-### 8.4 Облік собівартості при різних партіях
+## 6. Event-Driven Integration (RabbitMQ)
 
-**Проблема**: Один і той самий товар може бути закуплений за різною собівартістю в різних партіях. Яку собівартість списувати при продажу?
+### 6.1 Event Catalog
 
-**Рішення**: **Середньозважена собівартість** (weighted average). При кожному оприбуткуванні перераховується середня собівартість одиниці товару на складі:
+| Event | Publisher | Consumers | Description |
+|-------|-----------|-----------|-------------|
+| `inventory.stock.changed` | Inventory | — (future: Product) | Stock level changed on any warehouse |
+| `order.created` | Order | Inventory | New order → reserve stock |
+| `order.cancelled` | Order | Inventory | Order cancelled → release stock |
+| `order.status_changed` | Order | — (future) | Status change notifications |
 
+### 6.2 Saga Pattern
+
+Critical multi-service operations use Saga:
 ```
-нова_середня = (старий_залишок × стара_собівартість + новий_залишок × нова_собівартість) / (старий_залишок + новий_залишок)
+1. Order Service: Create order (status=pending)
+2. Order → Inventory: Reserve stock (HTTP with idempotency_key)
+3. If success → order confirmed
+4. If failure → Order: Cancel order (compensating action)
 ```
 
 ---
 
-## 9. Безпека та контроль доступу
+## 7. API Design
 
-### 9.1 Потік аутентифікації
+### 7.1 Gateway Routes
 
 ```
-1. Користувач логіниться → Auth Service встановлює сесійний cookie
-2. Кожен запит → Gateway → GET /auth/me (верифікація сесії)
-3. Gateway впроваджує X-Gateway-User-* заголовки
-4. Сервіси (Product, Inventory, Order) довіряють цим заголовкам через GatewayAuthentication
+/api/inventory/*     → inventory-service:8001
+/api/orders/*        → order-service:8002
+/api/reports/*       → order-service:8002
+/api/notifications/* → notification-service:8003
+/api/cart/*          → product-service:8000
+/api/*               → product-service:8000
+/media/*             → product-service:8000
+/auth/*              → auth-service:3001
+/*                   → frontend:3000
 ```
 
-### 9.2 Ролі та дозволи
+### 7.2 Product Service (`/api/`)
 
-| Ресурс | Customer | Cashier | Warehouse Worker | Admin |
-|--------|:--------:|:-------:|:-----------------:|:-----:|
-| Каталог (читання) | ✅ | ✅ | ✅ | ✅ |
-| Кошик | ✅ | ❌ | ❌ | ❌ |
-| Замовлення (створення) | ✅ (свої) | ✅ (POS) | ❌ | ✅ |
-| Замовлення (перегляд) | ✅ (свої) | ✅ (свої POS) | ❌ | ✅ (всі) |
-| Замовлення (зміна статусу) | ❌ | ❌ | ❌ | ✅ |
-| Склади (перегляд) | ❌ | ❌ | ✅ | ✅ |
-| Оприбуткування (GRN) | ❌ | ❌ | ✅ | ✅ |
-| Постачальники | ❌ | ❌ | ❌ | ✅ |
-| Каталог (редагування) | ❌ | ❌ | ❌ | ✅ |
-| Користувачі (управління) | ❌ | ❌ | ❌ | ✅ |
-| Звіти | ❌ | ❌ | ❌ | ✅ |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/products/` | Product list (filtering, pagination, locale-aware) |
+| GET | `/api/products/{id}/` | Product detail (locale-aware) |
+| POST | `/api/products/` | Create product |
+| GET | `/api/categories/` | Category list (locale-aware) |
+| GET | `/api/cart/` | Cart contents (by session or user) |
+| POST | `/api/cart/add_item/` | Add item |
+| POST | `/api/cart/merge/` | Merge anonymous cart into user cart |
+
+### 7.3 Inventory Service (`/api/inventory/`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/inventory/warehouses/` | Warehouse list |
+| POST | `/api/inventory/warehouses/` | Create warehouse |
+| GET | `/api/inventory/warehouses/{id}/stock/` | Stock by warehouse |
+| GET | `/api/inventory/stock/` | Stock query (filter: `?warehouse_id=&product_id=`) |
+| POST | `/api/inventory/stock/reserve/` | Reserve stock (internal) |
+| POST | `/api/inventory/stock/deduct/` | Deduct stock (internal) |
+| GET | `/api/inventory/stock/movements/` | Stock movement log |
+| GET | `/api/inventory/suppliers/` | Supplier list |
+| POST | `/api/inventory/suppliers/` | Create supplier |
+| GET | `/api/inventory/goods-receipts/` | GRN list |
+| POST | `/api/inventory/goods-receipts/` | Create GRN |
+
+### 7.4 Order Service (`/api/orders/`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/orders/` | Order list (filter: `?status=&channel=`) |
+| POST | `/api/orders/` | Create order (checkout/POS) |
+| GET | `/api/orders/{id}/` | Order detail |
+| PATCH | `/api/orders/{id}/` | Update status |
+| GET | `/api/orders/my/` | Current user's orders |
+| POST | `/api/orders/pos/` | POS sale |
+| GET | `/api/reports/sales/` | Sales report |
+| GET | `/api/reports/revenue/` | Revenue & margin report |
+| GET | `/api/reports/inventory-value/` | Inventory valuation |
 
 ---
 
-## 10. Дизайн API
+## 8. Frontend
 
-### 10.1 Конвенції
-
-- **RESTful**: ресурси у множині (`/api/products/`, `/api/orders/`)
-- **JSON**: `Content-Type: application/json`
-- **Версіонування**: через URL префікс (`/api/v1/...` — опціонально)
-- **Пагінація**: `?page=1&page_size=20`, відповідь містить `count`, `next`, `previous`, `results`
-- **Фільтрація**: query-параметри (`?category=1&min_price=1000`)
-- **Сортування**: `?ordering=price` / `?ordering=-created_at`
-- **Автентифікація**: Cookie-based (сесія) + `X-Gateway-User-*` заголовки між сервісами
-- **Документація**: Swagger UI (`/api/docs/`) та ReDoc (`/api/redoc/`) через DRF
-
-### 10.2 Product Service (існуючий, `/api/`)
-
-| Метод | Шлях | Опис |
-|-------|------|------|
-| GET | `/api/products/` | Список товарів (фільтрація, пагінація) |
-| GET | `/api/products/{id}/` | Деталі товару |
-| POST | `/api/products/` | Створити товар (admin) |
-| GET | `/api/categories/` | Список категорій |
-| GET | `/api/cart/` | Вміст кошика (по сесії) |
-| POST | `/api/cart/add_item/` | Додати товар у кошик |
-| POST | `/api/cart/update_item/` | Змінити кількість |
-| POST | `/api/cart/remove_item/` | Видалити з кошика |
-| POST | `/api/cart/clear/` | Очистити кошик |
-
-### 10.3 Inventory Service (новий, `/api/inventory/`)
-
-| Метод | Шлях | Опис |
-|-------|------|------|
-| GET | `/api/warehouses/` | Список складів |
-| POST | `/api/warehouses/` | Створити склад (admin) |
-| GET | `/api/warehouses/{id}/stock/` | Залишки на складі |
-| GET | `/api/stock/` | Залишки (фільтр: `?warehouse_id=&product_id=`) |
-| POST | `/api/stock/reserve/` | Зарезервувати залишок (internal) |
-| POST | `/api/stock/deduct/` | Списати залишок (internal) |
-| GET | `/api/stock/movements/` | Журнал руху товару |
-| GET | `/api/suppliers/` | Список постачальників |
-| POST | `/api/suppliers/` | Додати постачальника (admin) |
-| GET | `/api/goods-receipts/` | Список накладних оприбуткування |
-| POST | `/api/goods-receipts/` | Створити оприбуткування |
-
-### 10.4 Order Service (новий, `/api/orders/`)
-
-| Метод | Шлях | Опис |
-|-------|------|------|
-| GET | `/api/orders/` | Список замовлень (фільтр: `?status=&channel=&customer_email=`) |
-| POST | `/api/orders/` | Створити замовлення (online checkout / POS) |
-| GET | `/api/orders/{id}/` | Деталі замовлення |
-| PATCH | `/api/orders/{id}/` | Оновити статус замовлення (admin) |
-| GET | `/api/orders/my/` | Замовлення поточного користувача (customer) |
-| POST | `/api/orders/pos/` | Створити офлайн-продаж через POS (cashier) |
-| GET | `/api/reports/sales/` | Звіт з продажу |
-| GET | `/api/reports/revenue/` | Звіт з виручки та маржі |
-| GET | `/api/reports/inventory-value/` | Оцінка вартості запасів |
-
----
-
-## 11. Фронтенд
-
-### 11.1 Стек
+### 8.1 Stack
 
 - **Next.js 16** (App Router) + React 19
 - **Tailwind CSS v4** + shadcn/ui (Radix primitives)
-- **Framer Motion** (анімації)
-- **Lucide React** (іконки)
-- **Geist** (шрифт)
-- Сучасний мінімалістичний дизайн, світла/темна тема
+- **Framer Motion** (animations)
+- **next-intl v4.13** (i18n)
+- **Lucide React** (icons)
+- **Geist** (font)
+- Dark/light theme
 
-### 11.2 Сторінки — Покупець (Storefront)
+### 8.2 Route Structure (all under `/[locale]/`)
 
-| Сторінка | Призначення |
-|----------|-------------|
-| Головна (`/`) | Hero-секція, категорії, популярні товари, CTA |
-| Каталог (`/products`) | Список товарів із фільтрацією (категорія, ціна, енергоклас) |
-| Картка товару (`/products/[id]`) | Деталі: фото, опис, характеристики (енергоклас, розміри, гарантія), ціна, кнопка "в кошик" |
-| Кошик | Огляд кошика, зміна кількості, перехід до оформлення |
-| Оформлення | Контактні дані, підтвердження замовлення |
-| Відстеження замовлення | Статус замовлення (pending → shipped → delivered) |
-| Вхід / Реєстрація | Email/пароль, Google OAuth, GitHub OAuth |
+| Route | Purpose |
+|-------|---------|
+| `/` → `/ua` | Home (hero, categories, features, testimonials, CTA) |
+| `/products` | Product catalog with filtering |
+| `/checkout` | Checkout flow (cart → payment) |
+| `/orders` | Customer's orders |
+| `/admin/summary` | Admin dashboard (stats, health) |
+| `/admin/products` | Product CRUD |
+| `/admin/categories` | Category management |
+| `/admin/orders` | Order management |
+| `/admin/pos` | POS terminal |
+| `/admin/reports` | Sales reports |
+| `/admin/warehouses` | Warehouse management |
+| `/admin/suppliers` | Supplier management |
+| `/admin/stock-movements` | Stock movement log |
+| `/admin/goods-receipts` | GRN management |
+| `/admin/users` | User management |
 
-### 11.3 Сторінки — Адмін-панель
+### 8.3 Language Structure
 
-| Сторінка | Призначення |
-|----------|-------------|
-| Dashboard | Огляд: кількість замовлень, виручка, низькі залишки |
-| Товари | CRUD товарів, керування категоріями |
-| Склади | Перегляд залишків за складами, журнал руху |
-| Постачальники | CRUD постачальників |
-| Оприбуткування | Створення накладних оприбуткування (GRN) |
-| Замовлення | Список замовлень, зміна статусу, фільтрація |
-| **POS** | Інтерфейс касира: пошук товару, формування чеку, оформлення офлайн-продажу |
-| Звіти | Виручка, маржинальність, вартість запасів |
-| Користувачі | Управління користувачами (ролі, статуси) |
-
-### 11.4 POS-інтерфейс (мінімальний)
-
-- Пошук товару за назвою / SKU
-- Сітка результатів із ціною та наявністю
-- Область "чек" — вибрані товари з кількістю та сумою
-- Поле вводу даних покупця (ім'я, телефон)
-- Кнопка "Оформити продаж" → створює `channel=offline` замовлення
+- `proxy.ts`: i18n middleware + auth proxy (Next.js 16, replaces middleware.ts)
+- `app/i18n/routing.ts`: locale config (ua, en; prefix: always)
+- `app/i18n/navigation.ts`: locale-aware Link, redirect, usePathname, useRouter
+- `app/i18n/request.ts`: message loading
+- `app/messages/ua.json`, `app/messages/en.json`: translation files
+- `app/[locale]/layout.tsx`: NextIntlClientProvider + generateMetadata
+- Each page component uses `useTranslations()` (client) or `getTranslations()` (server)
 
 ---
 
-## 12. Локалізація та i18n
+## 9. Deployment
 
-- **Основна мова**: українська (інтерфейс, каталог, адмін-панель)
-- **Додаткова мова**: англійська (поля товарів, деякі елементи UI)
-- **Назва магазину**: TechHub (єдине для обох мов)
-- **Валюта**: UAH (₴) для української локалі, USD ($) для англійської
-- **Поля товару**: `name_uk` / `name_en`, `description_uk` / `description_en`
-- **Форматування**: ціни через `Intl.NumberFormat`, дати через `Intl.DateTimeFormat`
-
----
-
-## 13. Нефункціональні вимоги
-
-| Вимога | Ціль |
-|--------|------|
-| **Доступність** | Система має бути доступною через єдиний порт (80) |
-| **Час відгуку** | < 200ms для читання каталогу (з кешуванням), < 500ms для операцій запису |
-| **Узгодженість** | Сильна узгодженість для критичних операцій (списання залишку), eventual consistency для некритичних (total_stock) |
-| **Відмовостійкість** | Незалежна відмова сервісів не блокує всю систему (каталог працює без Inventory Service) |
-| **Розгортання** | `docker compose up` — повне розгортання всіх сервісів, БД, RabbitMQ, Redis однією командою |
-| **Моніторинг** | Health-check ендпоінти у кожному сервісі (`/health`) |
-| **Безпека** | Cookie-based сесії (httpOnly, secure), CSRF-захист, rate limiting (Redis), валідація вхідних даних |
-| **Адаптивність** | Frontend адаптований під мобільні пристрої (Tailwind responsive) |
-
----
-
-## 14. Розгортання
-
-### 14.1 Docker Compose — Карта контейнерів
+### 9.1 Docker Compose
 
 ```
-Сервіси:
-┌─────────────────────────────────────────────────────────┐
-│  gateway          :80 (FastAPI)                         │
-│  frontend         :3000 (Next.js)                       │
-│  auth-service     :3001 (Express)                       │
-│  product-service  :8000 (Django)                        │
-│  inventory-service:8001 (Django)          ← NEW         │
-│  order-service    :8002 (Django)          ← NEW         │
-│                                                         │
-│  products_db      :5432 (PostgreSQL)                    │
-│  auth_db          :5433 (PostgreSQL)                    │
-│  inventory_db     :5434 (PostgreSQL)      ← NEW         │
-│  orders_db        :5435 (PostgreSQL)      ← NEW         │
-│                                                         │
-│  rabbitmq         :5672 (AMQP), :15672 (mgmt) ← NEW     │
-│  redis            :6379                                 │
-└─────────────────────────────────────────────────────────┘
+Services:
+  gateway           :80 (Nginx + njs)
+  frontend          :3000 (Next.js)
+  auth-service      :3001 (Express)
+  product-service   :8000 (Django)
+  inventory-service :8001 (Django)
+  order-service     :8002 (Django)
+  
+  products_db       :5432 (PostgreSQL)
+  auth_db           :5433 (PostgreSQL)
+  inventory_db      :5434 (PostgreSQL)
+  orders_db         :5435 (PostgreSQL)
+  
+  rabbitmq          :5672 (AMQP), :15672 (mgmt)
+  redis             :6379
+  ...
 
 Network: microservices_network (bridge)
 ```
 
-### 14.2 Маршрутизація Gateway
+### 9.2 Key Nginx Config Points
 
-```
-/api/products/*     → product-service:8000
-/api/inventory/*    → inventory-service:8001    ← NEW
-/api/orders/*       → order-service:8002        ← NEW
-/api/cart/*         → product-service:8000
-/media/*            → product-service:8000
-/auth/*             → auth-service:3001
-/*                  → frontend:3000
-```
+- Route order: prefix matches must come before `/{path}`
+- `/auth-check` internal location (returns 200 even on auth failure via `proxy_intercept_errors`)
+- All API routes go through `auth_request /auth-check` + `js_content auth.checkAndProxy`
+- CORS: njs-driven `checkOrigin`, server-level `add_header` for all responses
+- WebSocket support for frontend HMR
+- `proxy_redirect` rewrites internal service URLs to public
 
 ---
 
-## 15. Стратегія тестування
+## 10. Current Status
 
-### 15.1 Рівні тестування
+### Done ✅
 
-| Рівень | Інструменти | Обсяг |
-|--------|------------|-------|
-| **Юніт-тести** | Django TestCase (Product, Inventory, Order), Vitest (Auth) | Моделі, серіалізатори, бізнес-логіка в межах одного сервісу |
-| **Інтеграційні тести** | Django TestCase (API), Supertest (Auth) | End-to-end у межах сервісу (HTTP запит → відповідь) |
-| **E2E тести** | Playwright | Користувацькі сценарії через UI (перегляд каталогу, оформлення замовлення, POS-продаж) |
+| Domain | Status |
+|--------|--------|
+| Gateway (Nginx + njs) | ✅ Fully functional |
+| Auth Service (Express + Better Auth) | ✅ Users, sessions, roles, 2FA, OAuth |
+| Product Service (Django/DRF) | ✅ Catalog, categories, cart, bilingual fields |
+| Inventory Service (Django/DRF) | ✅ Warehouses, stock, movements, suppliers, GRN, events |
+| Order Service (Django/DRF) | ✅ Orders, POS, reports, revenue/margin, Saga |
+| RabbitMQ Integration | ✅ Events, consumers, deduplication |
+| Frontend Storefront | ✅ Pages, catalog, cart, checkout, auth |
+| Frontend Admin Panel | ✅ Products, orders, POS, reports, users, warehouses, suppliers, GRN, stock movements |
+| Frontend i18n | ✅ UA/EN routes, message files (~400 keys), language switcher, bilingual backend fields |
+| Agent Rules (AGENTS.md) | ✅ Context per service, test-as-spec rule |
 
-### 15.2 Принципи
+### Known Issues 🐛
 
-- **Product-service тести — специфікація**: Існуючі тести не змінюються. Якщо тест падає — проблема в коді, не в тесті.
-- **Кожен сервіс тестується ізольовано**: Використовуються моки для зовнішніх залежностей.
-- **Ідемпотентність тестів**: Кожен тест створює власні дані, не залежить від порядку виконання.
-
----
-
-## 16. План розробки
-
-### Фаза 1 — Фундамент (основа є ✅)
-
-- [x] Gateway (FastAPI) — маршрутизація, перевірка сесій
-- [x] Auth Service (Express + Better Auth) — користувачі, сесії, 2FA
-- [x] Product Service (Django + DRF) — каталог, категорії, кошик
-- [x] Frontend (Next.js) — базова вітрина, сторінки продуктів
-
-### Фаза 2 — Складський облік (Inventory Service) ✅ Частково
-
-- [x] Створення сервісу (Django проект, Dockerfile, docker-compose інтеграція)
-- [x] Моделі: `Warehouse`, `Stock`, `StockMovement`, `Supplier`, `GoodsReceiptNote`, `GoodsReceiptItem`
-- [x] API: CRUD складів, залишки, журнал руху, постачальники, оприбуткування
-- [x] Бізнес-логіка: атомарне резервування/списання/повернення залишків (`select_for_update`)
-- [x] Gateway маршрутизація `/api/inventory/*` → inventory-service
-- [x] RabbitMQ: publisher для `inventory.stock.changed` + consumer для `order.created`/`order.cancelled`
-- [x] Admin UI: перегляд складів, залишків, постачальників, накладних (read-only)
-- [ ] Роль `warehouse_worker` в auth-сервісі (заблоковано: всі мутації вимагають `admin`)
-- [ ] UI для створення GRN, складів, постачальників
-- [ ] Endpoint для внутрішнього переміщення (transfer) між складами
-- [ ] Валідація product_id через Product Service
-
-### Фаза 3 — Замовлення (Order Service) ✅ Частково
-
-- [x] Створення сервісу (Django проект, Dockerfile, docker-compose інтеграція)
-- [x] Моделі: `Order`, `OrderItem`
-- [x] API: CRUD замовлень, зміна статусу, POS checkout, звіти
-- [x] Бізнес-логіка: Saga для checkout (створення замовлення + резервування), статусна машина замовлення
-- [x] Інтеграція з Inventory Service (HTTP: резервування, списання, повернення)
-- [x] Gateway маршрутизація `/api/orders/*` → order-service
-- [x] RabbitMQ: publisher для `order.created`, `order.cancelled`, `order.status_changed`
-- [x] Admin UI: управління замовленнями, POS-інтерфейс, звіти
-- [x] Звіти: виручка, собівартість, маржинальність
-- [ ] Роль `cashier` в auth-сервісі (заблоковано: всі мутації вимагають `admin`)
-- [ ] Gateway дозволяє покупцям створювати замовлення (POST /api/orders/ → будь-який authenticated user)
-- [ ] Gateway дозволяє касирам POS-продажі (POST /api/orders/pos/ → cashier або admin)
-- [ ] Saga-компенсація: невдале резервування → скасування замовлення
-
-### Фаза 4 — Інтеграція та події (RabbitMQ) ✅ Частково
-
-- [x] Запуск RabbitMQ у docker-compose
-- [x] Налаштування exchange/черг (techhub.events, 4 черги)
-- [x] Inventory Service: споживач `order.created` → резервування (async)
-- [x] Inventory Service: споживач `order.cancelled` → повернення залишку (async)
-- [x] Ідемпотентність споживачів (deduplication за `event_id` через `ProcessedEvent`)
-- [ ] Product Service: споживач `inventory.stock.changed` → оновлення `total_stock`
-- [ ] Product Service: споживач `inventory.goods_received` → оновлення каталогу
-
-### Фаза 5 — Контент та візуал (Frontend)
-
-- [ ] **Ребрендинг**: Оновлення назви на "TechHub", метаданих
-- [ ] **Українізація**: Переклад UI (hero, категорії, CTA, форми)
-- [ ] **Категорії**: Зміна на побутову техніку (Холодильники, Пральні машини, Духовки, Дрібна техніка)
-- [ ] **Стилізація**: Фірмові кольори (сучасний мінімалізм, чистий дизайн)
-- [ ] **POS-інтерфейс**: Окрема сторінка для касира
-- [ ] **Сторінка замовлень**: Відстеження статусу для покупця
-- [ ] **Адмін-панель**: Розширення для Inventory + Order сервісів
-- [ ] **Seeding**: Реалістичні тестові дані (товари побутової техніки)
-
-### Фаза 6 — Фіналізація
-
-- [ ] E2E тести (Playwright) — ключові сценарії
-- [ ] Повна документація API (Swagger/ReDoc для всіх сервісів)
-- [ ] Виправлення помилок, оптимізація
-- [ ] Оформлення магістерської роботи (пояснювальна записка, діаграми)
+| Issue | Notes |
+|-------|-------|
+| `orders_db` test DB leftover | `EOFError` when running order-service tests (pre-existing) |
+| Backend tests assertion count | Some tests pass system check but may have 0 assertions |
+| `warehouse_worker`/`cashier` roles | Defined in auth but gateway/frontend gated — mutated views still require `admin` in many cases |
+| Testimonials mock data | Hardcoded in Ukrainian (not yet extracted to translations) |
+| Order service test DB prompt | `autoclobber` not set, prompts for user input |
 
 ---
 
-> **Поточний статус**: Фази 1–3 завершені ✅ — всі сервіси створені, API працює, RabbitMQ працює. Основний блокер: **ролі `cashier` та `warehouse_worker` відсутні в auth-сервісі**, через що Gateway блокує POS-продажі, створення замовлень покупцями та оприбуткування комірниками. Деталі — див. `REPORT.md`.
+## 11. Tech Stack Summary
+
+| Layer | Technology |
+|-------|-----------|
+| **Runtime** | Python 3.11 (Django services), Node.js 20+ (Auth, Frontend) |
+| **Frameworks** | Django 5 + DRF, Next.js 16, Express 5 |
+| **Database** | PostgreSQL 15 (4 instances) |
+| **Cache** | Redis 7 |
+| **Message broker** | RabbitMQ 3.13 |
+| **Gateway** | Nginx + njs (auth plugin) |
+| **Frontend** | React 19, Tailwind CSS v4, shadcn/ui, Framer Motion |
+| **i18n** | next-intl v4.13 |
+| **Auth** | Better Auth |
+| **Payments** | Stripe (webhook integration) |
+| **Notifications** | Resend (email), RabbitMQ events |

@@ -381,3 +381,17 @@
 | 10 | **N10 — Impersonation** | 🟠 High |
 | 11 | **N0 — Anonymous Checkout** | 🟠 High |
 | 12+ | N3, B3, B5, B7, B8, B9 | Various |
+
+---
+
+## Architecture Weaknesses (Deferred)
+
+| # | Weakness | Impact | Mitigation |
+|---|----------|--------|------------|
+| **W1** | **Cart spans product-service, orders on order-service** — checkout requires two services. If either is down, checkout fails. | Normal microservice complexity. | Already handled: cart creates session, order creates order. Saga pattern. |
+| **W2** | **No CSRF protection on anonymous cart writes** — `authentication_classes = []` disables Django CSRF middleware for cart endpoints. Anonymous POSTs have no CSRF token validation. | Low — adding/removing cart items has no permanent side effects beyond cart state. | Accept for now. Cart has no destructive side effects. |
+| **W3** | **Order `created_by` inconsistent across auth methods** — UUID for gateway users, empty string for anonymous, Django username for test auth. | Makes querying orders by user harder. | `my` endpoint handles all cases. Accept. |
+| **W4** | **`/order/[id]` exposes order details to anyone with the ID** — `GET /api/orders/{id}/` is public (AllowAny). Customer name, email, items, price visible with any valid UUID. | Low — UUIDs are unguessable. No PII beyond name/email. | Add ownership check when user is authenticated. For anonymous, the order_id is already restricted by being a UUID. |
+| **W5** | **Gateway has no circuit breaker for auth-service** — if auth-service is down, ALL authenticated requests fail. The `auth_request` subrequest would fail → gateway returns 502. | Medium — auth-service is a single point of failure for all write operations. | No change needed for thesis scope. Would need a caching layer or fallback. |
+| **W6** | **No rate limiting on order creation** — `POST /api/orders/` is `AllowAny` with no nginx `limit_req`. A malicious actor could create unlimited orders. | Low for thesis scope. | Add nginx `limit_req` zone for `/api/orders/` location. |
+| **W7** | **Impersonation code fallback logs to console** — when Resend is unavailable, impersonation codes are logged via `console.log`. If logs are exposed, codes could be intercepted. | Low for dev. Acceptable for thesis. | Use Redis-only with TTL. Console fallback is dev-only. |

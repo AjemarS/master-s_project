@@ -82,6 +82,8 @@ USE_TZ = True
 TIME_ZONE = "Europe/Kyiv"
 USE_I18N = True
 
+UAH_TO_USD_RATE = 41.5
+
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"

@@ -31,6 +31,8 @@ function checkRoleAccess(uri, method, role) {
         if (methodOk) return null;
         // Allow POST to /api/orders/ (checkout)
         if (method === "POST" && (apiPath === "orders/" || apiPath === "orders")) return null;
+        // Allow notification management (mark-read, dismiss, prefs)
+        if (apiPath.indexOf("notifications/") === 0) return null;
         return "Access denied.";
     }
 
@@ -52,7 +54,6 @@ function checkRoleAccess(uri, method, role) {
         if (apiPath.indexOf("inventory/goods-receipts") === 0) return null;
         if (apiPath.indexOf("inventory/stock/transfer") === 0) return null;
         if (apiPath.indexOf("inventory/warehouses") === 0) return null;
-        if (apiPath.indexOf("inventory/suppliers") === 0) return null;
         return "Access denied. Warehouse worker can only manage inventory.";
     }
 

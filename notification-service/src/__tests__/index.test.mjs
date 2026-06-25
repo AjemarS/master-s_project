@@ -1,11 +1,63 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("../db.js", () => ({
+  getNotifPool: () => ({ query: vi.fn(() => ({ rows: [] })), end: vi.fn() }),
+  getAuthPool: () => ({ query: vi.fn(() => ({ rows: [] })), end: vi.fn() }),
+  closeAll: vi.fn(),
+}));
+
+vi.mock("../notifications.js", () => ({
+  createNotification: vi.fn(() => ({ id: "mock-notif-1" })),
+  listNotifications: vi.fn(() => ({ items: [], total: 0 })),
+  getUnreadCount: vi.fn(() => 0),
+  markRead: vi.fn(),
+  markAllRead: vi.fn(),
+  dismiss: vi.fn(),
+  clearAll: vi.fn(),
+}));
+
+vi.mock("../preferences.js", () => ({
+  getPreferences: vi.fn(() => ({
+    user_id: "user-1",
+    order_confirmed_email: true, order_confirmed_in_app: true,
+    order_shipped_email: true, order_shipped_in_app: true,
+    order_delivered_email: true, order_delivered_in_app: true,
+    order_cancelled_email: true, order_cancelled_in_app: true,
+    marketing_email: true, marketing_in_app: true,
+    low_stock_email: true, low_stock_in_app: true,
+  })),
+  setPreferences: vi.fn(),
+  ensureDefaults: vi.fn(),
+  DEFAULTS: {},
+  getAllUserIdsWithMarketing: vi.fn(() => []),
+}));
+
+vi.mock("../events.js", () => ({
+  isProcessed: vi.fn(() => Promise.resolve(false)),
+  markProcessed: vi.fn(),
+  startCleanup: vi.fn(),
+  stopCleanup: vi.fn(),
+  cleanupOldEvents: vi.fn(),
+}));
+
+vi.mock("../admin.js", () => ({
+  getAdminUsers: vi.fn(() => Promise.resolve([])),
+  getUserByEmail: vi.fn((email) => Promise.resolve({ id: "user-1", name: "Test", email })),
+}));
+
+vi.mock("../sse.js", () => ({
+  addClient: vi.fn(),
+  broadcast: vi.fn(),
+  broadcastToAll: vi.fn(),
+  getClientCount: vi.fn(() => 0),
+}));
+
 describe("notification-service", () => {
   let mod;
 
   beforeEach(async () => {
-    vi.resetModules();
     process.env.NODE_ENV = "test";
+    process.env.ADMIN_EMAIL = "";
     mod = await import("../index.js");
   });
 
@@ -82,13 +134,13 @@ describe("notification-service", () => {
       log.mockRestore();
     });
 
-    it("should skip duplicate events", async () => {
+    it("should skip duplicate events via in-memory set", async () => {
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
       const event = { order_number: "ORD-123", total_amount: "500", customer_email: "u@t.com" };
       await mod.handleEvent("order.created", event, "dup-1");
       log.mockClear();
       await mod.handleEvent("order.created", event, "dup-1");
-      expect(log).toHaveBeenCalledWith("[dedup] Skipping dup-1");
+      expect(log).toHaveBeenCalledWith("[dedup] Skipping dup-1 (in-memory)");
       log.mockRestore();
     });
 
@@ -107,11 +159,10 @@ describe("notification-service", () => {
     });
 
     it("should warn when ADMIN_EMAIL is empty for low_stock", async () => {
-      vi.resetModules();
-      process.env.NODE_ENV = "test";
       process.env.ADMIN_EMAIL = "";
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.resetModules();
       const m = await import("../index.js");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       await m.handleEvent("inventory.low_stock", { product_id: 42, quantity: 2 }, "evt-5");
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("ADMIN_EMAIL not configured"));
       warn.mockRestore();
