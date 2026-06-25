@@ -14,7 +14,7 @@ async function getProduct(id: string): Promise<ProductDetail | null> {
     return {
       ...data,
       price: Number(data.price),
-      originalPrice: Number(data.originalPrice),
+      original_price: Number(data.original_price),
       rating: Number(data.rating),
       features: data.features ?? [],
       specs: data.specs ?? {},

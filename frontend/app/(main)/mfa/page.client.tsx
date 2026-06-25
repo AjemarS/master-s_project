@@ -13,11 +13,6 @@ export function TwoFactorPageClient() {
   const [trustDevice, setTrustDevice] = useState(true);
   const [isUsingBackupCode, setIsUsingBackupCode] = useState(false);
 
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [backupError, setBackupError] = useState("");
-  const [backupMessage, setBackupMessage] = useState("");
-  const [backupLoading, setBackupLoading] = useState(false);
-
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -55,52 +50,10 @@ export function TwoFactorPageClient() {
     }
   };
 
-  // fetch backup codes when switching to backup code mode
-  const fetchBackupCodes = async () => {
-    setBackupLoading(true);
-    setBackupError("");
-    try {
-      const result = await twoFactor.enable({ password: "" });
-      if ("data" in result && result.data && Array.isArray(result.data.backupCodes)) {
-        setBackupCodes(result.data.backupCodes);
-      } else {
-        setBackupError("failed to retrieve backup codes. you may need to enable 2fa first.");
-      }
-    } catch {
-      setBackupError("failed to retrieve backup codes. you may need to enable 2fa first.");
-      // don't log error to user
-    } finally {
-      setBackupLoading(false);
-    }
-  };
-
-  const generateNewCodes = async () => {
-    setBackupLoading(true);
-    setBackupError("");
-    setBackupMessage("");
-    try {
-      const result = await twoFactor.enable({ password: "" });
-      if ("data" in result && result.data && Array.isArray(result.data.backupCodes)) {
-        setBackupCodes(result.data.backupCodes);
-        setBackupMessage("new backup codes have been generated");
-      } else {
-        setBackupError("failed to generate new backup codes.");
-      }
-    } catch {
-      setBackupError("failed to generate new backup codes.");
-    } finally {
-      setBackupLoading(false);
-    }
-  };
-
-  // fetch codes when switching to backup code mode
   const toggleVerificationMethod = () => {
     setIsUsingBackupCode(!isUsingBackupCode);
     setCode("");
     setError("");
-    if (!isUsingBackupCode) {
-      void fetchBackupCodes();
-    }
   };
 
   return (
@@ -127,7 +80,7 @@ export function TwoFactorPageClient() {
                   shadow-sm
                   focus:border-blue-500 focus:ring-blue-500 focus:outline-none
                 `}
-                disabled={backupLoading}
+                disabled={false}
                 id="code"
                 maxLength={isUsingBackupCode ? undefined : 6}
                 name="code"
@@ -175,76 +128,7 @@ export function TwoFactorPageClient() {
               </div>
             )}
 
-            {/* backup codes UI */}
-            {isUsingBackupCode && (
-              <div className="mt-6">
-                <h3 className="mb-2 text-lg font-medium">your backup codes</h3>
-                {backupError && (
-                  <div
-                    className={`
-                      mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700
-                    `}
-                  >
-                    {backupError}
-                  </div>
-                )}
-                {backupMessage && (
-                  <div
-                    className={`
-                      mb-4 rounded-md bg-green-50 p-4 text-sm text-green-700
-                    `}
-                  >
-                    {backupMessage}
-                  </div>
-                )}
-                {backupLoading ? (
-                  <div className="mb-4 text-center text-gray-500">loading backup codes...</div>
-                ) : backupCodes.length > 0 ? (
-                  <div
-                    className={`
-                      mb-6 grid grid-cols-2 gap-2
-                      sm:grid-cols-3
-                    `}
-                  >
-                    {backupCodes.map((code) => (
-                      <div
-                        className={`
-                          rounded-md bg-gray-100 p-2 text-center font-mono
-                        `}
-                        key={code}
-                      >
-                        {code}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div
-                    className={`
-                      mb-6 rounded-md bg-yellow-50 p-4 text-sm text-yellow-700
-                    `}
-                  >
-                    no backup codes available. generate new codes below.
-                  </div>
-                )}
-                <div className="flex justify-center">
-                  <button
-                    className={`
-                      flex items-center justify-center rounded-md bg-blue-600
-                      px-4 py-2 text-sm font-medium text-white
-                      hover:bg-blue-700
-                      focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                      focus:outline-none
-                      disabled:opacity-50
-                    `}
-                    disabled={backupLoading}
-                    onClick={generateNewCodes}
-                    type="button"
-                  >
-                    generate new backup codes
-                  </button>
-                </div>
-              </div>
-            )}
+
           </div>
 
           <div className="flex flex-col space-y-4">

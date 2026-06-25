@@ -46,19 +46,19 @@ export function Footer({ className }: { className?: string }) {
           <div>
             <h3 className="mb-4 text-sm font-semibold">Інформація</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/about">Про нас</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/shipping">Доставка та оплата</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/warranty">Гарантія</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/contact">Контакти</Link></li>
+              <li><span className="text-muted-foreground">Про нас</span></li>
+              <li><span className="text-muted-foreground">Доставка та оплата</span></li>
+              <li><span className="text-muted-foreground">Гарантія</span></li>
+              <li><span className="text-muted-foreground">Контакти</span></li>
             </ul>
           </div>
           <div>
             <h3 className="mb-4 text-sm font-semibold">Підтримка</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/help">Допомога</Link></li>
+              <li><span className="text-muted-foreground">Допомога</span></li>
               <li><Link className="text-muted-foreground hover:text-foreground" href="/orders">Мої замовлення</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/privacy">Політика конфіденційності</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/terms">Умови використання</Link></li>
+              <li><span className="text-muted-foreground">Політика конфіденційності</span></li>
+              <li><span className="text-muted-foreground">Умови використання</span></li>
             </ul>
           </div>
         </div>
@@ -68,8 +68,8 @@ export function Footer({ className }: { className?: string }) {
               &copy; {new Date().getFullYear()} TechHub. Усі права захищено.
             </p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <Link className="hover:text-foreground" href="/privacy">Конфіденційність</Link>
-              <Link className="hover:text-foreground" href="/terms">Умови</Link>
+              <span className="text-muted-foreground">Конфіденційність</span>
+              <span className="text-muted-foreground">Умови</span>
             </div>
           </div>
         </div>

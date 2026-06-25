@@ -5,7 +5,7 @@ import { isInDashboardOrAdmin, NavigationSection } from "./header";
 import { User } from "~/lib/auth-client";
 
 interface AuthSectionProps {
-  user: User;
+  user: User | undefined;
   whereAmI: NavigationSection;
 }
 

@@ -127,7 +127,7 @@ export function Header({ showAuth = true }: HeaderProps) {
 
             <NotificationsWidget />
 
-            {showAuth && <AuthSection user={user!} whereAmI={whereAmI} />}
+            {showAuth && <AuthSection user={user} whereAmI={whereAmI} />}
 
             <ThemeToggle />
 
@@ -145,7 +145,7 @@ export function Header({ showAuth = true }: HeaderProps) {
           navigation={navigation}
           pathname={pathname}
           showAuth={showAuth}
-          user={user!}
+          user={user}
           onClose={() => setMobileMenuOpen(false)}
         />
       )}
