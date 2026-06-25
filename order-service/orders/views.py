@@ -113,8 +113,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         if self.action in ("list", "retrieve", "my"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("create",):
-            return [IsAuthenticated()]
+        if self.action in ("create", "retrieve"):
+            return [AllowAny()]
         if self.action == "pos":
             return [IsAdminOrCashier()]
         return [IsAdminUser()]
@@ -144,7 +144,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             order = Order.objects.create(
                 order_number=order_number,
                 channel=data.get("channel", Order.ONLINE),
-                status=Order.PENDING,
+                status=Order.UNPAID,
                 warehouse_id=data.get("warehouse_id"),
                 customer_name=data.get("customer_name", ""),
                 customer_phone=data.get("customer_phone", ""),
@@ -231,7 +231,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         if new_status == Order.CANCELLED and order.warehouse_id:
             self._release_stock(order)
 
-        if new_status == Order.SHIPPED and order.warehouse_id:
+        if new_status == Order.DELIVERING and order.warehouse_id:
             success, succeeded = self._deduct_stock(order)
             if not success:
                 order.status = old_status
@@ -302,7 +302,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def pay(self, request, pk=None):
         order = self.get_object()
 
-        if order.payment_status != Order.UNPAID:
+        if order.payment_status != Order.PAYMENT_UNPAID:
             return Response(
                 {"error": "Order already paid", "payment_status": order.payment_status},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -373,10 +373,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                 return Response({"status": "already_paid"})
 
             with transaction.atomic():
-                order.payment_status = Order.PAID
+                order.payment_status = Order.PAYMENT_PAID
                 order.stripe_payment_intent_id = session.get("payment_intent", "")
                 order.paid_at = tz.now()
-                order.status = Order.CONFIRMED
+                order.status = Order.PAID
                 order.save()
 
             if order.warehouse_id:
@@ -395,7 +395,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                             request=request,
                         )
                     order.status = Order.CANCELLED
-                    order.payment_status = Order.REFUNDED
+                    order.payment_status = Order.PAYMENT_REFUNDED
                     order.save(update_fields=["status", "payment_status"])
                     logger.error(
                         "Order cancelled after payment due to reserve failure | number=%s",
@@ -412,7 +412,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     def my(self, request):
         if not request.user.is_authenticated:
             return Response({"error": "Authentication required"}, status=401)
-        orders = Order.objects.filter(created_by=str(request.user.id)).prefetch_related("items")
+        gateway_id = request.META.get("HTTP_X_GATEWAY_USER_ID", "")
+        if gateway_id:
+            orders = Order.objects.filter(created_by=gateway_id).prefetch_related("items")
+        else:
+            orders = Order.objects.filter(created_by=str(request.user.id)).prefetch_related("items")
         page = self.paginate_queryset(orders)
         if page is not None:
             serializer = OrderListSerializer(page, many=True)
@@ -435,7 +439,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             order = Order.objects.create(
                 order_number=order_number,
                 channel=Order.OFFLINE,
-                status=Order.PENDING,
+                status=Order.UNPAID,
                 warehouse_id=data["warehouse_id"],
                 customer_name=data.get("customer_name", ""),
                 customer_phone=data.get("customer_phone", ""),

@@ -33,29 +33,37 @@ const CHANNEL_TABS = [
 
 const STATUS_TABS = [
   { value: "", label: "Всі" },
-  { value: "pending", label: "В обробці" },
-  { value: "shipped", label: "Відправлено" },
+  { value: "unpaid", label: "Не сплачено" },
+  { value: "paid", label: "Сплачено" },
+  { value: "delivering", label: "В дорозі" },
   { value: "delivered", label: "Доставлено" },
+  { value: "completed", label: "Виконано" },
   { value: "cancelled", label: "Скасовано" },
 ] as const;
 
 const STATUS_UPDATE_OPTIONS = [
-  { value: "pending", label: "В обробці" },
-  { value: "shipped", label: "Відправлено" },
+  { value: "unpaid", label: "Не сплачено" },
+  { value: "paid", label: "Сплачено" },
+  { value: "delivering", label: "В дорозі" },
   { value: "delivered", label: "Доставлено" },
+  { value: "completed", label: "Виконано" },
   { value: "cancelled", label: "Скасовано" },
 ] as const;
 
 function statusBadgeClass(status: string): string {
   switch (status) {
-    case "pending":
+    case "unpaid":
       return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800";
-    case "shipped":
+    case "paid":
       return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+    case "delivering":
+      return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800";
     case "delivered":
       return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800";
+    case "completed":
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
     case "cancelled":
-      return "";
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800";
     default:
       return "";
   }
@@ -67,9 +75,11 @@ function channelLabel(channel: string): string {
 
 function statusLabel(status: string): string {
   const map: Record<string, string> = {
-    pending: "В обробці",
-    shipped: "Відправлено",
+    unpaid: "Не сплачено",
+    paid: "Сплачено",
+    delivering: "В дорозі",
     delivered: "Доставлено",
+    completed: "Виконано",
     cancelled: "Скасовано",
   };
   return map[status] || status;

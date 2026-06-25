@@ -9,6 +9,8 @@ class CartItemSerializer(serializers.ModelSerializer):
         source="product.price", max_digits=10, decimal_places=2, read_only=True
     )
     product_image = serializers.SerializerMethodField()
+    product_stock = serializers.IntegerField(source="product.stock", read_only=True)
+    created_at = serializers.DateTimeField(source="added_at", read_only=True)
 
     class Meta:
         model = CartItem
@@ -18,10 +20,11 @@ class CartItemSerializer(serializers.ModelSerializer):
             "product_name",
             "product_price",
             "product_image",
+            "product_stock",
             "quantity",
-            "added_at",
+            "created_at",
         ]
-        read_only_fields = ["added_at"]
+        read_only_fields = ["created_at"]
 
     def get_product_image(self, obj):
         if obj.product.image:
@@ -36,16 +39,16 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
-    total = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
     item_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Cart
-        fields = ["id", "user_id", "items", "total", "item_count", "created_at", "updated_at"]
+        fields = ["id", "user_id", "session_id", "items", "subtotal", "item_count", "created_at", "updated_at"]
         read_only_fields = ["created_at", "updated_at"]
 
-    def get_total(self, obj):
-        return sum(item.product.price * item.quantity for item in obj.items.all())
+    def get_subtotal(self, obj):
+        return float(sum(item.product.price * item.quantity for item in obj.items.all()))
 
     def get_item_count(self, obj):
         return sum(item.quantity for item in obj.items.all())

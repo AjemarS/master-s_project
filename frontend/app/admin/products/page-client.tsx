@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -20,11 +20,16 @@ import {
   Filter,
   X,
   Download,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { productApi, categoryApi } from "~/lib/api/admin-api";
 import type { Product, Category } from "~/lib/types";
 import { ConfirmDialog, TableSkeleton, StatsGridSkeleton } from "../components";
 import { useDebounce } from "~/lib/hooks/use-debounce";
+import { useRecentProducts } from "~/lib/hooks/use-recent-products";
+import { useCurrentUser } from "~/lib/auth-client";
 import { ProductFormDialog } from "./product-form-dialog";
 
 const PAGE_SIZE = 20;
@@ -48,7 +53,12 @@ export default function AdminProductsClient({
   const [showFilters, setShowFilters] = useState(false);
   const [filterMinPrice, setFilterMinPrice] = useState("");
   const [filterMaxPrice, setFilterMaxPrice] = useState("");
+  const [filterMinStock, setFilterMinStock] = useState("");
+  const [filterMaxStock, setFilterMaxStock] = useState("");
   const [filterInStock, setFilterInStock] = useState<boolean | undefined>(undefined);
+  const [filterCategory, setFilterCategory] = useState("");
+  const [sortField, setSortField] = useState("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     productId: number | null;
@@ -65,6 +75,10 @@ export default function AdminProductsClient({
   const [formDialogMode, setFormDialogMode] = useState<"create" | "edit">("create");
   const [formDialogProduct, setFormDialogProduct] = useState<Product | null>(null);
   const [formDialogKey, setFormDialogKey] = useState(0);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const { addProduct: addRecentProduct } = useRecentProducts();
+  const { user } = useCurrentUser();
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     categoryApi.getAll().then((res) => {
@@ -82,7 +96,11 @@ export default function AdminProductsClient({
         pageSize: PAGE_SIZE,
         minPrice: filterMinPrice ? parseFloat(filterMinPrice) : undefined,
         maxPrice: filterMaxPrice ? parseFloat(filterMaxPrice) : undefined,
+        minStock: filterMinStock ? parseInt(filterMinStock, 10) : undefined,
+        maxStock: filterMaxStock ? parseInt(filterMaxStock, 10) : undefined,
         inStock: filterInStock,
+        category: filterCategory ? parseInt(filterCategory, 10) : undefined,
+        ordering: sortField ? (sortDir === "desc" ? `-${sortField}` : sortField) : undefined,
       });
       if (response.error) {
         setError(response.error.message);
@@ -107,7 +125,7 @@ export default function AdminProductsClient({
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, filterMinPrice, filterMaxPrice, filterInStock]);
+  }, [debouncedSearchTerm, filterMinPrice, filterMaxPrice, filterMinStock, filterMaxStock, filterInStock, filterCategory, sortField, sortDir]);
 
   // Refetch when debounced search term changes, or fallback-fetch
   // when the server-side fetch (in Docker) returned empty data.
@@ -181,6 +199,21 @@ export default function AdminProductsClient({
     setFormDialogKey((k) => k + 1);
   };
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) return <ChevronsUpDown className="h-3 w-3 ml-1 inline opacity-40" />;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3 ml-1 inline" /> : <ChevronDown className="h-3 w-3 ml-1 inline" />;
+  };
+
   const handleExport = () => {
     const headers = ["ID", "Назва", "Категорія", "Ціна", "Початкова ціна", "Залишок", "В наявності", "Опис"];
     const rows = products.map((p) => [
@@ -222,19 +255,21 @@ export default function AdminProductsClient({
               На головну
             </Button>
           </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <Package className="h-10 w-10 text-purple-600" />
-                Керування товарами
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">Каталог, ціни та залишки</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+                  <Package className="h-10 w-10 text-purple-600" />
+                  Керування товарами
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400">Каталог, ціни та залишки</p>
+              </div>
+              {isAdmin && (
+                <Button className="flex items-center gap-2" onClick={handleAddClick}>
+                  <Plus className="h-4 w-4" />
+                  Додати товар
+                </Button>
+              )}
             </div>
-            <Button className="flex items-center gap-2" onClick={handleAddClick}>
-              <Plus className="h-4 w-4" />
-              Додати товар
-            </Button>
-          </div>
         </div>
 
         {error && (
@@ -312,52 +347,54 @@ export default function AdminProductsClient({
               <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-slate-500">Категорія</Label>
+                    <select
+                      value={filterCategory}
+                      onChange={(e) => setFilterCategory(e.target.value)}
+                      className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Всі категорії</option>
+                      {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="minPrice" className="text-xs text-slate-500">Мін. ціна</Label>
-                    <Input
-                      id="minPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={filterMinPrice}
-                      onChange={(e) => setFilterMinPrice(e.target.value)}
-                      className="w-28"
-                    />
+                    <Input id="minPrice" type="number" step="0.01" min="0" placeholder="0.00"
+                      value={filterMinPrice} onChange={(e) => setFilterMinPrice(e.target.value)} className="w-28" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="maxPrice" className="text-xs text-slate-500">Макс. ціна</Label>
-                    <Input
-                      id="maxPrice"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="999.99"
-                      value={filterMaxPrice}
-                      onChange={(e) => setFilterMaxPrice(e.target.value)}
-                      className="w-28"
-                    />
+                    <Input id="maxPrice" type="number" step="0.01" min="0" placeholder="999.99"
+                      value={filterMaxPrice} onChange={(e) => setFilterMaxPrice(e.target.value)} className="w-28" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-slate-500">Мін. залишок</Label>
+                    <Input type="number" min="0" placeholder="0"
+                      value={filterMinStock} onChange={(e) => setFilterMinStock(e.target.value)} className="w-24" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-slate-500">Макс. залишок</Label>
+                    <Input type="number" min="0" placeholder="9999"
+                      value={filterMaxStock} onChange={(e) => setFilterMaxStock(e.target.value)} className="w-24" />
                   </div>
                   <div className="flex items-center gap-2 pb-1">
-                    <input
-                      id="inStock"
-                      type="checkbox"
-                      checked={filterInStock === true}
+                    <input id="inStock" type="checkbox" checked={filterInStock === true}
                       onChange={(e) => setFilterInStock(e.target.checked || undefined)}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
+                      className="h-4 w-4 rounded border-gray-300" />
                     <Label htmlFor="inStock" className="text-xs text-slate-500 cursor-pointer">Тільки в наявності</Label>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => { setCurrentPage(1); fetchProducts(1); }}>
-                      Apply
+                      Застосувати
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => {
-                      setFilterMinPrice("");
-                      setFilterMaxPrice("");
-                      setFilterInStock(undefined);
+                      setFilterMinPrice(""); setFilterMaxPrice("");
+                      setFilterMinStock(""); setFilterMaxStock("");
+                      setFilterInStock(undefined); setFilterCategory("");
+                      setSortField(""); setSortDir("desc");
                       setCurrentPage(1);
                     }}>
-                      Reset
+                      Скинути
                     </Button>
                   </div>
                 </div>
@@ -371,11 +408,20 @@ export default function AdminProductsClient({
                 <table className="w-full">
                   <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">ID</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Назва</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Category</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Price</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Stock</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400 w-10"></th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 select-none" onClick={() => handleSort("id")}>
+                        ID {renderSortIcon("id")}
+                      </th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 select-none" onClick={() => handleSort("name")}>
+                        Назва {renderSortIcon("name")}
+                      </th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Категорія</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 select-none" onClick={() => handleSort("price")}>
+                        Ціна {renderSortIcon("price")}
+                      </th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400 cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 select-none" onClick={() => handleSort("stock")}>
+                        Залишок {renderSortIcon("stock")}
+                      </th>
                       <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Статус</th>
                       <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дії</th>
                     </tr>
@@ -383,7 +429,7 @@ export default function AdminProductsClient({
                   <tbody>
                     {products.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                        <td colSpan={8} className="text-center py-12 text-slate-500 dark:text-slate-400">
                           <Package className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                           {searchTerm
                             ? "Нічого не знайдено за вашим запитом"
@@ -392,32 +438,86 @@ export default function AdminProductsClient({
                       </tr>
                     ) : (
                       products.map((product) => (
-                        <tr key={product.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{product.id}</td>
-                          <td className="p-4 font-medium dark:text-slate-200">{product.name}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{product.category_name || "N/A"}</td>
-                          <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">₴{Number(product.price).toFixed(2)}</td>
-                          <td className="p-4">
-                            <Badge variant={product.stock < 10 ? "destructive" : product.stock < 50 ? "outline" : "default"}>
-                              {product.stock} units
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <Badge variant={product.in_stock ? "default" : "secondary"}>
-                              {product.in_stock ? "В наявності" : "Немає"}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleEditClick(product)} title="Edit product">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(product)} title="Delete product">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
+                        <Fragment key={product.id}>
+                          <tr
+                            className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              const id = product.id;
+                              setExpandedId(expandedId === id ? null : id);
+                              if (expandedId !== id) {
+                                addRecentProduct({ id: product.id, name: product.name, price: Number(product.price), image_url: product.image_url });
+                              }
+                            }}
+                          >
+                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100 w-10">
+                              <ChevronDown className={`h-4 w-4 transition-transform ${expandedId === product.id ? "rotate-180" : ""}`} />
+                            </td>
+                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{product.id}</td>
+                            <td className="p-4 font-medium dark:text-slate-200">{product.name}</td>
+                            <td className="p-4 text-slate-600 dark:text-slate-400">{product.category_name || "N/A"}</td>
+                            <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">₴{Number(product.price).toFixed(2)}</td>
+                            <td className="p-4">
+                              <Badge variant={product.stock < 10 ? "destructive" : product.stock < 50 ? "outline" : "default"}>
+                                {product.stock} units
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant={product.in_stock ? "default" : "secondary"}>
+                                {product.in_stock ? "В наявності" : "Немає"}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex justify-end gap-2">
+                                {isAdmin && (
+                                  <>
+                                    <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleEditClick(product); }} title="Edit product">
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(product); }} title="Delete product">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          {expandedId === product.id && (
+                            <tr key={`${product.id}-detail`} className="bg-slate-50 dark:bg-slate-800/30 border-b dark:border-slate-700">
+                              <td colSpan={8} className="p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                  <div className="space-y-2">
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">ID:</span> <span className="text-slate-900 dark:text-slate-100">#{product.id}</span></div>
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">Категорія:</span> <span className="text-slate-900 dark:text-slate-100">{product.category_name || "N/A"}</span></div>
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">Ціна:</span> <span className="font-semibold text-slate-900 dark:text-slate-100">₴{Number(product.price).toFixed(2)}</span></div>
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">Ориг. ціна:</span> <span className="text-slate-500 line-through">₴{Number(product.original_price).toFixed(2)}</span></div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">Залишок:</span> <span className="text-slate-900 dark:text-slate-100">{product.stock} од.</span></div>
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">Рейтинг:</span> <span className="text-slate-900 dark:text-slate-100">{Number(product.rating).toFixed(1)} / 5</span></div>
+                                    <div><span className="font-medium text-slate-600 dark:text-slate-400">Статус:</span> <span className="text-slate-900 dark:text-slate-100">{product.in_stock ? "В наявності" : "Немає"}</span></div>
+                                    {product.image_url && (
+                                      <div><span className="font-medium text-slate-600 dark:text-slate-400">Зображення:</span> <span className="text-slate-500 text-xs truncate block max-w-[200px]">{product.image_url}</span></div>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2">
+                                    <div className="font-medium text-slate-600 dark:text-slate-400">Опис:</div>
+                                    <p className="text-slate-900 dark:text-slate-100 line-clamp-3">{product.description || "Немає опису"}</p>
+                                    {product.features && product.features.length > 0 && (
+                                      <>
+                                        <div className="font-medium text-slate-600 dark:text-slate-400">Особливості:</div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {product.features.map((f, i) => (
+                                            <Badge key={i} variant="outline" className="text-xs">{f}</Badge>
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))
                     )}
                   </tbody>

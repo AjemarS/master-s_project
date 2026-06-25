@@ -30,7 +30,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: !!process.env.RESEND_API_KEY,
     minPasswordLength: 8,
     sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
       await sendVerificationEmail(user.email, url);

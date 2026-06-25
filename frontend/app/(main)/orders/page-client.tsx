@@ -1,21 +1,29 @@
+/* eslint-disable react-hooks/purity */
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, Package, ChevronDown, ChevronUp, Archive } from "lucide-react";
 import { orderApi } from "~/lib/api/admin-api";
 import type { Order, OrderDetail } from "~/lib/types";
 import { TableSkeleton } from "~/admin/components";
 
-const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending: { label: "Очікує", variant: "outline" },
-  shipped: { label: "Відправлено", variant: "default" },
-  delivered: { label: "Доставлено", variant: "default" },
-  cancelled: { label: "Скасовано", variant: "destructive" },
+const ACTIVE_STATUSES = ["unpaid", "paid", "delivering", "delivered"];
+
+const STATUS_CFG: Record<string, { label: string; color: string }> = {
+  unpaid: { label: "Не сплачено", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30" },
+  paid: { label: "Сплачено", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30" },
+  delivering: { label: "В дорозі", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30" },
+  delivered: { label: "Доставлено", color: "bg-green-100 text-green-800 dark:bg-green-900/30" },
+  completed: { label: "Виконано", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30" },
+  cancelled: { label: "Скасовано", color: "bg-red-100 text-red-800 dark:bg-red-900/30" },
 };
+
+const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 
 export function MyOrdersClient() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -23,6 +31,7 @@ export function MyOrdersClient() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [orderDetails, setOrderDetails] = useState<Record<number, OrderDetail>>({});
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -49,12 +58,77 @@ export function MyOrdersClient() {
       try {
         const res = await orderApi.getById(orderId);
         if (res.data) setOrderDetails((prev) => ({ ...prev, [orderId]: res.data! }));
-      } catch {
-        // silently fail
-      }
+      } catch { /* silent */ }
     }
     setExpandedId(orderId);
   };
+
+  const now = Date.now();
+  // eslint-disable-next-line react-hooks/purity
+  const sorted = [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // eslint-disable-next-line react-hooks/purity
+  const active = sorted.filter((o) => ACTIVE_STATUSES.includes(o.status));
+  // eslint-disable-next-line react-hooks/purity
+  const archived = sorted.filter((o) => {
+    if (!ACTIVE_STATUSES.includes(o.status)) return true;
+    const age = now - new Date(o.created_at).getTime();
+    return age > SIX_MONTHS_MS;
+  });
+
+  const renderTable = (items: Order[], showStatus: boolean) => (
+    <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
+      <table className="w-full">
+        <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+          <tr>
+            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">№</th>
+            {showStatus && <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Статус</th>}
+            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Канал</th>
+            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Сума</th>
+            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дата</th>
+            <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((order) => {
+            const cfg = STATUS_CFG[order.status] || { label: order.status, color: "" };
+            return (
+              <tr key={order.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
+                  <Link href={`/order/${order.id}`} className="hover:text-purple-600">{order.order_number}</Link>
+                </td>
+                {showStatus && (
+                  <td className="p-4">
+                    <Badge className={cfg.color}>{cfg.label}</Badge>
+                  </td>
+                )}
+                <td className="p-4">
+                  <Badge variant={order.channel === "online" ? "default" : "secondary"}>
+                    {order.channel === "online" ? "Онлайн" : "POS"}
+                  </Badge>
+                </td>
+                <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{Number(order.total_amount).toFixed(2)} ₴</td>
+                <td className="p-4 text-sm text-slate-600 dark:text-slate-400">{new Date(order.created_at).toLocaleDateString("uk-UA")}</td>
+                <td className="p-4 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => toggleExpand(order.id)}>
+                    {expandedId === order.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+          {items.length === 0 && (
+            <tr>
+              <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400">
+                <Package className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+                Немає замовлень
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
   if (loading) return <TableSkeleton rows={4} cols={5} />;
 
@@ -68,86 +142,34 @@ export function MyOrdersClient() {
   }
 
   return (
-    <Card>
+    <Card className="dark:bg-slate-800/80 dark:border-slate-700">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 dark:text-slate-100">
           <Package className="h-5 w-5" />
           Мої замовлення
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="border rounded-lg overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="text-left p-4 text-sm font-medium text-slate-600">Номер замовлення</th>
-                <th className="text-left p-4 text-sm font-medium text-slate-600">Статус</th>
-                <th className="text-left p-4 text-sm font-medium text-slate-600">Канал</th>
-                <th className="text-left p-4 text-sm font-medium text-slate-600">Сума</th>
-                <th className="text-left p-4 text-sm font-medium text-slate-600">Дата</th>
-                <th className="text-right p-4 text-sm font-medium text-slate-600"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-500">
-                    <Package className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                    У вас ще немає замовлень
-                  </td>
-                </tr>
-              ) : (
-                orders.map((order) => {
-                  const statusCfg = statusLabels[order.status] || { label: order.status, variant: "outline" as const };
-                  return (
-                    <tr key={order.id} className="border-b hover:bg-slate-50 transition-colors">
-                      <td className="p-4 font-medium">{order.order_number}</td>
-                      <td className="p-4">
-                        <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
-                      </td>
-                      <td className="p-4">
-                        <Badge variant={order.channel === "online" ? "default" : "secondary"}>
-                          {order.channel === "online" ? "Онлайн" : "Офлайн"}
-                        </Badge>
-                      </td>
-                      <td className="p-4 font-semibold">{Number(order.total_amount).toFixed(2)} ₴</td>
-                      <td className="p-4 text-slate-600">{new Date(order.created_at).toLocaleDateString("uk-UA")}</td>
-                      <td className="p-4 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => toggleExpand(order.id)}>
-                          {expandedId === order.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+      <CardContent className="space-y-6">
+        {/* Active orders */}
+        {renderTable(active, true)}
 
-        {expandedId && orderDetails[expandedId] && (
-          <div className="mt-4 p-4 border rounded-lg bg-slate-50">
-            <h4 className="font-semibold mb-2">Товари в замовленні</h4>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2">Товар</th>
-                  <th className="text-left p-2">Кількість</th>
-                  <th className="text-left p-2">Ціна</th>
-                  <th className="text-left p-2">Сума</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderDetails[expandedId].items.map((item) => (
-                  <tr key={item.id} className="border-b">
-                    <td className="p-2">{item.product_name}</td>
-                    <td className="p-2">{item.quantity}</td>
-                    <td className="p-2">{Number(item.price).toFixed(2)} ₴</td>
-                    <td className="p-2 font-medium">{(item.quantity * Number(item.price)).toFixed(2)} ₴</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Archived orders */}
+        {archived.length > 0 && (
+          <div>
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={() => setShowArchive(!showArchive)}
+            >
+              <Archive className="h-4 w-4" />
+              {showArchive ? "Сховати архів" : `Архів (${archived.length})`}
+              {showArchive ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+            {showArchive && (
+              <div className="mt-4 opacity-70">
+                {renderTable(archived, true)}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

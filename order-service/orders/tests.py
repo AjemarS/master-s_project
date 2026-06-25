@@ -19,7 +19,7 @@ def _create_regular_user():
     return User.objects.create_user("user", "user@test.com", "password123")
 
 
-def _create_order(status=Order.PENDING, channel=Order.ONLINE, **kwargs):
+def _create_order(status=Order.UNPAID, channel=Order.ONLINE, **kwargs):
     data = {
         "order_number": "ORD-000001",
         "channel": channel,
@@ -48,25 +48,25 @@ class OrderModelTest(TestCase):
     def test_create_order(self):
         order = _create_order()
         self.assertEqual(str(order), "Order #ORD-000001")
-        self.assertEqual(order.status, Order.PENDING)
+        self.assertEqual(order.status, Order.UNPAID)
 
     def test_status_transitions(self):
         order = _create_order()
-        self.assertTrue(order.can_transition_to(Order.CONFIRMED))
+        self.assertTrue(order.can_transition_to(Order.PAID))
         self.assertTrue(order.can_transition_to(Order.CANCELLED))
-        self.assertFalse(order.can_transition_to(Order.SHIPPED))
+        self.assertFalse(order.can_transition_to(Order.DELIVERING))
 
-        order.status = Order.CONFIRMED
-        self.assertTrue(order.can_transition_to(Order.SHIPPED))
+        order.status = Order.PAID
+        self.assertTrue(order.can_transition_to(Order.DELIVERING))
         self.assertTrue(order.can_transition_to(Order.CANCELLED))
 
-        order.status = Order.SHIPPED
+        order.status = Order.DELIVERING
         self.assertTrue(order.can_transition_to(Order.DELIVERED))
         self.assertTrue(order.can_transition_to(Order.CANCELLED))
 
         order.status = Order.DELIVERED
-        self.assertFalse(order.can_transition_to(Order.CANCELLED))
-        self.assertFalse(order.can_transition_to(Order.SHIPPED))
+        self.assertTrue(order.can_transition_to(Order.COMPLETED))
+        self.assertFalse(order.can_transition_to(Order.DELIVERING))
 
     def test_order_number_unique(self):
         _create_order()
@@ -119,7 +119,7 @@ class OrderAPITest(APITestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_create_order_admin(self):
         user = _create_admin_user()
@@ -140,12 +140,12 @@ class OrderAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         data = response.data
         self.assertEqual(data["channel"], "online")
-        self.assertEqual(data["status"], "pending")
+        self.assertEqual(data["status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
         self.assertAlmostEqual(float(data["total_amount"]), 199.98)
 
     def test_create_order_with_warehouse(self):
-        """Order with warehouse_id stays pending (reservation deferred to webhook)."""
+        """Order with warehouse_id stays unpaid (reservation deferred to webhook)."""
         user = _create_admin_user()
         self.client.force_authenticate(user=user)
         response = self.client.post(
@@ -165,7 +165,7 @@ class OrderAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         data = response.data
         self.assertEqual(data["channel"], "online")
-        self.assertEqual(data["status"], "pending")
+        self.assertEqual(data["status"], "unpaid")
         self.assertEqual(data["payment_status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
         self.assertAlmostEqual(float(data["total_amount"]), 199.98)
@@ -186,17 +186,17 @@ class OrderAPITest(APITestCase):
         order = _create_order()
         response = self.client.patch(
             f"/api/orders/{order.pk}/status/",
-            {"status": "confirmed"},
+            {"status": "paid"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
-        self.assertEqual(order.status, Order.CONFIRMED)
+        self.assertEqual(order.status, Order.PAID)
 
     def test_order_status_transition_invalid(self):
         user = _create_admin_user()
         self.client.force_authenticate(user=user)
-        order = _create_order(status=Order.DELIVERED)
+        order = _create_order(status=Order.COMPLETED)
         response = self.client.patch(
             f"/api/orders/{order.pk}/status/",
             {"status": "cancelled"},
@@ -253,13 +253,13 @@ class POSAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_status_transition_confirmed_to_shipped(self):
-        """Status to shipped triggers deduct saga (fails gracefully when inventory unreachable)."""
+    def test_status_transition_paid_to_delivering(self):
+        """Status to delivering triggers deduct saga."""
         self._auth_admin()
-        order = _create_order(status=Order.CONFIRMED, warehouse_id=1)
+        order = _create_order(status=Order.PAID, warehouse_id=1)
         response = self.client.patch(
             f"/api/orders/{order.pk}/status/",
-            {"status": "shipped"},
+            {"status": "delivering"},
             format="json",
         )
         self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_502_BAD_GATEWAY])

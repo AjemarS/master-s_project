@@ -1,4 +1,4 @@
-import type { Product, AdminUser, Category, Warehouse, Stock, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport } from "~/lib/types";
+import type { Product, AdminUser, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport } from "~/lib/types";
 import { apiCall, API_URL, AUTH_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -11,6 +11,9 @@ export const productApi = {
     minPrice?: number;
     maxPrice?: number;
     inStock?: boolean;
+    minStock?: number;
+    maxStock?: number;
+    ordering?: string;
   }): Promise<ApiResponse<{ results: Product[]; count: number; next: string | null; previous: string | null }>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
@@ -20,6 +23,9 @@ export const productApi = {
     if (params?.minPrice) queryParams.append("min_price", params.minPrice.toString());
     if (params?.maxPrice) queryParams.append("max_price", params.maxPrice.toString());
     if (params?.inStock !== undefined) queryParams.append("in_stock", params.inStock.toString());
+    if (params?.minStock !== undefined) queryParams.append("min_stock", params.minStock.toString());
+    if (params?.maxStock !== undefined) queryParams.append("max_stock", params.maxStock.toString());
+    if (params?.ordering) queryParams.append("ordering", params.ordering);
     const url = `${API_URL}/products/${queryParams.toString() ? `?${queryParams}` : ""}`;
     return apiCall(url);
   },
@@ -168,13 +174,57 @@ export const orderApi = {
   },
 };
 
+export const stockMovementApi = {
+  async getAll(params?: {
+    product_id?: number;
+    type?: string;
+    from_warehouse_id?: number;
+    to_warehouse_id?: number;
+    created_after?: string;
+    created_before?: string;
+    page?: number;
+  }): Promise<ApiResponse<{ results: StockMovement[]; count: number; next: string | null; previous: string | null }>> {
+    const q = new URLSearchParams();
+    if (params?.product_id) q.append("product_id", String(params.product_id));
+    if (params?.type) q.append("type", params.type);
+    if (params?.from_warehouse_id) q.append("from_warehouse_id", String(params.from_warehouse_id));
+    if (params?.to_warehouse_id) q.append("to_warehouse_id", String(params.to_warehouse_id));
+    if (params?.created_after) q.append("created_after", params.created_after);
+    if (params?.created_before) q.append("created_before", params.created_before);
+    if (params?.page) q.append("page", String(params.page));
+    return apiCall(`${INVENTORY_API_URL}/stock/movements/${q.toString() ? `?${q}` : ""}`);
+  },
+};
+
+export const stockTransferApi = {
+  async transfer(data: {
+    product_id: number;
+    from_warehouse_id: number;
+    to_warehouse_id: number;
+    quantity: number;
+    reference_type?: string;
+    reference_id?: string;
+    notes?: string;
+  }): Promise<ApiResponse<{ message: string; movements: { from: number; to: number } }>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/transfer/`, { method: "POST", body: JSON.stringify(data) });
+  },
+};
+
 export const reportApi = {
-  async sales(): Promise<ApiResponse<SalesReport>> {
-    return apiCall(`${API_URL}/reports/sales/`);
+  async sales(from?: string, to?: string): Promise<ApiResponse<SalesReport>> {
+    const q = new URLSearchParams();
+    if (from) q.append("from", from);
+    if (to) q.append("to", to);
+    const url = `${API_URL}/reports/sales/${q.toString() ? `?${q}` : ""}`;
+    return apiCall(url);
   },
 
-  async revenue(): Promise<ApiResponse<RevenueReport>> {
-    return apiCall(`${API_URL}/reports/revenue/`);
+  async revenue(from?: string, to?: string): Promise<ApiResponse<RevenueReport>> {
+    const q = new URLSearchParams();
+    if (from) q.append("from", from);
+    if (to) q.append("to", to);
+    const url = `${API_URL}/reports/revenue/${q.toString() ? `?${q}` : ""}`;
+    return apiCall(url);
   },
 
   async inventoryValue(): Promise<ApiResponse<{ total_value: string; item_count: number }>> {

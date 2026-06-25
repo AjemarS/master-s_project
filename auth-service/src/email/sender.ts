@@ -99,3 +99,29 @@ export async function sendResetPasswordEmail(email: string, url: string): Promis
     console.error("[email] Failed to send reset password email:", err);
   }
 }
+
+export async function sendImpersonationCode(email: string, code: string): Promise<void> {
+  if (!resend) {
+    console.warn("[email] Resend not configured, skipping impersonation code to", email);
+    return;
+  }
+  try {
+    const html = wrapHtml(`
+      <p>Співробітник TechHub запитує доступ до вашого облікового запису.</p>
+      <p>Якщо ви згодні, надайте код нижче:</p>
+      <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px; text-align: center; color: #7c3aed; margin: 24px 0;">
+        ${code}
+      </p>
+      <p style="font-size: 13px; color: #94a3b8;">Код дійсний 5 хвилин. Якщо ви не запитували цей код, проігноруйте повідомлення.</p>
+    `, "Код імперсонації — TechHub");
+    await resend.emails.send({
+      from: fromEmail,
+      to: email,
+      subject: "Код імперсонації — TechHub",
+      html,
+    });
+    console.log("[email] Impersonation code sent to", email);
+  } catch (err) {
+    console.error("[email] Failed to send impersonation code:", err);
+  }
+}

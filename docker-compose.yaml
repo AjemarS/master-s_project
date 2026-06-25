@@ -312,6 +312,8 @@ services:
       dockerfile: Dockerfile
     container_name: gateway
     restart: unless-stopped
+    environment:
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
     ports:
       - "80:8080"
     depends_on:

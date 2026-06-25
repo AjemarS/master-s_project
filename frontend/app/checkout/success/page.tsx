@@ -28,8 +28,8 @@ function SuccessContent() {
             </p>
           )}
           <Button asChild className="w-full">
-            <Link href="/orders">
-              View My Orders <ArrowRight className="h-4 w-4 ml-2" />
+            <Link href={`/order/${orderId}`}>
+              View Order Details <ArrowRight className="h-4 w-4 ml-2" />
             </Link>
           </Button>
           <Button variant="outline" asChild className="w-full">

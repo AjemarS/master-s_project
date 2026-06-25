@@ -2,7 +2,8 @@ from django.db import models
 
 
 class Cart(models.Model):
-    user_id = models.CharField(max_length=255, db_index=True, verbose_name="ID користувача")
+    user_id = models.CharField(max_length=255, null=True, blank=True, db_index=True, verbose_name="ID користувача")
+    session_id = models.UUIDField(null=True, blank=True, db_index=True, verbose_name="ID сесії")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
@@ -11,7 +12,9 @@ class Cart(models.Model):
         verbose_name_plural = "Кошики"
 
     def __str__(self):
-        return f"Cart({self.user_id})"
+        if self.user_id:
+            return f"Cart({self.user_id})"
+        return f"Cart(session:{self.session_id})"
 
 
 class CartItem(models.Model):
