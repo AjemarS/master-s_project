@@ -305,21 +305,13 @@ services:
     networks:
       - microservices_network
 
-  # API Gateway (FastAPI)
+  # API Gateway (Nginx)
   gateway:
     build:
-      context: ./gateway
+      context: ./nginx
       dockerfile: Dockerfile
     container_name: gateway
     restart: unless-stopped
-    environment:
-      - PRODUCT_SERVICE_URL=${PRODUCT_SERVICE_URL}
-      - INVENTORY_SERVICE_URL=${INVENTORY_SERVICE_URL}
-      - ORDER_SERVICE_URL=${ORDER_SERVICE_URL}
-      - FRONTEND_SERVICE_URL=${FRONTEND_SERVICE_URL}
-      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
-      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
-      - CORS_ORIGINS=${CORS_ORIGINS}
     ports:
       - "80:8080"
     depends_on:
