@@ -12,8 +12,8 @@ import { ProductDetail } from "~/lib/types";
 import { Button } from "~/ui/primitives/button";
 import { Separator } from "~/ui/primitives/separator";
 
-const CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
-  currency: "USD",
+const CURRENCY_FORMATTER = new Intl.NumberFormat("uk-UA", {
+  currency: "UAH",
   style: "currency",
 });
 

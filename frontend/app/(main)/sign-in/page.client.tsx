@@ -161,7 +161,7 @@ export function SignInPageClient() {
                         text-sm text-muted-foreground
                         hover:underline
                       `}
-                      href="#"
+                      href="/forgot-password"
                     >
                       Forgot password?
                     </Link>

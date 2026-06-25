@@ -63,7 +63,7 @@ export function CartClient({ className }: CartProps) {
     return `You have ${totalItems} item${totalItems !== 1 ? "s" : ""} in your cart`;
   }, [totalItems]);
 
-  const formattedSubtotal = React.useMemo(() => `$${subtotal.toFixed(2)}`, [subtotal]);
+  const formattedSubtotal = React.useMemo(() => `₴${subtotal.toFixed(2)}`, [subtotal]);
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -250,7 +250,7 @@ export function CartClient({ className }: CartProps) {
                           </button>
                         </div>
                         <div className="text-sm font-medium">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          ₴{(item.price * item.quantity).toFixed(2)}
                         </div>
                       </div>
                     </div>

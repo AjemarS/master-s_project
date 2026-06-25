@@ -17,7 +17,7 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useCurrentUser();
-  const { items, total, clearCart } = useCart();
+  const { items, subtotal, clearCart } = useCart();
   const orderId = searchParams.get("order_id");
 
   const [name, setName] = useState(user?.name || "");
@@ -127,7 +127,7 @@ export default function CheckoutPage() {
                   ))}
                   <div className="border-t pt-2 flex justify-between font-bold">
                     <span>Total</span>
-                    <span>{total.toFixed(2)} ₴</span>
+                    <span>{subtotal.toFixed(2)} ₴</span>
                   </div>
                 </div>
 
@@ -156,7 +156,7 @@ export default function CheckoutPage() {
                   {submitting ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
                   ) : (
-                    `Pay ${total.toFixed(2)} ₴`
+                    `Pay ${subtotal.toFixed(2)} ₴`
                   )}
                 </Button>
               </>

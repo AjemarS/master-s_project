@@ -28,7 +28,7 @@ interface MobileMenuProps {
   navigation: typeof mainNavigation;
   pathname: string;
   showAuth: boolean;
-  user: User;
+  user: User | undefined;
   onClose: () => void;
 }
 

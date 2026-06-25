@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle, TrendingUp, DollarSign, BarChart3, PieChart, ArrowLeft, ShoppingCart } from "lucide-react";
 import { reportApi } from "~/lib/api/admin-api";
 import type { SalesReport, RevenueReport } from "~/lib/types";
-import { StatsCardSkeleton } from "../components";
+import { StatsGridSkeleton } from "../components";
 
 export function ReportsClient() {
   const [sales, setSales] = useState<SalesReport | null>(null);
@@ -65,7 +65,7 @@ export function ReportsClient() {
         )}
 
         {loading ? (
-          <StatsCardSkeleton count={5} />
+          <StatsGridSkeleton count={5} />
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

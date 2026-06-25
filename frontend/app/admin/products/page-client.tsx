@@ -396,7 +396,7 @@ export default function AdminProductsClient({
                           <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{product.id}</td>
                           <td className="p-4 font-medium dark:text-slate-200">{product.name}</td>
                           <td className="p-4 text-slate-600 dark:text-slate-400">{product.category_name || "N/A"}</td>
-                          <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">${Number(product.price).toFixed(2)}</td>
+                          <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">₴{Number(product.price).toFixed(2)}</td>
                           <td className="p-4">
                             <Badge variant={product.stock < 10 ? "destructive" : product.stock < 50 ? "outline" : "default"}>
                               {product.stock} units
