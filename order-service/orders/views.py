@@ -16,6 +16,7 @@ from rest_framework.response import Response
 
 from .eventbus import publish_event
 from .models import Order, OrderItem
+from .permissions import IsAdminOrCashier
 from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
@@ -112,8 +113,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         if self.action in ("list", "retrieve", "my"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("create", "pos"):
+        if self.action in ("create",):
             return [IsAuthenticated()]
+        if self.action == "pos":
+            return [IsAdminOrCashier()]
         return [IsAdminUser()]
 
     def get_queryset(self):

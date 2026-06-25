@@ -228,6 +228,13 @@ app.get("/auth/me", async (req, res) => {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
   });
+  if (session?.user) {
+    const user = session.user as Record<string, unknown>;
+    if (user.id) res.setHeader("X-User-Id", String(user.id));
+    res.setHeader("X-User-Role", String(user.role ?? "user"));
+    if (user.email) res.setHeader("X-User-Email", String(user.email));
+    if (user.name) res.setHeader("X-User-Name", String(user.name));
+  }
   return res.json(session);
 });
 
