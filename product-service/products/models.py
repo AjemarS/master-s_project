@@ -6,6 +6,12 @@ from django.db import models
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="Назва")
+    name_uk = models.CharField(max_length=100, blank=True, verbose_name="Назва (укр)")
+    name_en = models.CharField(max_length=100, blank=True, verbose_name="Назва (англ)")
+    parent = models.ForeignKey(
+        "self", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="children", verbose_name="Батьківська категорія"
+    )
     image = models.ImageField(
         upload_to="category_images/",
         blank=True,
@@ -27,7 +33,11 @@ class Category(models.Model):
 class Product(models.Model):
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=200, verbose_name="Назва продукту")
+    name_uk = models.CharField(max_length=200, blank=True, verbose_name="Назва (укр)")
+    name_en = models.CharField(max_length=200, blank=True, verbose_name="Назва (англ)")
     description = models.TextField(verbose_name="Опис")
+    description_uk = models.TextField(blank=True, verbose_name="Опис (укр)")
+    description_en = models.TextField(blank=True, verbose_name="Опис (англ)")
 
     category = models.ForeignKey(
         Category,

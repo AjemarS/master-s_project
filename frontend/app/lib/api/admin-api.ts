@@ -14,6 +14,8 @@ export const productApi = {
     minStock?: number;
     maxStock?: number;
     ordering?: string;
+    createdAfter?: string;
+    createdBefore?: string;
   }): Promise<ApiResponse<{ results: Product[]; count: number; next: string | null; previous: string | null }>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
@@ -26,6 +28,10 @@ export const productApi = {
     if (params?.minStock !== undefined) queryParams.append("min_stock", params.minStock.toString());
     if (params?.maxStock !== undefined) queryParams.append("max_stock", params.maxStock.toString());
     if (params?.ordering) queryParams.append("ordering", params.ordering);
+    if (params?.createdAfter) queryParams.append("created_after", params.createdAfter);
+    if (params?.createdBefore) queryParams.append("created_before", params.createdBefore);
+    if (params?.createdAfter) queryParams.append("created_after", params.createdAfter);
+    if (params?.createdBefore) queryParams.append("created_before", params.createdBefore);
     const url = `${API_URL}/products/${queryParams.toString() ? `?${queryParams}` : ""}`;
     return apiCall(url);
   },
@@ -229,5 +235,9 @@ export const reportApi = {
 
   async inventoryValue(): Promise<ApiResponse<{ total_value: string; item_count: number }>> {
     return apiCall(`${API_URL}/reports/inventory-value/`);
+  },
+
+  async dailySales(): Promise<ApiResponse<{ daily: { date: string; revenue: number; orders: number }[] }>> {
+    return apiCall(`${API_URL}/reports/daily-sales/`);
   },
 };

@@ -2,7 +2,14 @@ const express = require("express");
 const amqp = require("amqplib");
 const { Resend } = require("resend");
 
-// ── Config ──────────────────────────────────────────────────────
+const { closeAll } = require("./db");
+const notifDb = require("./notifications");
+const prefsDb = require("./preferences");
+const sse = require("./sse");
+const events = require("./events");
+const admin = require("./admin");
+const { initTables } = require("./db-init");
+
 const PORT = process.env.PORT || 8003;
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://techhub:techhub@rabbitmq:5672";
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -26,7 +33,6 @@ const BINDINGS = {
 
 const RECONNECT_DELAY = 5000;
 
-// ── Resend ──────────────────────────────────────────────────────
 let resend = null;
 if (RESEND_API_KEY) {
   resend = new Resend(RESEND_API_KEY);
@@ -85,21 +91,9 @@ const TEMPLATES = {
   }),
 };
 
-// ── Processed event dedup ───────────────────────────────────────
 const processedIds = new Set();
 const DEDUP_TTL = 300_000;
 
-function markProcessed(eventId) {
-  if (!eventId) return;
-  processedIds.add(eventId);
-  setTimeout(() => processedIds.delete(eventId), DEDUP_TTL);
-}
-
-function isProcessed(eventId) {
-  return eventId && processedIds.has(eventId);
-}
-
-// ── Send email ──────────────────────────────────────────────────
 async function sendEmail(to, subject, html) {
   if (!resend) {
     console.log(`[dry-run] Email to ${to}: ${subject}`);
@@ -109,49 +103,129 @@ async function sendEmail(to, subject, html) {
   console.log(`[email] Sent to ${to}: ${subject}`);
 }
 
-// ── Handle event ────────────────────────────────────────────────
-async function handleEvent(routingKey, event, eventId) {
-  if (isProcessed(eventId)) {
-    console.log(`[dedup] Skipping ${eventId}`);
-    return;
-  }
-  markProcessed(eventId);
+function stripHtml(html) {
+  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
 
+async function handleOrderEvent(routingKey, event, eventId) {
   const template = TEMPLATES[routingKey];
-  if (!template) {
+  if (!template) return;
+  const { subject, html } = template(event);
+  const { customer_email, order_number, total_amount, status } = event;
+
+  let type;
+  if (routingKey === "order.created") type = "order_confirmed";
+  else if (routingKey === "order.cancelled") type = "order_cancelled";
+  else if (routingKey === "order.status_changed") {
+    if (status === "delivered") type = "order_delivered";
+    else type = "order_shipped";
+  }
+
+  let user = null;
+  if (event.user_id) {
+    user = { id: event.user_id };
+  } else if (customer_email) {
+    try {
+      user = await admin.getUserByEmail(customer_email);
+    } catch (err) {
+      console.error(`[error] Failed to look up user by email: ${err.message}`);
+    }
+  }
+
+  if (user) {
+    await prefsDb.ensureDefaults(user.id);
+    const prefs = await prefsDb.getPreferences(user.id);
+
+    if (prefs[`${type}_in_app`]) {
+      const notif = await notifDb.createNotification({
+        userId: user.id,
+        type,
+        title: subject,
+        description: stripHtml(html),
+        channel: "in_app",
+        metadata: { order_number, total_amount, status },
+      });
+      sse.broadcast(user.id, notif);
+    }
+
+    if (prefs[`${type}_email`] && customer_email) {
+      await sendEmail(customer_email, subject, html);
+    }
+  } else if (customer_email) {
+    await sendEmail(customer_email, subject, html);
+  } else {
+    console.log(`[skip] No recipient for ${routingKey} event ${eventId || "?"}`);
+  }
+}
+
+async function handleLowStock(event, eventId) {
+  const template = TEMPLATES["inventory.low_stock"];
+  if (!template) return;
+  const { subject, html } = template(event);
+
+  if (ADMIN_EMAIL) {
+    await sendEmail(ADMIN_EMAIL, subject, html);
+  } else {
+    console.warn(`[skip] ADMIN_EMAIL not configured — low stock alert lost for product #${event.product_id}`);
+  }
+
+  try {
+    const admins = await admin.getAdminUsers();
+    for (const a of admins) {
+      await prefsDb.ensureDefaults(a.id);
+      const prefs = await prefsDb.getPreferences(a.id);
+      if (prefs.low_stock_in_app) {
+        const notif = await notifDb.createNotification({
+          userId: a.id,
+          type: "low_stock",
+          title: subject,
+          description: stripHtml(html),
+          channel: "in_app",
+          metadata: { product_id: event.product_id, quantity: event.quantity, warehouse_name: event.warehouse_name },
+        });
+        sse.broadcast(a.id, notif);
+      }
+    }
+  } catch (err) {
+    console.error(`[error] Failed to create low_stock in-app notifications: ${err.message}`);
+  }
+}
+
+async function handleEvent(routingKey, event, eventId) {
+  if (eventId) {
+    if (processedIds.has(eventId)) {
+      console.log(`[dedup] Skipping ${eventId} (in-memory)`);
+      return;
+    }
+    const alreadyProcessed = await events.isProcessed(eventId);
+    if (alreadyProcessed) {
+      processedIds.add(eventId);
+      console.log(`[dedup] Skipping ${eventId} (db)`);
+      return;
+    }
+    processedIds.add(eventId);
+    setTimeout(() => processedIds.delete(eventId), DEDUP_TTL);
+    await events.markProcessed(eventId);
+  }
+
+  if (!TEMPLATES[routingKey]) {
     console.log(`[unknown] No template for ${routingKey}`);
     return;
   }
 
-  let to = "";
-  if (routingKey === "order.created" || routingKey === "order.status_changed" || routingKey === "order.cancelled") {
-    to = event.customer_email;
-  } else if (routingKey === "inventory.low_stock") {
-    if (!ADMIN_EMAIL) {
-      console.warn(`[skip] ADMIN_EMAIL not configured — low stock alert lost for product #${event.product_id}`);
-      return;
-    }
-    to = ADMIN_EMAIL;
-  }
-
-  if (!to) {
-    console.log(`[skip] No recipient for ${routingKey} event ${eventId}`);
-    return;
-  }
-
-  const { subject, html } = template(event);
-  try {
-    await sendEmail(to, subject, html);
-  } catch (err) {
-    console.error(`[error] Failed to send email: ${err.message}`);
+  if (routingKey === "inventory.low_stock") {
+    await handleLowStock(event, eventId);
+  } else if (["order.created", "order.status_changed", "order.cancelled"].includes(routingKey)) {
+    await handleOrderEvent(routingKey, event, eventId);
   }
 }
 
-// ── RabbitMQ consumer ──────────────────────────────────────────
 let channel = null;
 let connection = null;
 
 async function startConsumer() {
+  await initTables();
+
   connection = await amqp.connect(RABBITMQ_URL);
   connection.on("close", () => {
     console.error("[rabbitmq] Connection closed — reconnecting...");
@@ -224,20 +298,27 @@ async function startConsumer() {
 async function stopConsumer() {
   console.log("[shutdown] Draining consumer...");
   if (channel) {
-    try { await channel.close(); } catch (e) { /* ignore */ }
+    try { await channel.close(); } catch (e) { }
   }
   if (connection) {
-    try { await connection.close(); } catch (e) { /* ignore */ }
+    try { await connection.close(); } catch (e) { }
   }
   console.log("[shutdown] RabbitMQ disconnected");
 }
 
-// ── Express server ──────────────────────────────────────────────
 const app = express();
 app.use(require("cors")());
 
-// In-memory notification preferences (MVP — no persistence)
-const USER_PREFS = {};
+function requireOwnUserId(req, res, next) {
+  const gatewayUserId = req.headers["x-gateway-user-id"];
+  const gatewayRole = req.headers["x-gateway-user-role"];
+  const targetUserId = req.query.userId || req.params.userId;
+
+  if (!targetUserId) return res.status(400).json({ error: "userId required" });
+  if (gatewayRole === "admin") return next();
+  if (gatewayUserId && gatewayUserId === targetUserId) return next();
+  return res.status(403).json({ error: "Access denied" });
+}
 
 app.get("/health", (req, res) => {
   const consumerOk = channel !== null && channel.connection && channel.connection.stream;
@@ -245,23 +326,155 @@ app.get("/health", (req, res) => {
     status: consumerOk ? "healthy" : "degraded",
     service: "notification-service",
     consumer: consumerOk ? "connected" : "disconnected",
+    sseClients: sse.getClientCount(),
   });
 });
 
-app.get("/api/notifications/preferences/:userId", (req, res) => {
-  const prefs = USER_PREFS[req.params.userId] || {
-    order_confirmed: true,
-    order_shipped: true,
-    order_delivered: true,
-    order_cancelled: true,
-    marketing: false,
-  };
-  res.json(prefs);
+app.get("/api/notifications", requireOwnUserId, async (req, res) => {
+  try {
+    const { userId, page, limit } = req.query;
+    const result = await notifDb.listNotifications(userId, {
+      page: parseInt(page) || 1,
+      limit: Math.min(parseInt(limit) || 20, 100),
+    });
+    res.json(result);
+  } catch (err) {
+    console.error(`[error] GET /api/notifications: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
-app.patch("/api/notifications/preferences/:userId", express.json(), (req, res) => {
-  USER_PREFS[req.params.userId] = { ...USER_PREFS[req.params.userId], ...req.body };
-  res.json(USER_PREFS[req.params.userId]);
+app.get("/api/notifications/unread/:userId", requireOwnUserId, async (req, res) => {
+  try {
+    const count = await notifDb.getUnreadCount(req.params.userId);
+    res.json({ count });
+  } catch (err) {
+    console.error(`[error] GET /api/notifications/unread: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.patch("/api/notifications/:id/read", async (req, res) => {
+  try {
+    const gatewayUserId = req.headers["x-gateway-user-id"];
+    const notif = await notifDb.markRead(req.params.id, gatewayUserId);
+    if (!notif) return res.status(404).json({ error: "Notification not found" });
+    res.json(notif);
+  } catch (err) {
+    console.error(`[error] PATCH /api/notifications/:id/read: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.patch("/api/notifications/read-all/:userId", requireOwnUserId, async (req, res) => {
+  try {
+    await notifDb.markAllRead(req.params.userId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`[error] PATCH /api/notifications/read-all: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/notifications/:id/dismiss", async (req, res) => {
+  try {
+    const gatewayUserId = req.headers["x-gateway-user-id"];
+    const notif = await notifDb.dismiss(req.params.id, gatewayUserId);
+    if (!notif) return res.status(404).json({ error: "Notification not found" });
+    res.json(notif);
+  } catch (err) {
+    console.error(`[error] POST /api/notifications/:id/dismiss: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.delete("/api/notifications/:userId", requireOwnUserId, async (req, res) => {
+  try {
+    await notifDb.clearAll(req.params.userId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`[error] DELETE /api/notifications/:userId: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/notifications/preferences/:userId", requireOwnUserId, async (req, res) => {
+  try {
+    const prefs = await prefsDb.getPreferences(req.params.userId);
+    res.json(prefs);
+  } catch (err) {
+    console.error(`[error] GET /api/notifications/preferences: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.patch("/api/notifications/preferences/:userId", requireOwnUserId, express.json(), async (req, res) => {
+  try {
+    const prefs = await prefsDb.setPreferences(req.params.userId, req.body);
+    res.json(prefs);
+  } catch (err) {
+    console.error(`[error] PATCH /api/notifications/preferences: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/notifications/stream", requireOwnUserId, (req, res) => {
+  const { userId } = req.query;
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+
+  res.write(`data: ${JSON.stringify({ type: "connected", userId })}\n\n`);
+  const heartbeat = setInterval(() => {
+    try { res.write(": heartbeat\n\n"); } catch (e) { clearInterval(heartbeat); }
+  }, 30000);
+
+  sse.addClient(userId, res);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+  });
+});
+
+const MARKETING_ALLOWED_TYPES = ["marketing", "offer", "promotion"];
+
+app.post("/api/notifications/marketing", express.json(), async (req, res) => {
+  try {
+    const role = req.headers["x-gateway-user-role"];
+    if (role !== "admin") {
+      return res.status(403).json({ error: "Admin only" });
+    }
+    const { title, description, type } = req.body;
+    if (!title || !description) return res.status(400).json({ error: "title and description required" });
+    const notifType = MARKETING_ALLOWED_TYPES.includes(type) ? type : "marketing";
+
+    const users = await prefsDb.getMarketingTargets(1000);
+    let created = 0;
+    for (const u of users) {
+      if (u.marketing_in_app) {
+        await notifDb.createNotification({
+          userId: u.user_id,
+          type: notifType,
+          title,
+          description,
+          channel: "in_app",
+          metadata: {},
+        });
+        created++;
+      }
+      if (u.marketing_email && u.email) {
+        const htmlBody = htmlWrap(`<p>${description}</p>`, title);
+        await sendEmail(u.email, title, htmlBody);
+      }
+    }
+    res.json({ success: true, created });
+  } catch (err) {
+    console.error(`[error] POST /api/notifications/marketing: ${err.message}`);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 if (process.env.NODE_ENV !== "test") {
@@ -273,18 +486,23 @@ if (process.env.NODE_ENV !== "test") {
     });
   });
 
-  // ── Graceful shutdown ───────────────────────────────────────────
+  events.startCleanup();
+
   process.on("SIGTERM", async () => {
     console.log("[shutdown] SIGTERM received");
     server.close(() => {});
+    events.stopCleanup();
     await stopConsumer();
+    await closeAll();
     process.exit(0);
   });
 
   process.on("SIGINT", async () => {
     console.log("[shutdown] SIGINT received");
     server.close(() => {});
+    events.stopCleanup();
     await stopConsumer();
+    await closeAll();
     process.exit(0);
   });
 }

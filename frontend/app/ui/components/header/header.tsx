@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { memo, useState } from "react";
 
 import { Cart } from "~/ui/components/cart/cart";
@@ -12,6 +11,7 @@ import { useCurrentUser } from "~/lib/auth-client";
 import { DesktopNavigation } from "./header-desktop-nav";
 import { AuthSection } from "./header-auth";
 import { MobileMenu, MobileMenuButton } from "./header-mobile-menu";
+import { usePathname } from "~/i18n/navigation";
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -19,21 +19,16 @@ interface HeaderProps {
 }
 
 export type NavigationSection = "main" | "dashboard" | "admin";
+export type NavItem = { href: string; name: string };
 
-export const mainNavigation = [
-  { href: "/", name: "Головна" },
-  { href: "/products", name: "Товари" },
-  { href: "/orders", name: "Мої замовлення" },
-];
-
-const dashboardNavigation = [
+const dashboardNavigation: NavItem[] = [
   { href: "/dashboard/stats", name: "Stats" },
   { href: "/dashboard/profile", name: "Profile" },
   { href: "/dashboard/settings", name: "Settings" },
   { href: "/orders", name: "My Orders" },
 ];
 
-const adminNavigation = [
+const adminNavigation: NavItem[] = [
   { href: "/admin/summary", name: "Summary" },
   { href: "/admin/users", name: "Users" },
   { href: "/admin/products", name: "Products" },
@@ -52,11 +47,11 @@ export const isActive = (href: string, current: string) =>
 
 const Logo = memo(function Logo() {
   return (
-    <Link className="flex items-center gap-2" href="/">
+    <a className="flex items-center gap-2" href="/">
       <span className="text-xl font-bold bg-linear-to-r from-primary to-primary/70 bg-clip-text tracking-tight text-transparent">
         TechHub
       </span>
-    </Link>
+    </a>
   );
 });
 
@@ -64,7 +59,7 @@ const HeaderLeft = memo(function HeaderLeft({
   navigation,
   pathname,
 }: {
-  navigation: typeof mainNavigation;
+  navigation: NavItem[];
   pathname: string;
 }) {
   return (
@@ -79,22 +74,24 @@ export function Header({ showAuth = true }: HeaderProps) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const t = useTranslations("nav");
 
   const matchedRule = rules.find((r) => pathname.startsWith(r.prefix));
 
-  // Determine where the user actually is, falling back to "main" if they
-  // shouldn't be in the matched section (e.g. non-admin on /admin/*).
   let whereAmI: NavigationSection = "main";
   if (matchedRule) {
     if (matchedRule.where === "admin") {
-      // Set admin nav immediately while session loads, instead of flashing main nav.
-      // If session resolves and user isn't admin, the proxy will have already
-      // redirected them away — so this state is unreachable for non-admins.
       whereAmI = "admin";
     } else if (matchedRule.where === "dashboard" && user) {
       whereAmI = "dashboard";
     }
   }
+
+  const mainNavigation: NavItem[] = [
+    { href: "/", name: t("home") },
+    { href: "/products", name: t("products") },
+    { href: "/orders", name: t("orders") },
+  ];
 
   const navigation =
     whereAmI === "main"
@@ -102,6 +99,8 @@ export function Header({ showAuth = true }: HeaderProps) {
       : whereAmI === "dashboard"
         ? dashboardNavigation
         : adminNavigation;
+
+  const currentLocale = useLocale();
 
   return (
     <header
@@ -118,14 +117,33 @@ export function Header({ showAuth = true }: HeaderProps) {
         `}
       >
         <div className="flex h-16 items-center justify-between">
-          {/* Logo and Desktop Navigation */}
           <HeaderLeft navigation={navigation} pathname={pathname} />
 
-          {/* Right side actions */}
           <div className="flex items-center gap-4">
             {whereAmI !== "admin" && <Cart />}
 
             <NotificationsWidget />
+
+            <div className="flex items-center gap-1">
+              {[
+                { code: "ua", label: "UA" },
+                { code: "en", label: "EN" },
+              ].map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => {
+                    window.location.href = `/${lang.code}${pathname}`;
+                  }}
+                  className={`px-2 py-0.5 text-xs rounded font-medium transition-colors ${
+                    lang.code === currentLocale
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
 
             {showAuth && <AuthSection user={user} whereAmI={whereAmI} />}
 
@@ -139,7 +157,6 @@ export function Header({ showAuth = true }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
         <MobileMenu
           navigation={navigation}

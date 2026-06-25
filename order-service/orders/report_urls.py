@@ -6,4 +6,5 @@ urlpatterns = [
     path("sales/", reports.sales_report, name="sales-report"),
     path("revenue/", reports.revenue_report, name="revenue-report"),
     path("inventory-value/", reports.inventory_value_report, name="inventory-value-report"),
+    path("daily-sales/", reports.daily_sales_report, name="daily-sales-report"),
 ]

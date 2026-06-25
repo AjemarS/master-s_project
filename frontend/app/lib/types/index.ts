@@ -1,12 +1,18 @@
 export interface Product {
   id: number;
   name: string;
+  name_uk?: string;
+  name_en?: string;
   description: string;
+  description_uk?: string;
+  description_en?: string;
   image_url: string | null;
   category_name: string;
   category: number | Category;
   price: number;
+  price_usd?: number;
   original_price: number;
+  original_price_usd?: number;
   stock: number;
   in_stock: boolean;
   rating: number;
@@ -25,8 +31,10 @@ export interface ProductDetail extends Product {
 export interface Category {
   id?: number;
   name: string;
+  parent?: number | null;
   image: string;
   product_count: number;
+  children?: Category[];
   created_at?: string;
   updated_at?: string;
 }

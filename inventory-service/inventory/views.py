@@ -485,6 +485,15 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             ).update(quantity=F("quantity") + item.quantity)
             stock.refresh_from_db()
 
+            # Weighted-average cost recalculation
+            old_qty = stock.quantity - item.quantity
+            old_cost = stock.average_cost
+            if old_qty > 0:
+                new_avg = (old_qty * old_cost + item.quantity * item.cost_price) / (old_qty + item.quantity)
+            else:
+                new_avg = item.cost_price
+            Stock.objects.filter(pk=stock.pk).update(average_cost=new_avg)
+
             StockMovement.objects.create(
                 product_id=item.product_id,
                 to_warehouse=instance.warehouse,

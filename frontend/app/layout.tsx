@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  description: "TechHub — інтернет-магазин побутової техніки",
-  title: "TechHub | Побутова техніка",
+  description: "TechHub — online store of home appliances",
+  title: "TechHub",
 };
 
 export default function RootLayout({
@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uk" suppressHydrationWarning>
+    <html lang="ua" suppressHydrationWarning>
       <body
         className={`
           ${geistSans.variable}

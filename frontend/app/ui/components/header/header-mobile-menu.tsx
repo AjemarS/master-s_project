@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { isActive, mainNavigation } from "./header";
+import { Link } from "~/i18n/navigation";
+import { useTranslations } from "next-intl";
+import { isActive, type NavItem } from "./header";
 import { cn } from "~/lib/cn";
 import { User } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
@@ -25,7 +26,7 @@ export function MobileMenuButton({ isOpen, onToggle }: MobileMenuButtonProps) {
 }
 
 interface MobileMenuProps {
-  navigation: typeof mainNavigation;
+  navigation: NavItem[];
   pathname: string;
   showAuth: boolean;
   user: User | undefined;
@@ -33,6 +34,8 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ navigation, pathname, showAuth, user, onClose }: MobileMenuProps) {
+  const t = useTranslations("common");
+
   return (
     <div className="md:hidden">
       <nav className="space-y-1 border-b px-4 py-3">
@@ -60,14 +63,14 @@ export function MobileMenu({ navigation, pathname, showAuth, user, onClose }: Mo
             href="/sign-in"
             onClick={onClose}
           >
-            Log in
+            {t("signIn")}
           </Link>
           <Link
             className="block rounded-md bg-primary px-3 py-2 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             href="/sign-up"
             onClick={onClose}
           >
-            Sign up
+            {t("signUp")}
           </Link>
         </div>
       )}

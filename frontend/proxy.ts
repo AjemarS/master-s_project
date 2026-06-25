@@ -1,21 +1,41 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import createIntlMiddleware from "next-intl/middleware";
+
+const intlMiddleware = createIntlMiddleware({
+  locales: ["ua", "en"],
+  defaultLocale: "ua",
+  localePrefix: "always",
+});
 
 // Routes that require authentication
 const protectedRoutes = ["/dashboard", "/admin"];
 
-// Role-based route access map.
-// Admin always has access to all protected routes.
+// Role-based route access map
 const roleRouteAccess: Record<string, string[]> = {
   "/admin": ["admin", "cashier", "warehouse_worker"],
 };
 
+async function redirectToSignIn(request: NextRequest) {
+  const locale = request.cookies.get("NEXT_LOCALE")?.value || "ua";
+  const signInUrl = new URL(`/${locale}/sign-in`, request.url);
+  signInUrl.searchParams.set("redirect", request.nextUrl.pathname);
+  return NextResponse.redirect(signInUrl);
+}
+
 export async function proxy(request: NextRequest) {
+  // Step 1: Handle i18n locale detection via next-intl
+  const intlResponse = await intlMiddleware(request);
+  if (intlResponse) return intlResponse;
+
   const { pathname } = request.nextUrl;
 
-  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
+  // Step 2: Check if the route needs auth
+  const localePath = pathname.replace(/^\/(ua|en)/, "");
+  const isProtected = protectedRoutes.some((route) => localePath.startsWith(route));
   if (!isProtected) return NextResponse.next();
 
+  // Step 3: Auth check
   try {
     const cookieHeader = request.headers.get("cookie") || "";
     const authUrl = process.env.PROXY_AUTH_URL || process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth";
@@ -29,34 +49,20 @@ export async function proxy(request: NextRequest) {
     const session = await response.json();
     if (!session?.user) return redirectToSignIn(request);
 
-    const userRole = session.user.role;
-
-    // Check role-based route access
+    // Role-based access
+    const userRole = session.user.role || "user";
     for (const [route, allowedRoles] of Object.entries(roleRouteAccess)) {
-      if (pathname.startsWith(route)) {
-        if (userRole !== "admin" && !allowedRoles.includes(userRole)) {
-          return NextResponse.redirect(new URL("/", request.url));
-        }
-        break;
+      if (localePath.startsWith(route) && !allowedRoles.includes(userRole) && userRole !== "admin") {
+        return redirectToSignIn(request);
       }
     }
 
     return NextResponse.next();
   } catch {
-    // Fail closed for admin panel (security), fail open for dashboard (availability)
-    if (pathname.startsWith("/admin")) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-    return NextResponse.next();
+    return redirectToSignIn(request);
   }
 }
 
-function redirectToSignIn(request: NextRequest) {
-  const signInUrl = new URL("/sign-in", request.url);
-  signInUrl.searchParams.set("redirect", request.nextUrl.pathname);
-  return NextResponse.redirect(signInUrl);
-}
-
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
 };
