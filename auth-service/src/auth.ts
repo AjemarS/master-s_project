@@ -23,7 +23,7 @@ export const auth = betterAuth({
   appName: "TechHub",
   plugins: [
     admin({
-      adminUserIds: (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean),
+      adminUserIds: [],
     }),
     twoFactor(),
   ],

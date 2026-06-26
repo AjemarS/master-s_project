@@ -107,8 +107,8 @@ services:
   # Django Product Service
   product-service:
     build:
-      context: ./product-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: product-service/Dockerfile
     container_name: product_service
     restart: unless-stopped
     environment:
@@ -126,6 +126,7 @@ services:
       RABBITMQ_URL: ${RABBITMQ_URL}
     volumes:
       - ./product-service:/app
+      - ./shared-lib:/shared-lib
     ports:
       - "8000:8000"
     depends_on:
@@ -178,8 +179,8 @@ services:
   # Django Inventory Service
   inventory-service:
     build:
-      context: ./inventory-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: inventory-service/Dockerfile
     container_name: inventory_service
     restart: unless-stopped
     environment:
@@ -198,6 +199,7 @@ services:
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL}
     volumes:
       - ./inventory-service:/app
+      - ./shared-lib:/shared-lib
     ports:
       - "8001:8001"
     depends_on:
@@ -212,8 +214,8 @@ services:
   # Django Order Service
   order-service:
     build:
-      context: ./order-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: order-service/Dockerfile
     container_name: order_service
     restart: unless-stopped
     environment:
@@ -234,6 +236,7 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
     volumes:
       - ./order-service:/app
+      - ./shared-lib:/shared-lib
     ports:
       - "8002:8002"
     depends_on:
@@ -248,8 +251,8 @@ services:
   # Product Event Consumer (RabbitMQ)
   product-consumer:
     build:
-      context: ./product-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: product-service/Dockerfile
     container_name: product_consumer
     restart: unless-stopped
     environment:
@@ -267,6 +270,7 @@ services:
       RABBITMQ_URL: ${RABBITMQ_URL}
     volumes:
       - ./product-service:/app
+      - ./shared-lib:/shared-lib
     depends_on:
       products_db:
         condition: service_healthy
@@ -279,8 +283,8 @@ services:
   # Inventory Event Consumer (RabbitMQ)
   inventory-consumer:
     build:
-      context: ./inventory-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: inventory-service/Dockerfile
     container_name: inventory_consumer
     restart: unless-stopped
     environment:
@@ -298,6 +302,7 @@ services:
       RABBITMQ_URL: ${RABBITMQ_URL}
     volumes:
       - ./inventory-service:/app
+      - ./shared-lib:/shared-lib
     depends_on:
       inventory_db:
         condition: service_healthy

@@ -93,55 +93,19 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+from shared_auth.settings_base import BASE_REST_FRAMEWORK, BASE_SPECTACULAR_SETTINGS
+
 REST_FRAMEWORK = {
-    # ----- Pagination (enforced globally) -----
+    **BASE_REST_FRAMEWORK,
     "DEFAULT_PAGINATION_CLASS": "products.pagination.StandardResultsSetPagination",
-    "PAGE_SIZE": 20,
-
-    # ----- Auth & permissions -----
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "products.authentication.GatewayAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
-    ],
-
-    # ----- Throttling (DoS protection) -----
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "60/minute",
-        "user": "300/minute",
-    },
-
-    # ----- Filtering -----
-    "DEFAULT_FILTER_BACKENDS": [
-        "django_filters.rest_framework.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
-        "rest_framework.filters.OrderingFilter",
-    ],
-
-    # ----- Output -----
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-    ],
-
-    # ----- OpenAPI Schema -----
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
 SPECTACULAR_SETTINGS = {
+    **BASE_SPECTACULAR_SETTINGS,
     "TITLE": "Product Service API",
     "DESCRIPTION": "REST API for managing products and categories",
-    "VERSION": "1.0.0",
-    "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# ----- Logging -----
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -174,6 +138,5 @@ LOGGING = {
 CORS_ALLOWED_ORIGINS = [x.strip() for x in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost").split(",")]
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost").split(",")]
 CORS_ALLOW_CREDENTIALS = True
-
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG

@@ -8,14 +8,18 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
+# Спільна бібліотека (shared-auth, спільні утиліти)
+COPY shared-lib /shared-lib
+
 # Копіювання файлів залежностей
-COPY requirements.txt .
+COPY product-service/requirements.txt .
 
 # Встановлення Python залежностей
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install -e /shared-lib
 
 # Копіювання коду проекту
-COPY . .
+COPY product-service/ .
 
 # Відкриття порту
 EXPOSE 8000

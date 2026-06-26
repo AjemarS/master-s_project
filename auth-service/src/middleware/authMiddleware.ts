@@ -3,15 +3,15 @@ import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "../auth";
 import logger from "../logger";
 
-const adminUserIds: string[] = (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
+const bootstrapAdminIds: string[] = (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
 
 export function getAdminUserIds(): string[] {
-  return adminUserIds;
+  return bootstrapAdminIds;
 }
 
 export function addAdminUserId(userId: string): void {
-  if (!adminUserIds.includes(userId)) {
-    adminUserIds.push(userId);
+  if (!bootstrapAdminIds.includes(userId)) {
+    bootstrapAdminIds.push(userId);
   }
 }
 
@@ -41,7 +41,7 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    if (!adminUserIds.includes(session.user.id)) {
+    if (session.user.role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admin only." });
     }
 

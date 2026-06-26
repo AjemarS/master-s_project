@@ -7,10 +7,13 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY shared-lib /shared-lib
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY inventory-service/requirements.txt .
 
-COPY . .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install -e /shared-lib
+
+COPY inventory-service/ .
 
 EXPOSE 8001
