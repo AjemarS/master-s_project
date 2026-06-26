@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -8,6 +10,7 @@ from .cart_serializers import CartSerializer
 from .models import Product
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [AllowAny]
     authentication_classes = []  # Bypass SessionAuthentication CSRF check

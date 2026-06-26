@@ -167,6 +167,7 @@ class ReserveStockSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
     reference_type = serializers.CharField(required=False, allow_blank=True, default="order")
     reference_id = serializers.CharField(required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_product_id(self, value):
         validate_product_exists(value)
@@ -179,6 +180,7 @@ class DeductStockSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
     reference_type = serializers.CharField(required=False, allow_blank=True, default="order")
     reference_id = serializers.CharField(required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_product_id(self, value):
         validate_product_exists(value)

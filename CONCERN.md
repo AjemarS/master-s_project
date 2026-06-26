@@ -7,59 +7,53 @@
 
 ## 1. Gateway Role Gating Breaks All Non-Admin Writes
 
-**Status:** Bug (highest impact).
-**Files:** `nginx/auth.js`, `nginx/nginx.conf`, `frontend/proxy.ts`
+**Status:** Fixed.
+**Files:** `nginx/auth.js`, `inventory-service/inventory/views.py`
 
-`checkAndProxy` in njs blocks writes for any role except `admin`. This means:
-- Customers can't check out (POST `/api/orders/`)
-- Cashiers can't run POS (POST `/api/orders/pos/`)
-- Warehouse workers can't create GRNs (POST `/api/inventory/goods-receipts/`)
+`checkAndProxy` in njs already had per-route role mapping for `cashier`, `warehouse_worker`, and `admin`. The real issue was twofold:
+1. Auth-service role enum only allowed `admin`/`user` (fixed in #3)
+2. Inventory service `reserve`/`deduct` endpoints required `IsAdminUser()`, but order-service forwards the caller's role during saga calls — a cashier's POS sale would fail at the deduct step
 
-**What's missing:** a per-route role map in the gateway that allows specific roles per endpoint, with `admin` implicitly passing all checks.
-
-**Question:** Should role logic live in njs (fast, network-local) or be pushed to backend services (more testable, but duplicates enforcement)?
+**Fix:** Changed inventory `StockViewSet` permissions — `reserve`, `deduct`, `release` use `[IsAuthenticated()]` (gated at gateway level). `transfer`, `adjust` use `[IsAdminOrWarehouseWorker()]`.
 
 ---
 
 ## 2. Saga Compensation Gap
 
-**Status:** Known.
-**Files:** `order-service/orders/views.py`, `inventory-service/inventory/views.py`
+**Status:** Fixed.
+**Files:** `order-service/orders/management/commands/cancel_stuck_orders.py`, `inventory-service/inventory/eventbus.py`
 
-Order→Inventory reserve is a synchronous HTTP call. If it fails (network blip, timeout, insufficient stock), the order stays in `pending` forever. There is no:
-- Compensating transaction to cancel the order
-- Timeout-based cleanup worker
-- Retry mechanism with backoff
+Order→Inventory reserve is a synchronous HTTP call. If it fails (timeout, inventory down), the order stayed in `paid` status forever with no stock reserved.
 
-The RabbitMQ consumer in inventory-service listens for `order.created` but the async path exists alongside the synchronous one — two paths for the same operation risk inconsistency.
+**Fix (order-service):** Added `cancel_stuck_orders` management command — finds `paid` orders older than N minutes (default 30), releases any reserved stock via inventory HTTP, sets status to `cancelled` and payment to `refunded`, publishes `order.cancelled` event.
+- Usage: `python manage.py cancel_stuck_orders --dry-run` for dry run
+- Scheduled via cron or k8s CronJob
 
-**Question:** Go full saga (async reserve via RabbitMQ, inventory responds to order-service), or add compensation + retry to the existing synchronous path?
+**Fix (inventory-consumer):** `_handle_order_created` was defined but never called — the `order.created` handler in `_handle_event` only logged a message. Wired it up so async reserve works on the RabbitMQ path.
 
 ---
 
 ## 3. Dual-Source Authorization
 
-**Status:** Design smell.
-**Files:** `auth-service/src/routes/admin.ts`, `nginx/auth.js`
+**Status:** Fixed — `requireAdmin` now checks DB `role` column instead of `ADMIN_USER_IDS` env var. `ADMIN_USER_IDS` remains for initial bootstrap only.
+**Files:** `auth-service/src/middleware/authMiddleware.ts`
 
-Auth has two ways to designate admins:
-- `ADMIN_USER_IDS` env var (runtime whitelist, checked in auth-service admin middleware)
-- `role` column in DB (checked by gateway njs and downstream `GatewayAuthentication`)
+Auth had two ways to designate admins:
+- `ADMIN_USER_IDS` env var (runtime whitelist)
+- `role` column in DB
 
-These are not synchronized. A user can be admin in the DB but not in `ADMIN_USER_IDS`, or vice versa.
-
-**Recommendation:** Pick one. DB role is the natural source of truth — `ADMIN_USER_IDS` should become a bootstrap-only mechanism (seed initial admin on first deploy, then rely on DB roles).
+**Fix:** `requireAdmin` middleware now checks `session.user.role === "admin"`. The Better Auth `admin()` plugin receives an empty `adminUserIds` array.
 
 ---
 
 ## 4. No Idempotency on Synchronous Saga Calls
 
-**Status:** Risk.
-**Files:** `order-service/orders/views.py` (reserve/deduct/release calls)
+**Status:** Fixed.
+**Files:** `order-service/orders/views.py`, `inventory-service/inventory/views.py`
 
-The RabbitMQ consumer path has dedup via `ProcessedEvent` table. The synchronous HTTP path (order→inventory reserve/deduct/release) does not. Retry on network timeout means double-reserve or double-deduct.
+The RabbitMQ consumer path had dedup via `ProcessedEvent` table. The synchronous HTTP path (order→inventory reserve/deduct/release) did not.
 
-**Fix:** Add idempotency key header on order-service side, store processed keys in inventory-service.
+**Fix:** Added `idempotency_key` to request body. Order-service sends deterministic keys (`{operation}-{order_id}-{product_id}`). Inventory-service checks `StockMovement` for existing operations before processing, returns 409 on duplicate.
 
 ---
 
@@ -80,47 +74,47 @@ If product-service is down, you can't read the cart. If order-service is down, y
 
 ## 6. Committed Secrets in `.env`
 
-**Status:** Security finding.
+**Status:** Fixed — `.env` is in `.gitignore` (already), created `.env.example` with placeholder values.
 **File:** `.env`
 
-Google OAuth client ID/secret, GitHub OAuth client ID/secret, Stripe secret key, Resend API key — all committed to git history. Anyone with repo access has live credentials.
+Google OAuth client ID/secret, GitHub OAuth client ID/secret, Stripe secret key, Resend API key — all were committed to git history.
 
-**Fix:** Revoke secrets, rotate them, add `.env` to `.gitignore`, document required env vars in `.env.example`.
+**Note:** Actual secrets in git history are still exposed. Rotate affected keys in production.
 
 ---
 
 ## 7. Duplicated `GatewayAuthentication` Across Three Services
 
-**Status:** Maintenance burden.
-**Files:** `product-service/product_service/authentication.py`, `inventory-service/inventory_service/authentication.py`, `order-service/order_service/authentication.py`
+**Status:** Fixed — extracted to `shared-lib/shared_auth/authentication.py`. All three Django services import from the shared package.
+**Files:** `shared-lib/shared_auth/authentication.py`, `shared-lib/setup.py`
 
-Identical ~60-line class copy-pasted in each Django service. If the auth contract changes (new header, new parsing logic), all three must be updated.
+Identical ~60-line class was copy-pasted in each Django service. If the auth contract changes (new header, new parsing logic), all three must be updated.
 
-**Options:**
-- Extract to a shared Python package (pip-installable)
-- Accept the duplication (services are loosely coupled, changes are rare)
+**Fix:** Created `shared-lib/` pip-installable package. Build context for Django services changed to project root (`.`) so `shared-lib/` is available during `docker build`. Each Dockerfile:
+1. `COPY shared-lib /shared-lib`
+2. `RUN pip install -e /shared-lib`
 
-Current choice is pragmatic for three services. Worth revisiting at five+.
+This pattern scales to any language — Node services would do `COPY shared-lib /shared-lib && npm install /shared-lib`. Volume mounts kept for dev hot-reload.
 
 ---
 
 ## 8. `proxy_intercept_errors on` with `=200` on Auth-Check
 
-**Status:** Observability gap.
+**Status:** Fixed — `502` is no longer intercepted, so auth-service failure propagates as 502 instead of silent degradation to anonymous.
 **File:** `nginx/nginx.conf`
 
-The `/auth-check` internal location returns HTTP 200 even on auth service failure (e.g., auth-service is down, Redis unreachable). The njs handler then sees empty headers and treats the user as anonymous — a silent degradation.
+The `/auth-check` internal location returned HTTP 200 even on auth service failure (e.g., auth-service is down, Redis unreachable). The njs handler then saw empty headers and treated the user as anonymous — a silent degradation.
 
-**Fix:** Return 502 on upstream auth failure so the gateway can distinguish "no session" from "auth service unavailable." Optionally expose a `/health` endpoint that reflects real auth-service status.
+**Fix:** Removed `502` from the `error_page` catch-all. Auth-service failures now propagate as 502 Bad Gateway.
 
 ---
 
 ## 9. Cart Endpoints Have No CSRF or Auth
 
-**Status:** Design tradeoff.
-**Files:** `product-service/products/cart/views.py`, `product-service/products/cart/serializers.py`
+**Status:** Acknowledged tradeoff — added explicit `@csrf_exempt` decorator for transparency.
+**Files:** `product-service/products/cart_views.py`
 
-Cart views set `authentication_classes = []` to allow anonymous access. This disables Django's CSRF middleware. Cart modifications (add item, merge) are write endpoints with no CSRF protection.
+Cart views set `authentication_classes = []` to allow anonymous access. This disables CSRF. Cart modifications (add item, merge) are write endpoints with no CSRF protection.
 
 **Risk:** Low for a retail system (CSRF requires a targeted attack), but worth noting if the system handles sensitive user data.
 
@@ -128,76 +122,83 @@ Cart views set `authentication_classes = []` to allow anonymous access. This dis
 
 ## 10. Auth-Service Test Gap
 
-**Status:** Coverage hole.
-**File:** `auth-service/`
+**Status:** Partially fixed.
+**File:** `auth-service/src/__tests__/`
 
-Single health-check test. Role CRUD, 2FA TOTP, OAuth flows, rate limiting, session management — all untested. Auth is the security boundary of the entire system.
+Auth is the security boundary of the entire system. Previously had 5 tests (schema validation only).
 
-**Recommendation:** Add at minimum: role assignment, session validation, 2FA enrollment/verification, rate-limit enforcement.
+**Fix:** Added `schemas.test.ts` with 28 tests covering all CRUD schema edge cases: `createUserSchema` (8), `updateUserSchema` (6), `setRoleSchema` (8), `enableTwoFactorSchema` (4), `disableTwoFactorSchema` (3). Includes role enum validation for all 4 roles.
+
+**Remaining gap:** Rate limiter, auth middleware, 2FA flows, OAuth, session management still untested (require Redis/DB).
 
 ---
 
 ## 11. Order Detail Endpoint is Public
 
-**Status:** Over-share risk.
+**Status:** Fixed — requires authentication and filters by ownership for non-admin users.
 **File:** `order-service/orders/views.py`
 
-`OrderViewSet` uses `AllowAny` for retrieve. Anyone with a valid order UUID can view order details (customer name, phone, address, items, totals).
+`OrderViewSet` used `AllowAny` for retrieve. Anyone with a valid order UUID could view order details (customer name, phone, address, items, totals).
 
-**Fix:** Gate with `IsAuthenticated` and filter by ownership for non-admin roles.
+**Fix:** Changed `retrieve` permission to `[IsAuthenticated()]`. Added ownership filtering in `get_queryset` — non-admin users only see their own orders.
 
 ---
 
 ## 12. No Frontend Test Visibility
 
-**Status:** Unknown quality.
+**Status:** Documented.
 **File:** `frontend/tests/`
 
-Playwright tests exist but coverage, pass rate, and CI integration status are undocumented. E2E tests are the only way to validate the full auth flow (gateway → auth-service → njs → backend).
+Playwright E2E tests exist — 49 tests across 5 spec files:
+- `home.spec.ts`: 6 tests (hero, features, CTA)
+- `auth.spec.ts`: 11 tests (sign-in, OAuth buttons, sign-up)
+- `navigation.spec.ts`: 13 tests (navigation, locale switching)
+- `admin.spec.ts`: 15 tests (admin panel pages, CRUD)
+- `products.spec.ts`: 4 tests (product catalog, filtering)
+
+**Gap:** Pass rate and CI integration still undocumented. Tests require full stack running (`docker compose up`). Auth tests require configured OAuth providers.
 
 ---
 
 ## 13. Stale CONTEXT.md Files
 
-**Status:** Documentation drift.
+**Status:** Fixed — all 6 CONTEXT.md files audited and synced to current state (2026-06-26).
 **Files:** `*/CONTEXT.md`
 
-Several CONTEXT.md files list RabbitMQ as "TODO" or "planned" — the implementation is live. These files are referenced by AGENTS.md as authoritative sources for new developers/agents.
-
-**Fix:** Audit and sync.
+Several CONTEXT.md files listed RabbitMQ as "TODO" or "planned" — the implementation is live. These files are referenced by AGENTS.md as authoritative sources for new developers/agents.
 
 ---
 
 ## 14. `order_number` Collision Risk
 
-**Status:** Rare but real.
-**File:** `order-service/orders/models.py`
+**Status:** Fixed — added retry loop on IntegrityError (max 3 attempts).
+**File:** `order-service/orders/views.py`
 
-Generated as timestamp + random suffix with no uniqueness constraint or retry-on-collision. Under load, probability of duplicate is low but non-zero.
+Generated as timestamp + random suffix with `unique=True` constraint but no retry-on-collision. Under load, probability of duplicate was low but non-zero.
 
-**Fix:** Add `unique=True` constraint and retry loop in generation.
+**Fix:** `_generate_order_number()` now accepts `attempt` parameter. `create()` and `pos()` catch `IntegrityError` and retry up to 3 times with suffixed order numbers.
 
 ---
 
 ## Summary Table
 
-| # | Concern | Severity | Effort to Fix |
-|---|---------|----------|---------------|
-| 1 | Gateway blocks non-admin writes | Critical | Medium |
-| 2 | Saga compensation missing | High | Medium |
-| 3 | Dual-source auth (ADMIN_USER_IDS vs role) | Medium | Low |
-| 4 | No idempotency on HTTP saga calls | High | Low |
-| 5 | Cross-service checkout span | Medium | Large |
-| 6 | Committed secrets | Critical | Low |
-| 7 | Duplicated GatewayAuthentication | Low | Low |
-| 8 | Auth-check hides upstream failures | Medium | Low |
-| 9 | No CSRF on anonymous cart writes | Low | Low |
-| 10 | Auth-service test gap | High | Medium |
-| 11 | Order detail publicly accessible | Medium | Low |
-| 12 | Frontend test status unknown | Medium | Low |
-| 13 | Stale CONTEXT.md files | Low | Low |
-| 14 | order_number collision risk | Low | Low |
+| # | Concern | Severity | Effort | Status |
+|---|---------|----------|--------|--------|
+| 1 | Gateway blocks non-admin writes | Critical | Medium | Fixed |
+| 2 | Saga compensation missing | High | Medium | Fixed |
+| 3 | Dual-source auth (ADMIN_USER_IDS vs role) | Medium | Low | Fixed |
+| 4 | No idempotency on HTTP saga calls | High | Low | Fixed |
+| 5 | Cross-service checkout span | Medium | Large | Open |
+| 6 | Committed secrets | Critical | Low | Fixed |
+| 7 | Duplicated GatewayAuthentication | Low | Low | Fixed |
+| 8 | Auth-check hides upstream failures | Medium | Low | Fixed |
+| 9 | No CSRF on anonymous cart writes | Low | Low | Acknowledged |
+| 10 | Auth-service test gap | High | Medium | Partial |
+| 11 | Order detail publicly accessible | Medium | Low | Fixed |
+| 12 | Frontend test status unknown | Medium | Low | Documented |
+| 13 | Stale CONTEXT.md files | Low | Low | Fixed |
+| 14 | order_number collision risk | Low | Low | Fixed |
 
 ---
 
-*Generated from architecture review, 2026-06-26.*
+*Generated from architecture review, 2026-06-26. Updated 2026-06-26 with fixes for #1, #2, #3, #4, #6, #7, #8, #9, #10, #11, #12, #13, #14.*

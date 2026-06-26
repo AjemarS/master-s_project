@@ -7,13 +7,13 @@ from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from .eventbus import publish_event
 from .filters import StockFilter, StockMovementFilter
 from .models import GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
-from .permissions import IsAdminOrWarehouseWorker
+from shared_auth.permissions import IsAdminOrWarehouseWorker
 from .serializers import (
     AdjustStockSerializer,
     DeductStockSerializer,
@@ -122,7 +122,9 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve", "movements"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("transfer", "adjust", "release"):
+        if self.action in ("reserve", "deduct", "release"):
+            return [IsAuthenticated()]
+        if self.action in ("transfer", "adjust"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
@@ -136,6 +138,17 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
         quantity = serializer.validated_data["quantity"]
         reference_type = serializer.validated_data.get("reference_type", "order")
         reference_id = serializer.validated_data.get("reference_id", "")
+        idempotency_key = serializer.validated_data.get("idempotency_key", "")
+
+        if idempotency_key:
+            existing = StockMovement.objects.filter(
+                product_id=product_id,
+                reference_id=reference_id,
+                type=StockMovement.RESERVE,
+            ).exists()
+            if existing:
+                stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+                return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
 
         with transaction.atomic():
             stock = Stock.objects.select_for_update().get(
@@ -187,6 +200,17 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
         quantity = serializer.validated_data["quantity"]
         reference_type = serializer.validated_data.get("reference_type", "order")
         reference_id = serializer.validated_data.get("reference_id", "")
+        idempotency_key = serializer.validated_data.get("idempotency_key", "")
+
+        if idempotency_key:
+            existing = StockMovement.objects.filter(
+                product_id=product_id,
+                reference_id=reference_id,
+                type=StockMovement.RELEASE,
+            ).exists()
+            if existing:
+                stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+                return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
 
         with transaction.atomic():
             stock = Stock.objects.select_for_update().get(
@@ -237,6 +261,17 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
         quantity = serializer.validated_data["quantity"]
         reference_type = serializer.validated_data.get("reference_type", "order")
         reference_id = serializer.validated_data.get("reference_id", "")
+        idempotency_key = serializer.validated_data.get("idempotency_key", "")
+
+        if idempotency_key:
+            existing = StockMovement.objects.filter(
+                product_id=product_id,
+                reference_id=reference_id,
+                type=StockMovement.DEDUCT,
+            ).exists()
+            if existing:
+                stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+                return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
 
         with transaction.atomic():
             stock = Stock.objects.select_for_update().get(

@@ -6,7 +6,7 @@ from uuid import uuid4
 import requests
 import stripe
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone as tz
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
@@ -16,7 +16,7 @@ from rest_framework.response import Response
 
 from .eventbus import publish_event
 from .models import Order, OrderItem
-from .permissions import IsAdminOrCashier
+from shared_auth.permissions import IsAdminOrCashier
 from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
@@ -56,9 +56,11 @@ def _inventory_url(path):
     return f"{settings.INVENTORY_SERVICE_URL}/api/{path}"
 
 
-def _call_inventory(method, path, json_data=None, request=None):
+def _call_inventory(method, path, json_data=None, request=None, idempotency_key=None):
     url = _inventory_url(path)
     headers = {}
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
     if request:
         for meta_key, header_name in [
             ("HTTP_X_GATEWAY_USER_ID", "X-Gateway-User-Id"),
@@ -77,18 +79,22 @@ def _call_inventory(method, path, json_data=None, request=None):
             return None, "Unsupported method"
         if resp.status_code in (200, 201):
             return resp.json(), None
+        if resp.status_code == 409:
+            return resp.json(), None
         return None, resp.json().get("error", f"HTTP {resp.status_code}")
     except requests.RequestException as e:
         logger.error("Inventory call failed: %s %s - %s", method, url, e)
         return None, str(e)
 
 
-def _generate_order_number():
+def _generate_order_number(attempt=0):
     import random
     import time
     ts = int(time.time() * 1000) % 100000
     rnd = random.randint(100, 999)
-    return f"ORD-{ts}{rnd}"
+    if attempt == 0:
+        return f"ORD-{ts}{rnd}"
+    return f"ORD-{ts}{rnd}-{attempt}"
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -111,9 +117,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action == "stripe_webhook":
             return [AllowAny()]
-        if self.action in ("list", "retrieve", "my"):
-            return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("create", "retrieve"):
+        if self.action in ("list", "my"):
+            return [IsAuthenticated()]
+        if self.action == "retrieve":
+            return [IsAuthenticated()]
+        if self.action in ("create",):
             return [AllowAny()]
         if self.action == "pos":
             return [IsAdminOrCashier()]
@@ -122,8 +130,10 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
+        if self.action == "retrieve" and not user.is_staff:
+            return qs.filter(created_by=user.username)
         if self.action == "my" or (self.action == "list" and not user.is_staff):
-            return qs.filter(created_by=str(user.id))
+            return qs.filter(created_by=user.username)
         return qs
 
     def perform_create(self, serializer):
@@ -136,23 +146,29 @@ class OrderViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
         items_data = data.pop("items")
 
-        order_number = _generate_order_number()
         user_id = request.user.username if request.user.is_authenticated else ""
         total = sum(Decimal(str(i["price"])) * i["quantity"] for i in items_data)
 
-        with transaction.atomic():
-            order = Order.objects.create(
-                order_number=order_number,
-                channel=data.get("channel", Order.ONLINE),
-                status=Order.UNPAID,
-                warehouse_id=data.get("warehouse_id"),
-                customer_name=data.get("customer_name", ""),
-                customer_phone=data.get("customer_phone", ""),
-                customer_email=data.get("customer_email", ""),
-                total_amount=total,
-                notes=data.get("notes", ""),
-                created_by=user_id,
-            )
+        for attempt in range(3):
+            try:
+                order_number = _generate_order_number(attempt)
+                with transaction.atomic():
+                    order = Order.objects.create(
+                        order_number=order_number,
+                        channel=data.get("channel", Order.ONLINE),
+                        status=Order.UNPAID,
+                        warehouse_id=data.get("warehouse_id"),
+                        customer_name=data.get("customer_name", ""),
+                        customer_phone=data.get("customer_phone", ""),
+                        customer_email=data.get("customer_email", ""),
+                        total_amount=total,
+                        notes=data.get("notes", ""),
+                        created_by=user_id,
+                    )
+                break
+            except IntegrityError:
+                if attempt == 2:
+                    raise
 
             for item in items_data:
                 OrderItem.objects.create(
@@ -185,8 +201,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "quantity": item.quantity,
                     "reference_type": "order",
                     "reference_id": str(order.id),
+                    "idempotency_key": f"reserve-{order.id}-{item.product_id}",
                 },
                 request=self.request,
+                idempotency_key=f"reserve-{order.id}-{item.product_id}",
             )
             if error:
                 logger.error(
@@ -263,8 +281,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "quantity": item.quantity,
                     "reference_type": "order",
                     "reference_id": str(order.id),
+                    "idempotency_key": f"release-{order.id}-{item.product_id}",
                 },
                 request=self.request,
+                idempotency_key=f"release-{order.id}-{item.product_id}",
             )
             if error:
                 logger.error(
@@ -285,8 +305,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     "quantity": item.quantity,
                     "reference_type": "order",
                     "reference_id": str(order.id),
+                    "idempotency_key": f"deduct-{order.id}-{item.product_id}",
                 },
                 request=self.request,
+                idempotency_key=f"deduct-{order.id}-{item.product_id}",
             )
             if error:
                 logger.error(
@@ -431,23 +453,29 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         data = serializer.validated_data
         items_data = data.pop("items")
-        order_number = _generate_order_number()
         user_id = request.user.username if request.user.is_authenticated else ""
         total = sum(Decimal(str(i["price"])) * i["quantity"] for i in items_data)
 
-        with transaction.atomic():
-            order = Order.objects.create(
-                order_number=order_number,
-                channel=Order.OFFLINE,
-                status=Order.UNPAID,
-                warehouse_id=data["warehouse_id"],
-                customer_name=data.get("customer_name", ""),
-                customer_phone=data.get("customer_phone", ""),
-                customer_email=data.get("customer_email", ""),
-                total_amount=total,
-                notes=data.get("notes", ""),
-                created_by=user_id,
-            )
+        for attempt in range(3):
+            try:
+                order_number = _generate_order_number(attempt)
+                with transaction.atomic():
+                    order = Order.objects.create(
+                        order_number=order_number,
+                        channel=Order.OFFLINE,
+                        status=Order.UNPAID,
+                        warehouse_id=data["warehouse_id"],
+                        customer_name=data.get("customer_name", ""),
+                        customer_phone=data.get("customer_phone", ""),
+                        customer_email=data.get("customer_email", ""),
+                        total_amount=total,
+                        notes=data.get("notes", ""),
+                        created_by=user_id,
+                    )
+                break
+            except IntegrityError:
+                if attempt == 2:
+                    raise
 
             for item in items_data:
                 OrderItem.objects.create(
