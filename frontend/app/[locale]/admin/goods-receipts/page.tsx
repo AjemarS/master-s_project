@@ -6,7 +6,7 @@ import { GoodsReceiptsClient } from "./page-client";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 
 async function fetchFromApi(path: string) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   try {
     const res = await fetch(`${API_URL}${path}`, {
       headers: { cookie: cookieStore.toString() || "" },

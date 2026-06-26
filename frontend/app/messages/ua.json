@@ -138,6 +138,7 @@
     "searchPlaceholder": "Пошук товарів за назвою...",
     "id": "ID",
     "name": "Назва",
+    "price": "Ціна",
     "category": "Категорія",
     "stock": "Залишок",
     "units": "{count} од.",
