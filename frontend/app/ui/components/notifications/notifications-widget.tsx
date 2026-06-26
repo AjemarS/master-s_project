@@ -17,7 +17,7 @@ export function NotificationsWidget() {
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
-      const [listRes, countRes] = await Promise.all([
+      const [listRes] = await Promise.all([
         notificationsApi.list(userId, 1, 50),
         notificationsApi.unreadCount(userId),
       ]);

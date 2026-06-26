@@ -1,7 +1,6 @@
-/* eslint-disable react-hooks/purity */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "~/i18n/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
@@ -26,8 +25,6 @@ const STATUS_CFG: Record<string, { label: string; color: string }> = {
 const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 
 export function MyOrdersClient() {
-  const tOrd = useTranslations("orders");
-  const tCommon = useTranslations("common");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,18 +62,29 @@ export function MyOrdersClient() {
     setExpandedId(orderId);
   };
 
-  const now = Date.now();
-  // eslint-disable-next-line react-hooks/purity
-  const sorted = [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const id = setTimeout(() => setNow(Date.now()), 60000);
+    return () => clearTimeout(id);
+  }, [now]);
 
-  // eslint-disable-next-line react-hooks/purity
-  const active = sorted.filter((o) => ACTIVE_STATUSES.includes(o.status));
-  // eslint-disable-next-line react-hooks/purity
-  const archived = sorted.filter((o) => {
-    if (!ACTIVE_STATUSES.includes(o.status)) return true;
-    const age = now - new Date(o.created_at).getTime();
-    return age > SIX_MONTHS_MS;
-  });
+  const sorted = useMemo(
+    () => [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [orders]
+  );
+
+  const active = useMemo(
+    () => sorted.filter((o) => ACTIVE_STATUSES.includes(o.status)),
+    [sorted]
+  );
+
+  const archived = useMemo(
+    () => sorted.filter((o) => {
+      if (!ACTIVE_STATUSES.includes(o.status)) return true;
+      return now - new Date(o.created_at).getTime() > SIX_MONTHS_MS;
+    }),
+    [sorted, now]
+  );
 
   const renderTable = (items: Order[], showStatus: boolean) => (
     <div className="border rounded-lg overflow-x-auto dark:border-slate-700">

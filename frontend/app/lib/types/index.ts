@@ -31,23 +31,14 @@ export interface ProductDetail extends Product {
 export interface Category {
   id?: number;
   name: string;
+  name_uk?: string;
+  name_en?: string;
   parent?: number | null;
   image: string;
   product_count: number;
   children?: Category[];
   created_at?: string;
   updated_at?: string;
-}
-
-export interface AdminUser {
-  id: string;
-  email: string;
-  name: string | null;
-  role: "user" | "admin" | "cashier" | "warehouse_worker";
-  status?: string;
-  banned?: boolean;
-  createdAt: string;
-  emailVerified?: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -145,7 +136,7 @@ export interface GoodsReceiptItem {
   id?: number;
   product_id: number;
   quantity: number;
-  cost_price: string;
+  cost_price: string | number;
 }
 
 export interface GoodsReceiptNote {
@@ -170,6 +161,10 @@ export interface Order {
   channel: "online" | "offline";
   status: "unpaid" | "paid" | "delivering" | "delivered" | "completed" | "cancelled";
   warehouse_id: number | null;
+  delivery_method: "pickup" | "nova_poshta" | "courier" | "";
+  shipping_city: string;
+  shipping_address: string;
+  shipping_cost: number;
   customer_name: string;
   customer_phone: string;
   customer_email: string;

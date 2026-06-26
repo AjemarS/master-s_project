@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/
 import { Bell, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { notificationsApi } from "~/lib/api/notifications";
+import { notificationsApi, type NotificationPreferences } from "~/lib/api/notifications";
 
 const PREF_GROUPS = [
   {
@@ -56,7 +56,7 @@ export default function NotificationPreferencesPage() {
       const res = await notificationsApi.getPreferences(user.id);
       if (res.data) {
         const p: Record<string, boolean> = {};
-        const d = res.data as unknown as Record<string, unknown>;
+        const d = res.data;
         const fields = [
           "order_confirmed_email", "order_confirmed_in_app",
           "order_shipped_email", "order_shipped_in_app",
@@ -64,7 +64,7 @@ export default function NotificationPreferencesPage() {
           "order_cancelled_email", "order_cancelled_in_app",
           "marketing_email", "marketing_in_app",
           "low_stock_email", "low_stock_in_app",
-        ];
+        ] as const satisfies readonly (keyof NotificationPreferences)[];
         for (const f of fields) {
           p[f] = d[f] === true;
         }
@@ -73,6 +73,22 @@ export default function NotificationPreferencesPage() {
       setLoading(false);
     })();
   }, [user]);
+
+  const save = useCallback(async (uid: string, p: Record<string, boolean>) => {
+    setSaving(true);
+    try {
+      const res = await notificationsApi.updatePreferences(uid, p);
+      if (res.data) {
+        toast.success("Notification preferences saved");
+      } else {
+        toast.error(res.error?.message || "Failed to save preferences");
+      }
+    } catch {
+      toast.error("Failed to save preferences");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   if (isPending) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -86,22 +102,6 @@ export default function NotificationPreferencesPage() {
   const toggle = (key: string) => {
     setPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-
-  const save = useCallback(async () => {
-    setSaving(true);
-    try {
-      const res = await notificationsApi.updatePreferences(user.id, prefs);
-      if (res.data) {
-        toast.success("Notification preferences saved");
-      } else {
-        toast.error(res.error?.message || "Failed to save preferences");
-      }
-    } catch {
-      toast.error("Failed to save preferences");
-    } finally {
-      setSaving(false);
-    }
-  }, [user, prefs]);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -155,7 +155,7 @@ export default function NotificationPreferencesPage() {
                 </div>
               ))
             )}
-            <Button onClick={save} disabled={saving || loading} className="w-full">
+            <Button onClick={() => save(user.id, prefs)} disabled={saving || loading} className="w-full">
               {saving ? "Saving..." : "Save Preferences"}
             </Button>
           </CardContent>

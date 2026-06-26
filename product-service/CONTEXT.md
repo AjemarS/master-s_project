@@ -24,7 +24,7 @@ python manage.py test
 
 #### Models
 - **Category** — hierarchical categories with `parent` FK (self-referential). Bilingual: `name_uk`/`name_en`, `description_uk`/`description_en`. Active toggle.
-- **Product** — catalog item with bilingual fields, pricing in UAH, `energy_class`, `warranty_months`, images, `total_stock` (denormalized from inventory-service). Locale-aware serialization via `Accept-Language` header.
+- **Product** — catalog item with bilingual fields, pricing in UAH, `energy_class`, `warranty_months`, images, `stock` (denormalized from inventory-service via event consumer). Locale-aware serialization via `Accept-Language` header.
 - **Cart** — session-based (UUID `session_id` or `user_id` FK). No auth required for creation.
 - **CartItem** — product + quantity per cart. Merge endpoint (`POST /api/cart/merge/`) for anonymous→user cart transfer after login.
 
@@ -65,7 +65,7 @@ python manage.py test
 - Pricing: UAH default. USD when `Accept-Language: en` (rate 41.5).
 
 ## RabbitMQ Integration
-- **Consumer (product-consumer container):** listens for `inventory.stock.changed` on `techhub.events` exchange, updates `Product.total_stock`.
+- **Consumer (product-consumer container):** listens for `inventory.stock.changed` on `techhub.events` exchange, updates `Product.stock` and `Product.in_stock`.
 - **Idempotency:** dedup via `ProcessedEvent` table (stores `event_id` + hash, skips duplicates).
 - **Docker:** runs as separate `product-consumer` container in docker-compose.
 
@@ -76,5 +76,5 @@ python manage.py test
 - **Run:** `python manage.py test`
 
 ## Known Issues
-- `total_stock` consumer exists but may not be wired to all events — verify end-to-end.
+- Stock consumer is wired to `inventory.stock.changed` and `inventory.goods_received` events.
 - Cart in product-service, orders in order-service: checkout spans two services (no distributed transaction).

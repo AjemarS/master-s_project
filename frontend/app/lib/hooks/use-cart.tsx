@@ -41,19 +41,17 @@ function cartResponseToItems(res: CartResponse): CartItem[] {
 export function CartProvider({ children }: React.PropsWithChildren) {
   const [items, setItems] = React.useState<CartItem[]>([]);
   const { user } = useCurrentUser();
-  const [loaded, setLoaded] = React.useState(false);
+
 
   // Load cart from server on mount and on login change
   React.useEffect(() => {
     // Ensure session_id exists in localStorage before fetching
     cartApi.getSessionId();
-    queueMicrotask(() => setLoaded(false));
     cartApi.get().then((res) => {
       if (res.data) {
         setItems(cartResponseToItems(res.data));
       }
-      setLoaded(true);
-    }).catch(() => setLoaded(true));
+    }).catch(() => {});
   }, [user?.id]);
 
   // Merge anonymous cart on login (only if session cart has items)

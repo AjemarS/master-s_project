@@ -20,7 +20,10 @@ export default function ForgotPasswordPage() {
     setError("");
     setLoading(true);
     try {
-      const result = await authClient.forgetPassword({ email });
+      type AuthClientWithForgotPassword = typeof authClient & {
+        forgetPassword: (params: { email: string }) => Promise<{ error?: { message: string } | null }>;
+      };
+      const result = await (authClient as AuthClientWithForgotPassword).forgetPassword({ email });
       if (result?.error) {
         setError(result.error.message || "Failed to send reset email");
       } else {

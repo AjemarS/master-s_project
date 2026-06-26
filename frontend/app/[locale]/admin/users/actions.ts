@@ -8,45 +8,36 @@ export const adminService = {
 
   /** Ban a user */
   async banUser(userId: string, reason?: string) {
-    const payload = {
-      userId,
-      reason,
-    };
-
-    return await authClient.admin.banUser(payload);
+    return await authClient.admin.banUser({ userId, banReason: reason });
   },
 
   /** Unban a user */
   async unbanUser(userId: string) {
-    const payload = {
-      userId,
-    };
-
-    return await authClient.admin.unbanUser(payload);
+    return await authClient.admin.unbanUser({ userId });
   },
 
   /** Set a user's role */
   async setUserRole(userId: string, role: "user" | "admin" | "cashier" | "warehouse_worker") {
-    const payload = {
+    return await authClient.admin.setRole({
       userId,
-      role,
-    };
-
-    return await authClient.admin.setRole(payload);
+      // Custom roles (cashier, warehouse_worker) are configured server-side.
+      // Better Auth admin plugin types only include default roles,
+      // so we assert the narrower type. Runtime value is preserved.
+      role: role as "admin" | "user",
+    });
   },
 
   /** Delete a user */
   async removeUser(userId: string) {
-    const payload = {
-      userId,
-    };
-
-    return await authClient.admin.removeUser(payload);
+    return await authClient.admin.removeUser({ userId });
   },
 
   /** Create a user */
   async createUser(user: { email: string; password: string; name: string; role?: "admin" | "user" | "cashier" | "warehouse_worker" }) {
-    return await authClient.admin.createUser(user);
+    return await authClient.admin.createUser({
+      ...user,
+      role: user.role as "admin" | "user" | undefined,
+    });
   },
 
   /** Update a user's fields */

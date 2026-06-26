@@ -58,6 +58,7 @@ def _handle_goods_received(event):
     try:
         Product.objects.filter(pk=product_id).update(stock=F("stock") + quantity)
         Product.objects.filter(pk=product_id, stock__gt=0).update(in_stock=True)
+        Product.objects.filter(pk=product_id, stock=0).update(in_stock=False)
         logger.info("Goods received processed | product=%s qty=%s cost=%s", product_id, quantity, cost_price)
     except Exception as e:
         logger.error("Goods received failed | product=%s error=%s", product_id, e)

@@ -15,7 +15,7 @@ export function AuthSection({ user, whereAmI }: AuthSectionProps) {
       <div className="hidden md:block">
         <HeaderUserDropdown
           isDashboard={isInDashboardOrAdmin(whereAmI)}
-          role={user.role}
+          role={user.role || ""}
           userEmail={user.email}
           userImage={user.image}
           userName={user.name}

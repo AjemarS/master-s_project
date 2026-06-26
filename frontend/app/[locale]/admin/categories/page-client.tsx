@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useState, useEffect, Fragment } from "react";
+import { useState, Fragment } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import {
@@ -11,18 +11,19 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, FolderTree, ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
+import { FolderTree, ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
 import { categoryApi } from "~/lib/api/admin-api";
 import type { Category } from "~/lib/types";
 import { ConfirmDialog, TableSkeleton } from "../components";
+import { ErrorAlert } from "~/ui/components/error-alert";
+import { useCategories } from "~/lib/hooks/use-api-data";
 
 export function CategoriesClient() {
-  const tCat = useTranslations("categories");
-  const tCommon = useTranslations("common");
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const t = useTranslations("categories");
+  const tc = useTranslations("common");
+
+  const { data, error, isLoading, mutate } = useCategories();
+  const categories = data?.results || [];
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [dialogCategory, setDialogCategory] = useState<Category | null>(null);
@@ -33,21 +34,6 @@ export function CategoriesClient() {
   const [saving, setSaving] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: number | null; name: string }>({ open: false, id: null, name: "" });
   const [deleting, setDeleting] = useState(false);
-
-  const fetchCategories = async () => {
-    setLoading(true);
-    try {
-      const res = await categoryApi.getAll();
-      if (res.error) throw new Error(res.error.message);
-      setCategories(res.data?.results || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Не вдалося завантажити категорії");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { queueMicrotask(() => fetchCategories()); }, []);
 
   const openCreate = () => {
     setDialogMode("create"); setDialogCategory(null);
@@ -74,14 +60,14 @@ export function CategoriesClient() {
         ? await categoryApi.create(payload)
         : await categoryApi.update(dialogCategory!.id!, payload);
       if (res.error) {
-        toast.error("Помилка", { description: res.error.message });
+        toast.error(tc("error"), { description: res.error.message });
       } else {
-        toast.success(dialogMode === "create" ? "Категорію створено" : "Категорію оновлено");
+        toast.success(dialogMode === "create" ? tc("create") : tc("save"));
         setShowDialog(false);
-        fetchCategories();
+        mutate();
       }
     } catch (err) {
-      toast.error("Помилка", { description: err instanceof Error ? err.message : "Щось пішло не так" });
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
     } finally {
       setSaving(false);
     }
@@ -93,14 +79,14 @@ export function CategoriesClient() {
     try {
       const res = await categoryApi.delete(deleteDialog.id);
       if (res.error) {
-        toast.error("Помилка видалення", { description: res.error.message });
+        toast.error(tc("error"), { description: res.error.message });
       } else {
-        toast.success("Категорію видалено");
+        toast.success(tc("delete"));
         setDeleteDialog({ open: false, id: null, name: "" });
-        fetchCategories();
+        mutate();
       }
     } catch (err) {
-      toast.error("Помилка", { description: err instanceof Error ? err.message : "Щось пішло не так" });
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
     } finally {
       setDeleting(false);
     }
@@ -112,50 +98,45 @@ export function CategoriesClient() {
         <div className="mb-8">
           <Link href="/admin/summary">
             <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" /> На головну
+              <ArrowLeft className="h-4 w-4" /> {tc("back")}
             </Button>
           </Link>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <FolderTree className="h-10 w-10 text-purple-600" />
-                Керування категоріями
+                {t("title")}
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">Категорії товарів каталогу</p>
+              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
             </div>
             <Button onClick={openCreate} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Додати категорію
+              <Plus className="h-4 w-4" /> {t("addCategory")}
             </Button>
           </div>
         </div>
 
-        {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert message={error?.message ?? null} />
 
         <Card className="dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
-            <CardTitle className="dark:text-slate-100">Категорії</CardTitle>
+            <CardTitle className="dark:text-slate-100">{t("title")}</CardTitle>
             <CardDescription className="dark:text-slate-400">
-              {categories.length > 0 ? `${categories.length} категорій` : "Немає категорій"}
+              {categories.length > 0 ? tc("count", { count: categories.length }) : t("noCategories")}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <TableSkeleton rows={5} cols={4} />
             ) : (
               <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
                 <table className="w-full">
                   <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">ID</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Назва</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Батьківська</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Товарів</th>
-                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дії</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("id")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("name")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("parent")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("products")}</th>
+                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tc("actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -163,7 +144,7 @@ export function CategoriesClient() {
                       <tr>
                         <td colSpan={5} className="text-center py-12 text-slate-500 dark:text-slate-400">
                           <FolderTree className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          Немає категорій
+                          {t("noCategories")}
                         </td>
                       </tr>
                     ) : (
@@ -219,29 +200,29 @@ export function CategoriesClient() {
       <Dialog open={showDialog} onOpenChange={(o) => { if (!o) setShowDialog(false); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>{dialogMode === "create" ? "Додати категорію" : "Редагувати категорію"}</DialogTitle>
+            <DialogTitle>{dialogMode === "create" ? t("addCategory") : t("editCategory")}</DialogTitle>
             <DialogDescription>
-              {dialogMode === "create" ? "Створіть нову категорію товарів." : "Змініть назву категорії."}
+              {dialogMode === "create" ? t("subtitle") : t("editCategory")}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div>
-              <Label htmlFor="cat-name">Назва *</Label>
-              <Input id="cat-name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Назва" className="mt-2" autoFocus />
+              <Label htmlFor="cat-name">{t("name")} *</Label>
+              <Input id="cat-name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder={t("name")} className="mt-2" autoFocus />
             </div>
             <div>
-              <Label className="text-xs text-slate-500">Назва (укр)</Label>
-              <Input value={formNameUk} onChange={(e) => setFormNameUk(e.target.value)} placeholder="Назва українською" className="mt-1" />
+              <Label className="text-xs text-slate-500">{t("nameUa")}</Label>
+              <Input value={formNameUk} onChange={(e) => setFormNameUk(e.target.value)} placeholder={t("nameUa")} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-slate-500">Name (EN)</Label>
-              <Input value={formNameEn} onChange={(e) => setFormNameEn(e.target.value)} placeholder="Name in English" className="mt-1" />
+              <Label className="text-xs text-slate-500">{t("nameEn")}</Label>
+              <Input value={formNameEn} onChange={(e) => setFormNameEn(e.target.value)} placeholder={t("nameEn")} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="cat-parent">Батьківська категорія</Label>
+              <Label htmlFor="cat-parent">{t("parent")}</Label>
               <select id="cat-parent" value={formParent} onChange={(e) => setFormParent(e.target.value)}
                 className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">— Немає —</option>
+                <option value="">{t("noParent")}</option>
                 {categories.filter((c) => c.id !== dialogCategory?.id).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -249,9 +230,9 @@ export function CategoriesClient() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>Скасувати</Button>
+            <Button variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>{tc("cancel")}</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
-              {saving ? "Збереження..." : "Зберегти"}
+              {saving ? tc("save") : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -261,10 +242,10 @@ export function CategoriesClient() {
         open={deleteDialog.open}
         onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
         onConfirm={handleDeleteConfirm}
-        title="Видалити категорію"
-        description={`Ви впевнені, що хочете видалити "${deleteDialog.name}"?`}
-        confirmText="Видалити"
-        cancelText="Скасувати"
+        title={t("deleteCategory")}
+        description={t("deleteConfirm", { name: deleteDialog.name })}
+        confirmText={tc("delete")}
+        cancelText={tc("cancel")}
         variant="destructive"
         loading={deleting}
       />

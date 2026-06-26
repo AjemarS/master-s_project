@@ -1,45 +1,46 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useState, useEffect, useCallback } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
 import { Label } from "~/ui/primitives/label";
 import { Input } from "~/ui/primitives/input";
-import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, ArrowLeft, ArrowRightLeft, Filter, X } from "lucide-react";
-import { stockMovementApi, warehouseApi } from "~/lib/api/admin-api";
-import type { StockMovement, Warehouse } from "~/lib/types";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "~/ui/primitives/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { ArrowLeft, ArrowRightLeft, Filter, X, Pencil } from "lucide-react";
+import { useStockMovements, useAdjustStock, useWarehouses } from "~/lib/hooks/use-api-data";
+import { ErrorAlert } from "~/ui/components/error-alert";
+import { Pagination } from "~/ui/components/pagination";
 import { TableSkeleton } from "../components";
-
-const MOVEMENT_TYPES: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  receipt: { label: "Оприбуткування", variant: "default" },
-  transfer: { label: "Переміщення", variant: "secondary" },
-  sale: { label: "Продаж", variant: "outline" },
-  adjustment: { label: "Коригування", variant: "outline" },
-  write_off: { label: "Списання", variant: "destructive" },
-  reserve: { label: "Резерв", variant: "outline" },
-  release: { label: "Знято резерв", variant: "outline" },
-  deduct: { label: "Відвантажено", variant: "default" },
-};
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("uk-UA", {
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
-}
 
 export function StockMovementsClient() {
   const tSM = useTranslations("stockMovements");
   const tCommon = useTranslations("common");
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const locale = useLocale();
+
+  const formatDate = (dateStr: string): string => {
+    return new Date(dateStr).toLocaleDateString(locale, {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+  };
+
+  const MOVEMENT_TYPES: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    receipt: { label: tSM("receipt"), variant: "default" },
+    transfer: { label: tSM("transfer"), variant: "secondary" },
+    sale: { label: tSM("sale"), variant: "outline" },
+    adjustment: { label: tSM("adjustment"), variant: "outline" },
+    write_off: { label: tSM("write_off"), variant: "destructive" },
+    reserve: { label: tSM("reserve"), variant: "outline" },
+    release: { label: tSM("release"), variant: "outline" },
+    deduct: { label: tSM("deduct"), variant: "default" },
+  };
+
+  const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [filterType, setFilterType] = useState("");
   const [filterProductId, setFilterProductId] = useState("");
@@ -48,36 +49,55 @@ export function StockMovementsClient() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
-  const fetchMovements = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await stockMovementApi.getAll({
-        page,
-        type: filterType || undefined,
-        product_id: filterProductId ? parseInt(filterProductId, 10) : undefined,
-        from_warehouse_id: filterFromWarehouse ? parseInt(filterFromWarehouse, 10) : undefined,
-        to_warehouse_id: filterToWarehouse ? parseInt(filterToWarehouse, 10) : undefined,
-        created_after: filterDateFrom || undefined,
-        created_before: filterDateTo || undefined,
-      });
-      if (res.error) throw new Error(res.error.message);
-      setMovements(res.data?.results || []);
-      setTotalCount(res.data?.count || 0);
-      setCurrentPage(page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Не вдалося завантажити журнал руху");
-    } finally {
-      setLoading(false);
-    }
-    }, [filterType, filterProductId, filterFromWarehouse, filterToWarehouse, filterDateFrom, filterDateTo]);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustProductId, setAdjustProductId] = useState("");
+  const [adjustWarehouseId, setAdjustWarehouseId] = useState("");
+  const [adjustNewQty, setAdjustNewQty] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjustError, setAdjustError] = useState("");
 
-  useEffect(() => {
-    queueMicrotask(() => fetchMovements(1));
-    warehouseApi.getAll().then((res) => {
-      if (res.data?.results) setWarehouses(res.data.results);
-    });
-  }, [fetchMovements]);
+  const params: Record<string, string | number | undefined> = { page };
+  if (filterType) params.type = filterType;
+  if (filterProductId) params.product_id = parseInt(filterProductId, 10);
+  if (filterFromWarehouse) params.from_warehouse_id = parseInt(filterFromWarehouse, 10);
+  if (filterToWarehouse) params.to_warehouse_id = parseInt(filterToWarehouse, 10);
+  if (filterDateFrom) params.created_after = filterDateFrom;
+  if (filterDateTo) params.created_before = filterDateTo;
+
+  const { data: movementsData, error: movementsError, isLoading: movementsLoading, mutate: movementsMutate } = useStockMovements(params);
+  const { data: warehousesData } = useWarehouses();
+  const { trigger: adjustStock, isMutating: adjustSubmitting } = useAdjustStock();
+
+  const movements = movementsData?.results || [];
+  const warehouses = warehousesData?.results || [];
+  const totalCount = movementsData?.count || 0;
+
+  const handleAdjust = async () => {
+    const productId = parseInt(adjustProductId, 10);
+    const warehouseId = parseInt(adjustWarehouseId, 10);
+    const newQty = parseInt(adjustNewQty, 10);
+    if (isNaN(productId) || isNaN(warehouseId) || isNaN(newQty) || newQty < 0) {
+      setAdjustError(tSM("adjustStockError"));
+      return;
+    }
+    setAdjustError("");
+    try {
+      await adjustStock({
+        product_id: productId,
+        warehouse_id: warehouseId,
+        new_quantity: newQty,
+        reason: adjustReason,
+      });
+      setAdjustOpen(false);
+      setAdjustProductId("");
+      setAdjustWarehouseId("");
+      setAdjustNewQty("");
+      setAdjustReason("");
+      movementsMutate();
+    } catch (err) {
+      setAdjustError(err instanceof Error ? err.message : tSM("adjustStockError"));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -85,37 +105,77 @@ export function StockMovementsClient() {
         <div className="mb-8">
           <Link href="/admin/summary">
             <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" /> На головну
+              <ArrowLeft className="h-4 w-4" /> {tCommon("back")}
             </Button>
           </Link>
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-              <ArrowRightLeft className="h-10 w-10 text-purple-600" />
-              Журнал руху товарів
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">Аудит усіх операцій з товарами на складах</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+                <ArrowRightLeft className="h-10 w-10 text-purple-600" />
+                {tSM("title")}
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400">{tSM("subtitle")}</p>
+            </div>
+            <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Pencil className="h-4 w-4" /> {tSM("adjustStockTitle")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{tSM("adjustStockTitle")}</DialogTitle>
+                  <DialogDescription>{tSM("adjustStockDesc")}</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <ErrorAlert message={adjustError} className="mb-0" />
+                  <div className="grid gap-2">
+                    <Label htmlFor="adjust-product">{tSM("adjustStockProductPlaceholder")}</Label>
+                    <Input id="adjust-product" type="number" min="1" placeholder="123" value={adjustProductId} onChange={(e) => setAdjustProductId(e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="adjust-warehouse">{tSM("adjustStockWarehouse")}</Label>
+                    <Select value={adjustWarehouseId} onValueChange={setAdjustWarehouseId}>
+                      <SelectTrigger id="adjust-warehouse"><SelectValue placeholder={tSM("adjustStockWarehouse")} /></SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="adjust-qty">{tSM("adjustStockNewQty")}</Label>
+                    <Input id="adjust-qty" type="number" min="0" placeholder="0" value={adjustNewQty} onChange={(e) => setAdjustNewQty(e.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="adjust-reason">{tSM("adjustStockReason")}</Label>
+                    <Input id="adjust-reason" placeholder={tSM("adjustStockReasonPlaceholder")} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setAdjustOpen(false)}>{tCommon("cancel")}</Button>
+                  <Button onClick={handleAdjust} disabled={adjustSubmitting}>
+                    {adjustSubmitting ? tSM("adjustStockSubmitting") : tSM("adjustStockTitle")}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert message={movementsError?.message || null} />
 
         <Card className="dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="dark:text-slate-100">Рух товарів</CardTitle>
+                <CardTitle className="dark:text-slate-100">{tSM("title")}</CardTitle>
                 <CardDescription className="dark:text-slate-400">
-                  {totalCount > 0 ? `${totalCount} записів` : "Немає записів"}
+                  {totalCount > 0 ? tCommon("count", { count: totalCount }) : tSM("noMovements")}
                 </CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
                 {showFilters ? <X className="h-4 w-4 mr-2" /> : <Filter className="h-4 w-4 mr-2" />}
-                {showFilters ? "Закрити" : "Фільтр"}
+                {showFilters ? tCommon("close") : tCommon("filter")}
               </Button>
             </div>
           </CardHeader>
@@ -124,87 +184,61 @@ export function StockMovementsClient() {
               <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">Тип</Label>
-                    <select
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">Всі типи</option>
-                      {Object.entries(MOVEMENT_TYPES).map(([val, info]) => (
-                        <option key={val} value={val}>{info.label}</option>
-                      ))}
+                    <Label className="text-xs text-slate-500">{tSM("type")}</Label>
+                    <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">{tSM("allTypes")}</option>
+                      {Object.entries(MOVEMENT_TYPES).map(([val, info]) => <option key={val} value={val}>{info.label}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">ID товару</Label>
-                    <Input
-                      type="number"
-                      placeholder="ID"
-                      value={filterProductId}
-                      onChange={(e) => setFilterProductId(e.target.value)}
-                      className="w-28"
-                    />
+                    <Label className="text-xs text-slate-500">{tSM("productId")}</Label>
+                    <Input type="number" placeholder="ID" value={filterProductId} onChange={(e) => setFilterProductId(e.target.value)} className="w-28" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">Зі складу</Label>
-                    <select
-                      value={filterFromWarehouse}
-                      onChange={(e) => setFilterFromWarehouse(e.target.value)}
-                      className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">Всі</option>
+                    <Label className="text-xs text-slate-500">{tSM("from")}</Label>
+                    <select value={filterFromWarehouse} onChange={(e) => setFilterFromWarehouse(e.target.value)} className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">{tSM("all")}</option>
                       {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">На склад</Label>
-                    <select
-                      value={filterToWarehouse}
-                      onChange={(e) => setFilterToWarehouse(e.target.value)}
-                      className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">Всі</option>
+                    <Label className="text-xs text-slate-500">{tSM("to")}</Label>
+                    <select value={filterToWarehouse} onChange={(e) => setFilterToWarehouse(e.target.value)} className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">{tSM("all")}</option>
                       {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">Дата від</Label>
+                    <Label className="text-xs text-slate-500">{tCommon("dateFrom")}</Label>
                     <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-40" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">Дата до</Label>
+                    <Label className="text-xs text-slate-500">{tCommon("dateTo")}</Label>
                     <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-40" />
                   </div>
-                  <Button size="sm" onClick={() => fetchMovements(1)}>
-                    Застосувати
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    setFilterType(""); setFilterProductId("");
-                    setFilterFromWarehouse(""); setFilterToWarehouse("");
-                    setFilterDateFrom(""); setFilterDateTo("");
-                  }}>
-                    Скинути
+                  <Button size="sm" onClick={() => setPage(1)}>{tCommon("apply")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setFilterType(""); setFilterProductId(""); setFilterFromWarehouse(""); setFilterToWarehouse(""); setFilterDateFrom(""); setFilterDateTo(""); setPage(1); }}>
+                    {tCommon("reset")}
                   </Button>
                 </div>
               </div>
             )}
 
-            {loading ? (
+            {movementsLoading ? (
               <TableSkeleton rows={8} cols={8} />
             ) : (
               <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
                 <table className="w-full">
                   <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">ID</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Тип</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Товар ID</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Звідки</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Куди</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Кількість</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дата</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Користувач</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("id")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("type")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("productId")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("from")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("to")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("quantity")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("date")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("user")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -212,7 +246,7 @@ export function StockMovementsClient() {
                       <tr>
                         <td colSpan={8} className="text-center py-12 text-slate-500 dark:text-slate-400">
                           <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          Журнал руху порожній
+                          {tSM("noMovements")}
                         </td>
                       </tr>
                     ) : (
@@ -221,16 +255,10 @@ export function StockMovementsClient() {
                         return (
                           <tr key={m.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                             <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{m.id}</td>
-                            <td className="p-4">
-                              <Badge variant={typeInfo.variant}>{typeInfo.label}</Badge>
-                            </td>
+                            <td className="p-4"><Badge variant={typeInfo.variant}>{typeInfo.label}</Badge></td>
                             <td className="p-4 font-mono text-sm text-slate-600 dark:text-slate-400">#{m.product_id}</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">
-                              {m.from_warehouse_name || "—"}
-                            </td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">
-                              {m.to_warehouse_name || "—"}
-                            </td>
+                            <td className="p-4 text-slate-600 dark:text-slate-400">{m.from_warehouse_name || "—"}</td>
+                            <td className="p-4 text-slate-600 dark:text-slate-400">{m.to_warehouse_name || "—"}</td>
                             <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{m.quantity}</td>
                             <td className="p-4 text-sm text-slate-500 dark:text-slate-400">{formatDate(m.created_at)}</td>
                             <td className="p-4 text-slate-600 dark:text-slate-400">{m.created_by || "—"}</td>
@@ -245,21 +273,13 @@ export function StockMovementsClient() {
           </CardContent>
         </Card>
 
-        {totalCount > 20 && (
-          <div className="flex items-center justify-between mt-4 px-1">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Сторінка {currentPage} з {Math.ceil(totalCount / 20)}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={currentPage <= 1 || loading} onClick={() => fetchMovements(currentPage - 1)}>
-                Попередня
-              </Button>
-              <Button variant="outline" size="sm" disabled={currentPage >= Math.ceil(totalCount / 20) || loading} onClick={() => fetchMovements(currentPage + 1)}>
-                Наступна
-              </Button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(totalCount / 20)}
+          totalCount={totalCount}
+          loading={movementsLoading}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );
