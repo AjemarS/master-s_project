@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import {
@@ -11,10 +11,9 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, ClipboardList, ArrowLeft, Plus, X } from "lucide-react";
-import { goodsReceiptApi, supplierApi, warehouseApi } from "~/lib/api/admin-api";
-import type { GoodsReceiptNote, Supplier, Warehouse } from "~/lib/types";
+import { ClipboardList, ArrowLeft, Plus, X } from "lucide-react";
+import { useGoodsReceipts, useCreateGoodsReceipt, useSuppliers, useWarehouses } from "~/lib/hooks/use-api-data";
+import { ErrorAlert } from "~/ui/components/error-alert";
 import { TableSkeleton } from "../components";
 
 function formatDate(dateStr: string): string {
@@ -34,13 +33,19 @@ interface GrnFormItem {
 }
 
 export function GoodsReceiptsClient() {
-  const tGR = useTranslations("goodsReceipts");
-  const tCommon = useTranslations("common");
-  const [receipts, setReceipts] = useState<GoodsReceiptNote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const t = useTranslations("goodsReceipts");
+  const tc = useTranslations("common");
+
+  const { data: grData, error: grError, isLoading: grLoading, mutate: grMutate } = useGoodsReceipts();
+  const { data: supData } = useSuppliers();
+  const { data: whData } = useWarehouses();
+  const { trigger: createGrn, isMutating: saving } = useCreateGoodsReceipt();
+
+  const receipts = grData?.results || [];
+  const suppliers = supData?.results || [];
+  const warehouses = whData?.results || [];
+
   const [showCreate, setShowCreate] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const [formSupplier, setFormSupplier] = useState("");
   const [formWarehouse, setFormWarehouse] = useState("");
@@ -50,34 +55,6 @@ export function GoodsReceiptsClient() {
   const [formItems, setFormItems] = useState<GrnFormItem[]>([
     { product_id: "", quantity: "1", cost_price: "0" },
   ]);
-
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const [grRes, supRes, whRes] = await Promise.all([
-          goodsReceiptApi.getAll(),
-          supplierApi.getAll(),
-          warehouseApi.getAll(),
-        ]);
-        if (cancelled) return;
-        if (grRes.error) throw new Error(grRes.error.message);
-        setReceipts(grRes.data?.results || []);
-        setSuppliers(supRes.data?.results || []);
-        setWarehouses(whRes.data?.results || []);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    fetch();
-    return () => { cancelled = true; };
-  }, []);
 
   const addItem = () => {
     setFormItems([...formItems, { product_id: "", quantity: "1", cost_price: "0" }]);
@@ -102,30 +79,22 @@ export function GoodsReceiptsClient() {
       }));
     if (items.length === 0) return;
 
-    setSaving(true);
     try {
-      const res = await goodsReceiptApi.create({
+      await createGrn({
         supplier: parseInt(formSupplier, 10),
         warehouse: parseInt(formWarehouse, 10),
         receipt_date: formDate,
         reference_number: formRef,
         notes: formNotes,
         items,
-      } as Partial<GoodsReceiptNote>);
-      if (res.error) {
-        toast.error("Failed to create goods receipt", { description: res.error.message });
-      } else {
-        toast.success("Goods receipt created");
-        setShowCreate(false);
-        setFormSupplier(""); setFormWarehouse(""); setFormRef(""); setFormNotes("");
-        setFormItems([{ product_id: "", quantity: "1", cost_price: "0" }]);
-        const [grRefetch] = await Promise.all([goodsReceiptApi.getAll(), supplierApi.getAll(), warehouseApi.getAll()]);
-        if (!grRefetch.error) setReceipts(grRefetch.data?.results || []);
-      }
+      });
+      toast.success(t("createGrn"));
+      setShowCreate(false);
+      setFormSupplier(""); setFormWarehouse(""); setFormRef(""); setFormNotes("");
+      setFormItems([{ product_id: "", quantity: "1", cost_price: "0" }]);
+      grMutate();
     } catch (err) {
-      toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
-    } finally {
-      setSaving(false);
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
     }
   };
 
@@ -136,55 +105,50 @@ export function GoodsReceiptsClient() {
           <Link href="/admin/summary">
             <Button variant="ghost" className="mb-4 flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              На головну
+              {tc("back")}
             </Button>
           </Link>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <ClipboardList className="h-10 w-10 text-purple-600" />
-                Прибуткові накладні
+                {t("title")}
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">Облік оприбуткування товару</p>
+              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
             </div>
             <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Створити накладну
+              <Plus className="h-4 w-4" /> {t("createGrn")}
             </Button>
           </div>
         </div>
 
-        {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-            <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-            <AlertDescription className="text-red-800 dark:text-red-300">{error}</AlertDescription>
-          </Alert>
-        )}
+        <ErrorAlert message={grError?.message || null} />
 
         <Card className="dark:bg-slate-800/80 dark:border-slate-700">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="dark:text-slate-100">Список накладних</CardTitle>
+                <CardTitle className="dark:text-slate-100">{t("title")}</CardTitle>
                 <CardDescription className="dark:text-slate-400">
-                  {receipts.length > 0 ? `${receipts.length} накладних` : "Немає накладних"}
+                  {receipts.length > 0 ? tc("count", { count: receipts.length }) : t("noReceipts")}
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {grLoading ? (
               <TableSkeleton rows={4} cols={6} />
             ) : (
               <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
                 <table className="w-full">
                   <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">№</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Постачальник</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Склад</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дата</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Сума</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Створив</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("id")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("supplier")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("warehouse")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("date")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("amount")}</th>
+                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("createdBy")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -192,7 +156,7 @@ export function GoodsReceiptsClient() {
                       <tr>
                         <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400">
                           <ClipboardList className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          Немає прибуткових накладних
+                          {t("noReceipts")}
                         </td>
                       </tr>
                     ) : (
@@ -218,57 +182,57 @@ export function GoodsReceiptsClient() {
       <Dialog open={showCreate} onOpenChange={(o) => { if (!o) setShowCreate(false); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Створити прибуткову накладну</DialogTitle>
-            <DialogDescription>Оприбуткуйте товар від постачальника.</DialogDescription>
+            <DialogTitle>{t("createDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("createDialogDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Постачальник *</Label>
+              <Label className="text-right">{t("supplier")} *</Label>
               <select value={formSupplier} onChange={(e) => setFormSupplier(e.target.value)}
                 className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">Оберіть...</option>
+                <option value="">{t("selectSupplier")}</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Склад *</Label>
+              <Label className="text-right">{t("warehouse")} *</Label>
               <select value={formWarehouse} onChange={(e) => setFormWarehouse(e.target.value)}
                 className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">Оберіть...</option>
+                <option value="">{t("selectWarehouse")}</option>
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Дата</Label>
+              <Label className="text-right">{t("date")}</Label>
               <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Номер</Label>
-              <Input value={formRef} onChange={(e) => setFormRef(e.target.value)} placeholder="Накладна №" className="col-span-3" />
+              <Label className="text-right">{t("refNumber")}</Label>
+              <Input value={formRef} onChange={(e) => setFormRef(e.target.value)} placeholder={t("refPlaceholder")} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right pt-2">Нотатки</Label>
+              <Label className="text-right pt-2">{tc("notes")}</Label>
               <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)}
                 className="col-span-3 flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" />
             </div>
 
             <div className="col-span-4 border-t pt-4">
               <div className="flex items-center justify-between mb-2">
-                <Label className="font-semibold">Позиції</Label>
-                <Button variant="outline" size="sm" onClick={addItem} type="button"><Plus className="h-4 w-4 mr-1" /> Додати</Button>
+                <Label className="font-semibold">{t("positions")}</Label>
+                <Button variant="outline" size="sm" onClick={addItem} type="button"><Plus className="h-4 w-4 mr-1" /> {t("addItem")}</Button>
               </div>
               {formItems.map((item, i) => (
                 <div key={i} className="flex gap-2 mb-2 items-start">
                   <div className="flex-1">
-                    <Label className="text-xs">ID товару</Label>
-                    <Input value={item.product_id} onChange={(e) => updateItem(i, "product_id", e.target.value)} placeholder="ID" />
+                    <Label className="text-xs">{t("productId")}</Label>
+                    <Input value={item.product_id} onChange={(e) => updateItem(i, "product_id", e.target.value)} placeholder={t("productId")} />
                   </div>
                   <div className="w-20">
-                    <Label className="text-xs">К-сть</Label>
+                    <Label className="text-xs">{t("qty")}</Label>
                     <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, "quantity", e.target.value)} />
                   </div>
                   <div className="w-24">
-                    <Label className="text-xs">Ціна</Label>
+                    <Label className="text-xs">{t("costPrice")}</Label>
                     <Input type="number" step="0.01" min="0" value={item.cost_price} onChange={(e) => updateItem(i, "cost_price", e.target.value)} />
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="mt-5 shrink-0" type="button" disabled={formItems.length <= 1}>
@@ -279,9 +243,9 @@ export function GoodsReceiptsClient() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)} disabled={saving}>Скасувати</Button>
+            <Button variant="outline" onClick={() => setShowCreate(false)} disabled={saving}>{tc("cancel")}</Button>
             <Button onClick={handleCreate} disabled={saving || !formSupplier || !formWarehouse}>
-              {saving ? "Створення..." : "Створити"}
+              {saving ? tc("create") : tc("create")}
             </Button>
           </DialogFooter>
         </DialogContent>

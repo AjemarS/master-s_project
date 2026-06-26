@@ -1,13 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "~/lib/hooks/use-cart";
@@ -15,7 +16,7 @@ import { orderApi } from "~/lib/api/admin-api";
 import { useCurrentUser } from "~/lib/auth-client";
 import Link from "next/link";
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const tChk = useTranslations("checkout");
   const tCommon = useTranslations("common");
   const searchParams = useSearchParams();
@@ -27,15 +28,18 @@ export default function CheckoutPage() {
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("pickup");
+  const [shippingCity, setShippingCity] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (items.length === 0) {
-      toast.error("Cart is empty");
+      toast.error(tChk("emptyCart"));
       return;
     }
     if (!name.trim() || !email.trim()) {
-      toast.error("Name and email are required");
+      toast.error(tChk("nameRequired"));
       return;
     }
 
@@ -46,6 +50,9 @@ export default function CheckoutPage() {
         customer_name: name.trim(),
         customer_email: email.trim(),
         customer_phone: phone.trim(),
+        delivery_method: deliveryMethod,
+        shipping_city: shippingCity.trim(),
+        shipping_address: shippingAddress.trim(),
         items: items.map((i) => ({
           product_id: Number(i.id),
           product_name: i.name,
@@ -55,23 +62,23 @@ export default function CheckoutPage() {
       });
 
       if (order.error) {
-        toast.error("Failed to create order", { description: order.error.message });
+        toast.error(tChk("createError"), { description: order.error.message });
         setSubmitting(false);
         return;
       }
 
       const pay = await orderApi.pay(order.data!.id);
       if (pay.error) {
-        toast.error("Failed to start payment", { description: pay.error.message });
+        toast.error(tChk("paymentError"), { description: pay.error.message });
         setSubmitting(false);
         return;
       }
 
       const checkoutUrl = pay.data!.checkout_url;
-      router.push(checkoutUrl);
       clearCart();
+      window.location.href = checkoutUrl;
     } catch (err) {
-      toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
+      toast.error(tCommon("error"), { description: err instanceof Error ? err.message : "Something went wrong" });
       setSubmitting(false);
     }
   };
@@ -82,15 +89,15 @@ export default function CheckoutPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <ShoppingBag className="h-12 w-12 mx-auto mb-2 text-purple-600" />
-            <CardTitle>Returning to order</CardTitle>
-            <CardDescription>Continue with your existing order #{orderId}</CardDescription>
+            <CardTitle>{tChk("returningToOrder")}</CardTitle>
+            <CardDescription>{tChk("continueOrder", { id: orderId })}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Button onClick={() => router.push(`/order/${orderId}`)}>
-              View Order Status
+              {tChk("viewStatus")}
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/">Back to Store</Link>
+              <Link href="/">{tChk("backToStore")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -104,25 +111,25 @@ export default function CheckoutPage() {
         <Link href="/">
           <Button variant="ghost" className="mb-4 flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Back to Store
+            {tChk("backToStore")}
           </Button>
         </Link>
 
         <Card>
           <CardHeader>
-            <CardTitle>Checkout</CardTitle>
-            <CardDescription>Review your order and complete payment.</CardDescription>
+            <CardTitle>{tChk("title")}</CardTitle>
+            <CardDescription>{tChk("subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {items.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
                 <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-slate-300" />
-                Your cart is empty
+                {tChk("emptyCart")}
               </div>
             ) : (
               <>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-sm text-slate-600">Order Items</h3>
+                  <h3 className="font-semibold text-sm text-slate-600">{tChk("orderItems")}</h3>
                   {items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm py-1">
                       <span>{item.name} x{item.quantity}</span>
@@ -130,25 +137,54 @@ export default function CheckoutPage() {
                     </div>
                   ))}
                   <div className="border-t pt-2 flex justify-between font-bold">
-                    <span>Total</span>
+                    <span>{tChk("total")}</span>
                     <span>{subtotal.toFixed(2)} ₴</span>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-sm text-slate-600">Customer Details</h3>
+                  <h3 className="font-semibold text-sm text-slate-600">{tChk("customerDetails")}</h3>
                   <div>
-                    <Label htmlFor="co-name">Name *</Label>
+                    <Label htmlFor="co-name">{tChk("nameLabel")} *</Label>
                     <Input id="co-name" value={name} onChange={(e) => setName(e.target.value)} />
                   </div>
                   <div>
-                    <Label htmlFor="co-email">Email *</Label>
+                    <Label htmlFor="co-email">{tChk("emailLabel")} *</Label>
                     <Input id="co-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                   </div>
                   <div>
-                    <Label htmlFor="co-phone">Phone</Label>
+                    <Label htmlFor="co-phone">{tChk("phoneLabel")}</Label>
                     <Input id="co-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm text-slate-600">{tChk("delivery")}</h3>
+                  <div>
+                    <Label htmlFor="co-delivery">{tChk("deliveryMethod")}</Label>
+                    <Select value={deliveryMethod} onValueChange={setDeliveryMethod}>
+                      <SelectTrigger id="co-delivery"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pickup">{tChk("pickup")}</SelectItem>
+                        <SelectItem value="nova_poshta">{tChk("novaPoshta")}</SelectItem>
+                        <SelectItem value="courier">{tChk("courier")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {deliveryMethod !== "pickup" && (
+                    <>
+                      <div>
+                        <Label htmlFor="co-city">{tChk("shippingCity")}</Label>
+                        <Input id="co-city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label htmlFor="co-address">
+                          {deliveryMethod === "nova_poshta" ? tChk("novaPoshtaOffice") : tChk("shippingAddress")}
+                        </Label>
+                        <Input id="co-address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <Button
@@ -158,9 +194,9 @@ export default function CheckoutPage() {
                   disabled={submitting || items.length === 0}
                 >
                   {submitting ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {tChk("processing")}</>
                   ) : (
-                    `Pay ${subtotal.toFixed(2)} ₴`
+                    tChk("pay", { amount: subtotal.toFixed(2) })
                   )}
                 </Button>
               </>
@@ -169,5 +205,13 @@ export default function CheckoutPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <CheckoutContent />
+    </Suspense>
   );
 }

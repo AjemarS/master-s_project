@@ -30,7 +30,6 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const tNav = useTranslations("nav");
-  const tImp = useTranslations("impersonation");
   const { user } = useCurrentUser();
 
   const userRole = user?.role || "admin";
@@ -79,7 +78,7 @@ export function AdminSidebar() {
       <button
         onClick={() => setPinned(!pinned)}
         className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted"
-        title={pinned ? "Відкріпити" : "Закріпити"}
+        title={pinned ? tNav("unpin") : tNav("pin")}
       >
         {pinned ? <PinOff className="h-3 w-3 text-muted-foreground" /> : <Pin className="h-3 w-3 text-muted-foreground" />}
       </button>

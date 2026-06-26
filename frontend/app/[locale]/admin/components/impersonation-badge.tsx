@@ -23,7 +23,7 @@ export function ImpersonationBadge() {
   const handleStop = async () => {
     setStopping(true);
     try {
-      await fetch("/auth/admin/stop-impersonation", { method: "POST", credentials: "include" });
+      await authClient.admin.stopImpersonating();
       router.refresh();
     } catch {
       // Fallback: redirect to root

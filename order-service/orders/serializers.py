@@ -31,6 +31,10 @@ class OrderListSerializer(serializers.ModelSerializer):
             "status",
             "payment_status",
             "warehouse_id",
+            "delivery_method",
+            "shipping_city",
+            "shipping_address",
+            "shipping_cost",
             "customer_name",
             "customer_phone",
             "customer_email",
@@ -61,6 +65,10 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "stripe_payment_intent_id",
             "paid_at",
             "warehouse_id",
+            "delivery_method",
+            "shipping_city",
+            "shipping_address",
+            "shipping_cost",
             "customer_name",
             "customer_phone",
             "customer_email",
@@ -87,6 +95,10 @@ class OrderCreateItemSerializer(serializers.Serializer):
 class OrderCreateSerializer(serializers.Serializer):
     channel = serializers.ChoiceField(choices=Order.CHANNEL_CHOICES, default=Order.ONLINE)
     warehouse_id = serializers.IntegerField(required=False, allow_null=True)
+    delivery_method = serializers.ChoiceField(choices=Order.DELIVERY_CHOICES, default=Order.PICKUP)
+    shipping_city = serializers.CharField(required=False, allow_blank=True, default="")
+    shipping_address = serializers.CharField(required=False, allow_blank=True, default="")
+    shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, default="0.00")
     customer_name = serializers.CharField(required=False, allow_blank=True, default="")
     customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
@@ -105,6 +117,10 @@ class OrderStatusSerializer(serializers.Serializer):
 
 class POSOrderSerializer(serializers.Serializer):
     warehouse_id = serializers.IntegerField()
+    delivery_method = serializers.ChoiceField(choices=Order.DELIVERY_CHOICES, default=Order.PICKUP)
+    shipping_city = serializers.CharField(required=False, allow_blank=True, default="")
+    shipping_address = serializers.CharField(required=False, allow_blank=True, default="")
+    shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, default="0.00")
     customer_name = serializers.CharField(required=False, allow_blank=True, default="")
     customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")

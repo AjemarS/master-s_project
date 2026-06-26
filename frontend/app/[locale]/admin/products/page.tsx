@@ -26,7 +26,7 @@ async function getProducts(): Promise<{ products: Product[]; totalCount: number;
 }
 
 export default async function ProductsPage() {
-  const { products, totalCount, error } = await getProducts();
+  const { products, totalCount } = await getProducts();
 
-  return <AdminProductsClient initialProducts={products} initialTotalCount={totalCount} initialError={error ?? null} />;
+  return <AdminProductsClient initialProducts={products} initialTotalCount={totalCount} />;
 }

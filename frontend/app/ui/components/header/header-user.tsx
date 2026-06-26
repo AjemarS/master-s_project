@@ -15,9 +15,9 @@ import {
 interface HeaderUserDropdownProps {
   isDashboard: boolean;
   role: string;
-  userEmail: string;
+  userEmail: string | null | undefined;
   userImage?: null | string;
-  userName: string;
+  userName: string | null | undefined;
 }
 
 export function HeaderUserDropdown({

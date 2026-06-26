@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "~/i18n/navigation";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 
 import { useCart } from "~/lib/hooks/use-cart";
@@ -15,6 +16,8 @@ const slugify = (str: string) =>
   str.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
 
 export default function ProductsPageContent() {
+  const t = useTranslations("products");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const { addItem } = useCart();
   const params = useSearchParams();
@@ -62,8 +65,8 @@ export default function ProductsPageContent() {
 
   const categories: string[] = React.useMemo(() => {
     const seen = Array.from(new Set(products.map((p) => p.category_name))).sort();
-    return ["All", ...seen];
-  }, [products]);
+    return [t("all"), ...seen];
+  }, [products, t]);
 
   const categoryNameToId = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -106,7 +109,7 @@ export default function ProductsPageContent() {
 
   const handleCategoryClick = (catName: string) => {
     const catId = categoryNameToId.get(catName);
-    if (catName === "All") {
+    if (catName === t("all")) {
       router.push("/products");
     } else if (catId) {
       router.push(`/products?category=${catId}`);
@@ -114,7 +117,7 @@ export default function ProductsPageContent() {
   };
 
   const isActiveCategory = (catName: string) => {
-    if (catName === "All") return !validCategoryId;
+    if (catName === t("all")) return !validCategoryId;
     const catId = categoryNameToId.get(catName);
     return catId === validCategoryId;
   };
@@ -125,13 +128,13 @@ export default function ProductsPageContent() {
         <div className="container px-4 md:px-6">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{t("catalog")}</h1>
               <p className="mt-1 text-lg text-muted-foreground">
-                Browse our latest products and find something you&apos;ll love.
+                {t("browseProducts")}
               </p>
               {totalCount > 0 && (
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Showing page {page} of {totalPages} ({totalCount} products)
+                  {t.rich("showingPage", { page, totalPages, count: totalCount })}
                 </p>
               )}
             </div>
@@ -144,7 +147,7 @@ export default function ProductsPageContent() {
                   key={slugify(cat)}
                   onClick={() => handleCategoryClick(cat)}
                   size="sm"
-                  title={`Filter by ${cat}`}
+                  title={t("filterBy", { category: cat })}
                   variant={isActiveCategory(cat) ? "default" : "outline"}
                 >
                   {cat}
@@ -161,24 +164,24 @@ export default function ProductsPageContent() {
 
           {isLoading && (
             <div className="mt-8 text-center">
-              <p className="text-transparent bg-clip-text bg-linear-120 from-white to-black">Loading</p>
+              <p className="text-transparent bg-clip-text bg-linear-120 from-white to-black">{tCommon("loading")}</p>
             </div>
           )}
 
           {products.length === 0 && !isLoading && (
             <div className="mt-8 text-center">
-              <p className="text-muted-foreground">No products found in this category.</p>
+              <p className="text-muted-foreground">{t("noProductsFound")}</p>
             </div>
           )}
 
           {!isLoading && totalPages > 1 && (
-            <nav aria-label="Pagination" className="mt-12 flex items-center justify-center gap-2">
+            <nav aria-label={t("pagination")} className="mt-12 flex items-center justify-center gap-2">
               <Button
                 disabled={page <= 1}
                 onClick={() => handlePageChange(page - 1)}
                 variant="outline"
               >
-                Previous
+                {tCommon("previous")}
               </Button>
               {(() => {
                 const pageButtons: React.ReactNode[] = [];
@@ -232,7 +235,7 @@ export default function ProductsPageContent() {
                 onClick={() => handlePageChange(page + 1)}
                 variant="outline"
               >
-                Next
+                {tCommon("next")}
               </Button>
             </nav>
           )}

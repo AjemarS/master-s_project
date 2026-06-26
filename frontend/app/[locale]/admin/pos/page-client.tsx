@@ -1,8 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
@@ -20,8 +20,8 @@ interface ReceiptItem {
 }
 
 export function POSClient() {
-  const tPos = useTranslations("pos");
-  const tCommon = useTranslations("common");
+  const t = useTranslations("pos");
+  const tc = useTranslations("common");
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,11 +57,11 @@ export function POSClient() {
         );
       }
     } catch {
-      toast.error("Помилка пошуку товарів");
+      toast.error(t("searchError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const addToReceipt = (product: Product) => {
     setReceipt((prev) => {
@@ -96,11 +96,11 @@ export function POSClient() {
 
   const handleCompleteSale = async () => {
     if (!selectedWarehouse) {
-      toast.error("Оберіть склад");
+      toast.error(t("selectWarehouse"));
       return;
     }
     if (receipt.length === 0) {
-      toast.error("Додайте товари до чеку");
+      toast.error(t("addItemsToReceipt"));
       return;
     }
     setSubmitting(true);
@@ -116,12 +116,12 @@ export function POSClient() {
         })),
       });
       if (res.error) throw new Error(res.error.message);
-      toast.success("Продаж завершено");
+      toast.success(t("saleComplete"));
       setReceipt([]);
       setCustomerName("");
       setCustomerPhone("");
     } catch (err) {
-      toast.error("Помилка", { description: err instanceof Error ? err.message : "Не вдалося завершити продаж" });
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : t("saleError") });
     } finally {
       setSubmitting(false);
     }
@@ -134,16 +134,16 @@ export function POSClient() {
           <Link href="/admin/summary">
             <Button variant="ghost" className="mb-4 flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              На головну
+              {tc("back")}
             </Button>
           </Link>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
                 <CreditCard className="h-10 w-10 text-purple-600" />
-                POS-термінал
+                {t("title")}
               </h1>
-              <p className="text-slate-600 dark:text-slate-400">Офлайн продаж у шоурумі</p>
+              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
             </div>
           </div>
         </div>
@@ -152,16 +152,16 @@ export function POSClient() {
           <div className="lg:col-span-2 space-y-6">
             <Card className="dark:bg-slate-800/80 dark:border-slate-700">
               <CardHeader>
-                <CardTitle className="dark:text-slate-100">Пошук товарів</CardTitle>
+                <CardTitle className="dark:text-slate-100">{t("searchTitle")}</CardTitle>
                 <CardDescription className="dark:text-slate-400">
-                  Знайдіть товар за назвою та додайте до чеку
+                  {t("searchDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <Input
-                    placeholder="Пошук товарів за назвою..."
+                    placeholder={t("search")}
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
@@ -176,7 +176,7 @@ export function POSClient() {
             {loading && (
               <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                Пошук...
+                {tc("loading")}
               </div>
             )}
 
@@ -191,7 +191,7 @@ export function POSClient() {
                           {Number(product.price).toFixed(2)} ₴
                         </div>
                         <Badge variant={product.in_stock ? "default" : "secondary"} className="mt-1">
-                          {product.in_stock ? "В наявності" : "Немає"}
+                          {product.in_stock ? t("inStock") : t("outOfStock")}
                         </Badge>
                       </div>
                       <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); addToReceipt(product); }}>
@@ -206,7 +206,7 @@ export function POSClient() {
             {!searchTerm.trim() && !loading && (
               <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                 <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                Почніть пошук товарів для додавання до чеку
+                {t("searchProduct")}
               </div>
             )}
           </div>
@@ -216,18 +216,18 @@ export function POSClient() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 dark:text-slate-100">
                   <ShoppingCart className="h-5 w-5 text-purple-600" />
-                  Чек
+                  {t("receipt")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Склад</label>
+                  <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("warehouse")}</label>
                   <select
                     value={selectedWarehouse ?? ""}
                     onChange={(e) => setSelectedWarehouse(e.target.value ? Number(e.target.value) : null)}
                     className="flex h-9 w-full rounded-md border border-input bg-background dark:bg-slate-800 px-3 py-1 text-sm dark:text-slate-200 dark:border-slate-700"
                   >
-                    <option value="">Оберіть склад</option>
+                    <option value="">{t("selectWarehouse")}</option>
                     {warehouses.map((wh) => (
                       <option key={wh.id} value={wh.id}>{wh.name}</option>
                     ))}
@@ -235,18 +235,18 @@ export function POSClient() {
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Iм&apos;я клієнта</label>
+                  <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("customerName")}</label>
                   <Input
-                    placeholder="Iм&apos;я клієнта"
+                    placeholder={t("customerName")}
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Телефон</label>
+                  <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("customerPhone")}</label>
                   <Input
-                    placeholder="Телефон"
+                    placeholder={t("customerPhone")}
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                   />
@@ -255,7 +255,7 @@ export function POSClient() {
                 <div className="border-t dark:border-slate-700 pt-4">
                   {receipt.length === 0 ? (
                     <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">
-                      Чек порожній
+                      {t("emptyReceipt")}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -285,7 +285,7 @@ export function POSClient() {
                   )}
 
                   <div className="flex items-center justify-between pt-4 text-lg font-bold text-slate-900 dark:text-slate-100">
-                    <span>Всього:</span>
+                    <span>{t("total")}</span>
                     <span>{total.toFixed(2)} ₴</span>
                   </div>
 
@@ -298,7 +298,7 @@ export function POSClient() {
                     {submitting ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : null}
-                    Завершити продаж
+                    {t("submitSale")}
                   </Button>
                 </div>
               </CardContent>

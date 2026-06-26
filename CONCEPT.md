@@ -38,24 +38,40 @@ System fully functional. Microservices run via Docker Compose. All core retail f
    └──────────────────┘  │ Cart (session)   │  │  POS interface   │
                          │ Bilingual fields │  │                  │
                          └──────────────────┘  └──────────────────┘
-         ┌──────────────────┐        ┌──────────────────┐
-         │  Inventory       │        │   Order Service  │
-         │  Service         │        │   (Django/DRF)   │
-         │  (Django/DRF)    │        │   Port: 8002     │
-         │  Port: 8001      │        │   DB: orders_db  │
-         │  DB: inventory_db│        │                  │
-         │                  │        │   Orders         │
-         │  Warehouses      │        │   POS transactions│
-         │  Stock levels    │◄──────►│   Revenue/Margin  │
-         │  Stock movements │ HTTP   │   Daily sales     │
-         │  Suppliers       │        │                  │
-         │  Goods receipts  │        │                  │
-         └──────────────────┘        └──────────────────┘
-                  ▲                           │
-                  │    ┌──────────────┐       │
-                  └────┤  RabbitMQ    │◄──────┘
-                       │  Port: 5672  │
-                       └──────────────┘
+          ┌──────────────────┐        ┌──────────────────┐
+          │  Inventory       │        │   Order Service  │
+          │  Service         │        │   (Django/DRF)   │
+          │  (Django/DRF)    │        │   Port: 8002     │
+          │  Port: 8001      │        │   DB: orders_db  │
+          │  DB: inventory_db│        │                  │
+          │                  │        │   Orders         │
+          │  Warehouses      │        │   POS transactions│
+          │  Stock levels    │◄──────►│   Revenue/Margin  │
+          │  Stock movements │ HTTP   │   Daily sales     │
+          │  Suppliers       │        │                  │
+          │  Goods receipts  │        │                  │
+          └──────┬───────────┘        └────────┬─────────┘
+                 │                             │
+                 │    ┌──────────────┐         │
+                 ├────┤  RabbitMQ    │◄────────┤
+                 │    │  Port: 5672  │         │
+                 │    └──────┬───────┘         │
+                 │           │                 │
+                 ▼           ▼                 ▼
+     ┌──────────────────┐ ┌──────────────────────────┐
+     │  Product Consumer│ │  Notification Service    │
+     │  (Django)        │ │  (Express + Resend + SSE)│
+     │  Port: N/A       │ │  Port: 8003              │
+     │  DB: products_db │ │  DB: notifications_db    │
+     └──────────────────┘ │  Email + SSE + admin prefs│
+                          └──────────────────────────┘
+          ┌──────────────────┐
+          │  Inventory       │
+          │  Consumer        │
+          │  (Django)        │
+          │  Port: N/A       │
+          │  DB: inventory_db│
+          └──────────────────┘
 ```
 
 ### 1.2 Service Responsibilities
@@ -71,8 +87,8 @@ System fully functional. Microservices run via Docker Compose. All core retail f
 
 ### 1.3 Communication
 
-- **Synchronous HTTP** — real-time operations (stock check, reserve, deduct during checkout)
-- **Async RabbitMQ events** — eventual consistency operations (total_stock update, notifications)
+- **Synchronous HTTP** — real-time operations (stock reserve, deduct, release during checkout)
+- **Async RabbitMQ events** — eventual consistency operations (stock sync, notifications, async reserve/release)
 
 ---
 
@@ -275,10 +291,12 @@ Managed by Better Auth:
 
 | Event | Publisher | Consumers | Description |
 |-------|-----------|-----------|-------------|
-| `inventory.stock.changed` | Inventory | — (future: Product) | Stock level changed on any warehouse |
-| `order.created` | Order | Inventory | New order → reserve stock |
-| `order.cancelled` | Order | Inventory | Order cancelled → release stock |
-| `order.status_changed` | Order | — (future) | Status change notifications |
+| `inventory.stock.changed` | Inventory | Product, notification | Stock level changed → sync Product.stock, notify low stock |
+| `inventory.goods_received` | Inventory | Product | GRN created → sync Product.stock |
+| `inventory.low_stock` | Inventory | Notification | Stock below threshold → email + SSE alert |
+| `order.created` | Order | Inventory, notification | New order → async reserve stock, confirm email |
+| `order.cancelled` | Order | Inventory, notification | Order cancelled → release stock, notify customer |
+| `order.status_changed` | Order | Notification | Status transition → notify customer |
 
 ### 6.2 Saga Pattern
 
@@ -424,7 +442,7 @@ Network: microservices_network (bridge)
 ### 9.2 Key Nginx Config Points
 
 - Route order: prefix matches must come before `/{path}`
-- `/auth-check` internal location (returns 200 even on auth failure via `proxy_intercept_errors`)
+- `/auth-check` internal location (returns 502 on auth-service failure — fail-closed; other errors return 200 for anonymous fallback)
 - All API routes go through `auth_request /auth-check` + `js_content auth.checkAndProxy`
 - CORS: njs-driven `checkOrigin`, server-level `add_header` for all responses
 - WebSocket support for frontend HMR
@@ -453,11 +471,11 @@ Network: microservices_network (bridge)
 
 | Issue | Notes |
 |-------|-------|
-| `orders_db` test DB leftover | `EOFError` when running order-service tests (pre-existing) |
+| `orders_db` test DB leftover | `EOFError` and missing `autoclobber` prompt when running order-service tests |
 | Backend tests assertion count | Some tests pass system check but may have 0 assertions |
-| `warehouse_worker`/`cashier` roles | Defined in auth but gateway/frontend gated — mutated views still require `admin` in many cases |
 | Testimonials mock data | Hardcoded in Ukrainian (not yet extracted to translations) |
-| Order service test DB prompt | `autoclobber` not set, prompts for user input |
+| Frontend `/products` i18n | Recently added — verify coverage |
+| Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction (see CONCERN.md #5) |
 
 ---
 

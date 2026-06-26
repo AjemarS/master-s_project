@@ -9,11 +9,23 @@ const intlMiddleware = createIntlMiddleware({
 });
 
 // Routes that require authentication
-const protectedRoutes = ["/dashboard", "/admin"];
+const protectedRoutes = ["/dashboard", "/admin", "/checkout", "/order"];
 
 // Role-based route access map
+// More specific paths are checked first (longest match wins)
+// Must stay in sync with gateway RBAC (nginx/auth.js) and admin-sidebar.tsx
 const roleRouteAccess: Record<string, string[]> = {
-  "/admin": ["admin", "cashier", "warehouse_worker"],
+  "/admin/summary": ["admin", "cashier", "warehouse_worker"],
+  "/admin/pos": ["admin", "cashier"],
+  "/admin/products": ["admin", "cashier"],
+  "/admin/orders": ["admin", "cashier"],
+  "/admin/warehouses": ["admin", "warehouse_worker"],
+  "/admin/stock-movements": ["admin", "warehouse_worker"],
+  "/admin/goods-receipts": ["admin", "warehouse_worker"],
+  "/admin/suppliers": ["admin", "warehouse_worker"],
+  "/admin/categories": ["admin"],
+  "/admin/users": ["admin"],
+  "/admin/reports": ["admin"],
 };
 
 async function redirectToSignIn(request: NextRequest) {
@@ -51,10 +63,19 @@ export async function proxy(request: NextRequest) {
 
     // Role-based access
     const userRole = session.user.role || "user";
+    let matchedRoute = false;
     for (const [route, allowedRoles] of Object.entries(roleRouteAccess)) {
-      if (localePath.startsWith(route) && !allowedRoles.includes(userRole) && userRole !== "admin") {
-        return redirectToSignIn(request);
+      if (localePath.startsWith(route)) {
+        matchedRoute = true;
+        if (!allowedRoles.includes(userRole) && userRole !== "admin") {
+          return redirectToSignIn(request);
+        }
       }
+    }
+
+    // Catch-all: any /admin/* route not explicitly mapped requires admin
+    if (!matchedRoute && localePath.startsWith("/admin") && userRole !== "admin") {
+      return redirectToSignIn(request);
     }
 
     return NextResponse.next();

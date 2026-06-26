@@ -1,5 +1,5 @@
-import type { Product, AdminUser, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport } from "~/lib/types";
-import { apiCall, API_URL, AUTH_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport } from "~/lib/types";
+import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
 export const productApi = {
@@ -81,17 +81,6 @@ export const categoryApi = {
   },
 };
 
-export const userApi = {
-  async list(searchValue?: string): Promise<ApiResponse<{ users: AdminUser[] }>> {
-    const url = `${AUTH_URL}/admin/users${searchValue ? `?search=${encodeURIComponent(searchValue)}` : ""}`;
-    return apiCall(url);
-  },
-
-  async getById(id: string): Promise<ApiResponse<AdminUser>> {
-    return apiCall(`${AUTH_URL}/admin/users/${id}`);
-  },
-};
-
 export const warehouseApi = {
   async getAll(): Promise<ApiResponse<{ results: Warehouse[]; count: number; next: string | null; previous: string | null }>> {
     return apiCall(`${INVENTORY_API_URL}/warehouses/`);
@@ -135,6 +124,9 @@ export const orderApi = {
   async create(data: {
     channel?: string;
     warehouse_id?: number;
+    delivery_method?: string;
+    shipping_city?: string;
+    shipping_address?: string;
     customer_name?: string;
     customer_phone?: string;
     customer_email?: string;
@@ -213,6 +205,17 @@ export const stockTransferApi = {
     notes?: string;
   }): Promise<ApiResponse<{ message: string; movements: { from: number; to: number } }>> {
     return apiCall(`${INVENTORY_API_URL}/stock/transfer/`, { method: "POST", body: JSON.stringify(data) });
+  },
+};
+
+export const stockAdjustApi = {
+  async adjust(data: {
+    product_id: number;
+    warehouse_id: number;
+    new_quantity: number;
+    reason?: string;
+  }): Promise<ApiResponse<unknown>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/adjust/`, { method: "POST", body: JSON.stringify(data) });
   },
 };
 
