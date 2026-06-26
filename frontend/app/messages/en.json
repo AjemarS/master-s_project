@@ -132,6 +132,7 @@
     "searchPlaceholder": "Search products by name...",
     "id": "ID",
     "name": "Name",
+    "price": "Price",
     "category": "Category",
     "stock": "Stock",
     "units": "{count} units",

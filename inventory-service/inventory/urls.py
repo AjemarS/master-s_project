@@ -11,8 +11,8 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"warehouses", WarehouseViewSet, basename="warehouse")
-router.register(r"stock", StockViewSet, basename="stock")
 router.register(r"stock/movements", StockMovementViewSet, basename="stock-movement")
+router.register(r"stock", StockViewSet, basename="stock")
 router.register(r"suppliers", SupplierViewSet, basename="supplier")
 router.register(r"goods-receipts", GoodsReceiptNoteViewSet, basename="goods-receipt")
 

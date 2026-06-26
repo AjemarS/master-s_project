@@ -1,5 +1,7 @@
+import useSWR, { useSWRConfig } from "swr";
 import { useApiGet, useApiMutation } from "./use-api";
 import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
+import { authClient } from "~/lib/auth-client";
 import { productApi, categoryApi, warehouseApi, stockApi, supplierApi, goodsReceiptApi, orderApi, stockMovementApi, stockTransferApi, stockAdjustApi } from "~/lib/api/admin-api";
 
 export function useProducts(params?: Record<string, string | number | boolean | undefined>) {
@@ -114,4 +116,79 @@ export function useStockMovements(params?: Record<string, string | number | unde
   return useApiGet<{ results: StockMovement[]; count: number }>(
     `/stock/movements/?${q}`, () => stockMovementApi.getAll(params as Record<string, string | number | undefined>)
   );
+}
+
+async function usersFetcher(query: Record<string, unknown>) {
+  const res = await authClient.admin.listUsers({ query });
+  if (res.error) throw new Error(res.error.message || "Failed to load users");
+  return res.data!;
+}
+
+export function useUsers(searchTerm?: string, filterRole?: string, filterStatus?: string, page = 1, pageSize = 20) {
+  const params: Record<string, unknown> = {
+    searchValue: searchTerm || undefined,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  };
+  if (filterRole) {
+    params.filterField = "role";
+    params.filterValue = filterRole;
+    params.filterOperator = "eq";
+  } else if (filterStatus === "active") {
+    params.filterField = "banned";
+    params.filterValue = false;
+    params.filterOperator = "eq";
+  } else if (filterStatus === "banned") {
+    params.filterField = "banned";
+    params.filterValue = true;
+    params.filterOperator = "eq";
+  }
+
+  const key = JSON.stringify({ type: "users", ...params });
+  const { data, error, isLoading, mutate } = useSWR(key, () => usersFetcher(params), {
+    revalidateOnFocus: false,
+    keepPreviousData: true,
+  });
+
+  let users = data?.users ?? [];
+  if (filterRole && filterStatus === "active") {
+    users = users.filter((u) => u.role === filterRole && !u.banned);
+  } else if (filterRole && filterStatus === "banned") {
+    users = users.filter((u) => u.role === filterRole && u.banned);
+  }
+
+  return { users, total: data?.total ?? 0, error: error?.message || null, isLoading, mutate };
+}
+
+export function useBanUser() {
+  const { mutate: globalMutate } = useSWRConfig();
+  return {
+    trigger: async (userId: string, reason?: string) => {
+      const res = await authClient.admin.banUser({ userId, banReason: reason });
+      if (res.error) throw new Error(res.error.message);
+      globalMutate((k: string) => typeof k === "string" && k.startsWith('{"type":"users'));
+    },
+  };
+}
+
+export function useUnbanUser() {
+  const { mutate: globalMutate } = useSWRConfig();
+  return {
+    trigger: async (userId: string) => {
+      const res = await authClient.admin.unbanUser({ userId });
+      if (res.error) throw new Error(res.error.message);
+      globalMutate((k: string) => typeof k === "string" && k.startsWith('{"type":"users'));
+    },
+  };
+}
+
+export function useDeleteUser() {
+  const { mutate: globalMutate } = useSWRConfig();
+  return {
+    trigger: async (userId: string) => {
+      const res = await authClient.admin.removeUser({ userId });
+      if (res.error) throw new Error(res.error.message);
+      globalMutate((k: string) => typeof k === "string" && k.startsWith('{"type":"users'));
+    },
+  };
 }
