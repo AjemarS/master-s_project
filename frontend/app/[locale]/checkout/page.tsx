@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { ArrowLeft, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "~/lib/hooks/use-cart";
+import { formatCurrency } from "~/lib/utils/format";
 import { orderApi } from "~/lib/api/admin-api";
 import { useCurrentUser } from "~/lib/auth-client";
 import Link from "next/link";
@@ -133,12 +134,12 @@ function CheckoutContent() {
                   {items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm py-1">
                       <span>{item.name} x{item.quantity}</span>
-                      <span className="font-medium">{(item.price * item.quantity).toFixed(2)} ₴</span>
+                      <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
                     </div>
                   ))}
                   <div className="border-t pt-2 flex justify-between font-bold">
                     <span>{tChk("total")}</span>
-                    <span>{subtotal.toFixed(2)} ₴</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                 </div>
 
@@ -196,7 +197,7 @@ function CheckoutContent() {
                   {submitting ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {tChk("processing")}</>
                   ) : (
-                    tChk("pay", { amount: subtotal.toFixed(2) })
+                    tChk("pay", { amount: subtotal.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })
                   )}
                 </Button>
               </>

@@ -2,15 +2,23 @@
 
 import { useTranslations, useLocale } from "next-intl";
 import { useState } from "react";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { TrendingUp, DollarSign, BarChart3, PieChart, ArrowLeft, ShoppingCart, Package, Calendar } from "lucide-react";
+import { TrendingUp, DollarSign, BarChart3, PieChart, ShoppingCart, Package, Calendar } from "lucide-react";
+import { AdminPageHeader } from "../components";
 import { useApiGet } from "~/lib/hooks/use-api";
 import { reportApi } from "~/lib/api/admin-api";
 import type { SalesReport, RevenueReport } from "~/lib/types";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "~/ui/primitives/table";
 import { StatsGridSkeleton } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { formatCurrency } from "~/lib/utils/format";
@@ -56,23 +64,12 @@ export function ReportsClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("backToStore")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <BarChart3 className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
-          </div>
-        </div>
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={BarChart3}
+          backLabel={tc("backToStore")}
+        />
 
         <ErrorAlert message={error?.message || null} />
 
@@ -245,27 +242,27 @@ export function ReportsClient() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                      <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                          <tr>
-                            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tc("channel")}</th>
-                            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("totalOrders")}</th>
-                            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("totalRevenue")}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                    <div className="border rounded-lg dark:border-slate-700">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                            <TableHead>{tc("channel")}</TableHead>
+                            <TableHead>{t("totalOrders")}</TableHead>
+                            <TableHead>{t("totalRevenue")}</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
                           {sales.by_channel.map((ch, i) => (
-                            <tr key={i} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                              <td className="p-4 font-medium text-slate-900 dark:text-slate-200">
+                            <TableRow key={i}>
+                              <TableCell className="font-medium">
                                 {ch.channel === "online" ? tc("online") : tc("offline")}
-                              </td>
-                              <td className="p-4 text-slate-600 dark:text-slate-400">{ch.count}</td>
-                              <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(ch.revenue)}</td>
-                            </tr>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">{ch.count}</TableCell>
+                              <TableCell className="font-semibold">{formatCurrency(ch.revenue)}</TableCell>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>

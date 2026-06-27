@@ -2,32 +2,29 @@
 
 import { Skeleton } from "~/ui/primitives/skeleton";
 import { Card, CardContent, CardHeader } from "~/ui/primitives/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "~/ui/primitives/table";
 
 export function TableSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div className="border rounded-lg overflow-x-auto">
-      <table className="w-full">
-        <thead className="bg-slate-50 border-b">
-          <tr>
+    <div className="border rounded-lg dark:border-slate-700">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
             {Array.from({ length: cols }).map((_, i) => (
-              <th key={i} className="text-left p-4">
-                <Skeleton className="h-4 w-24" />
-              </th>
+              <TableHead key={i}><Skeleton className="h-4 w-24" /></TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {Array.from({ length: rows }).map((_, i) => (
-            <tr key={i} className="border-b">
+            <TableRow key={i}>
               {Array.from({ length: cols }).map((_, j) => (
-                <td key={j} className="p-4">
-                  <Skeleton className="h-4 w-full" />
-                </td>
+                <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

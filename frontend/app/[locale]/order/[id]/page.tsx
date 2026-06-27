@@ -7,6 +7,7 @@ import { Link } from "~/i18n/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
+import { formatCurrency } from "~/lib/utils/format";
 import { ArrowLeft, Package, ShoppingBag, Loader2 } from "lucide-react";
 import { orderApi } from "~/lib/api/admin-api";
 import type { OrderDetail } from "~/lib/types";
@@ -149,7 +150,7 @@ export default function OrderPage() {
                       <tr key={item.id} className="border-t dark:border-slate-700">
                         <td className="p-3 text-slate-900 dark:text-slate-200">{item.product_name || `#${item.product_id}`}</td>
                         <td className="p-3 text-right text-slate-600 dark:text-slate-400">{item.quantity}</td>
-                        <td className="p-3 text-right font-medium">₴{Number(item.price).toFixed(2)}</td>
+                        <td className="p-3 text-right font-medium">{formatCurrency(item.price)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -159,7 +160,7 @@ export default function OrderPage() {
 
             <div className="flex justify-between text-lg font-bold border-t pt-4">
               <span>{tDet("total")}</span>
-              <span>₴{Number(order.total_amount).toFixed(2)}</span>
+              <span>{formatCurrency(order.total_amount)}</span>
             </div>
 
             <div className="flex gap-3">

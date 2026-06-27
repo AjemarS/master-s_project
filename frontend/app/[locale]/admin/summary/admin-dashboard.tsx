@@ -23,6 +23,7 @@ import { useApiGet } from "~/lib/hooks/use-api";
 import { reportApi } from "~/lib/api/admin-api";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { ErrorAlert } from "~/ui/components/error-alert";
+import { formatCurrency } from "~/lib/utils/format";
 import { PieChart as RechartPie, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
 type AdminUserData = UserWithRole & Pick<User, "status">;
@@ -221,11 +222,11 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <AlertDescription className="text-amber-800 dark:text-amber-300 flex items-center gap-2">
               <span>{staleUnpaidCount === 1 ? tSum("staleUnpaidOne", { count: staleUnpaidCount }) : tSum("staleUnpaid", { count: staleUnpaidCount })}</span>
-              <Link href="/admin/orders?status=unpaid">
-                <Button variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100">
+              <Button variant="outline" size="sm" asChild className="border-amber-300 text-amber-700 hover:bg-amber-100">
+                <Link href="/admin/orders?status=unpaid">
                   {tc("view")}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -266,7 +267,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalProducts}</div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {tSum("stockValue", { value: stats.productsValue.toFixed(2) })}
+                {tSum("stockValue", { value: stats.productsValue.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}
               </p>
             </CardContent>
           </Card>
@@ -349,7 +350,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">₴{Number(o.total_amount || 0).toFixed(2)}</span>
+                            <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{formatCurrency(o.total_amount)}</span>
                             <OrderStatusBadge status={o.status} />
                           </div>
                         </Link>
@@ -366,9 +367,9 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
                   <AlertCircle className="h-5 w-5 text-orange-600" />
                   {tSum("lowStock")}
                 </CardTitle>
-                <Link href="/admin/products">
-                  <Button variant="outline" size="sm">{tSum("viewAll")}</Button>
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/admin/products">{tSum("viewAll")}</Link>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -503,7 +504,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
                     className="shrink-0 w-48 p-3 border rounded-lg dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                   >
                     <div className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{p.name}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">₴{p.price.toFixed(2)}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{formatCurrency(p.price)}</div>
                     <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">ID: #{p.id}</div>
                   </Link>
                 ))}

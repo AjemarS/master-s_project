@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
@@ -11,19 +10,27 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { ClipboardList, ArrowLeft, Plus, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { Textarea } from "~/ui/primitives/textarea";
+import { ClipboardList, Plus, X } from "lucide-react";
+import { AdminPageHeader } from "../components";
+import { formatCurrency } from "~/lib/utils/format";
 import { useGoodsReceipts, useCreateGoodsReceipt, useSuppliers, useWarehouses } from "~/lib/hooks/use-api-data";
 import { ErrorAlert } from "~/ui/components/error-alert";
-import { TableSkeleton } from "../components";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "~/ui/primitives/table";
+import { TableSkeleton, EmptyState } from "../components";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("uk-UA", {
     day: "2-digit", month: "2-digit", year: "numeric",
   });
-}
-
-function formatCurrency(amount: number): string {
-  return `${Number(amount).toFixed(2)} ₴`;
 }
 
 interface GrnFormItem {
@@ -101,26 +108,17 @@ export function GoodsReceiptsClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("back")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <ClipboardList className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={ClipboardList}
+          backLabel={tc("back")}
+          actions={
             <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
               <Plus className="h-4 w-4" /> {t("createGrn")}
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         <ErrorAlert message={grError?.message || null} />
 
@@ -139,40 +137,35 @@ export function GoodsReceiptsClient() {
             {grLoading ? (
               <TableSkeleton rows={4} cols={6} />
             ) : (
-              <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                <table className="w-full">
-                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                    <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("id")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("supplier")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("warehouse")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("date")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("amount")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("createdBy")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="border rounded-lg dark:border-slate-700">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                      <TableHead>{t("id")}</TableHead>
+                      <TableHead>{t("supplier")}</TableHead>
+                      <TableHead>{t("warehouse")}</TableHead>
+                      <TableHead>{t("date")}</TableHead>
+                      <TableHead>{t("amount")}</TableHead>
+                      <TableHead>{t("createdBy")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {receipts.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                          <ClipboardList className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          {t("noReceipts")}
-                        </td>
-                      </tr>
+                      <EmptyState icon={ClipboardList} message={t("noReceipts")} colSpan={6} />
                     ) : (
                       receipts.map((r) => (
-                        <tr key={r.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{r.id}</td>
-                          <td className="p-4 text-slate-900 dark:text-slate-200">{r.supplier_name}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{r.warehouse_name}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{formatDate(r.receipt_date)}</td>
-                          <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(r.total_amount)}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{r.created_by}</td>
-                        </tr>
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">#{r.id}</TableCell>
+                          <TableCell>{r.supplier_name}</TableCell>
+                          <TableCell className="text-muted-foreground">{r.warehouse_name}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(r.receipt_date)}</TableCell>
+                          <TableCell className="font-semibold">{formatCurrency(r.total_amount)}</TableCell>
+                          <TableCell className="text-muted-foreground">{r.created_by}</TableCell>
+                        </TableRow>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
@@ -188,19 +181,21 @@ export function GoodsReceiptsClient() {
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("supplier")} *</Label>
-              <select value={formSupplier} onChange={(e) => setFormSupplier(e.target.value)}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">{t("selectSupplier")}</option>
-                {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <Select value={formSupplier} onValueChange={setFormSupplier}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder={t("selectSupplier")} /></SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("warehouse")} *</Label>
-              <select value={formWarehouse} onChange={(e) => setFormWarehouse(e.target.value)}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">{t("selectWarehouse")}</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              <Select value={formWarehouse} onValueChange={setFormWarehouse}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("date")}</Label>
@@ -212,8 +207,7 @@ export function GoodsReceiptsClient() {
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
               <Label className="text-right pt-2">{tc("notes")}</Label>
-              <textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)}
-                className="col-span-3 flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" />
+              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} className="col-span-3" />
             </div>
 
             <div className="col-span-4 border-t pt-4">

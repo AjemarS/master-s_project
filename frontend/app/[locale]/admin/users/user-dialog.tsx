@@ -13,6 +13,7 @@ import {
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle } from "lucide-react";
 import { adminService } from "./actions";
@@ -142,17 +143,15 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="ud-role" className="text-right">Role</Label>
-            <select
-              id="ud-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "admin" | "user" | "cashier" | "warehouse_worker")}
-              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="user">User</option>
-              <option value="cashier">Cashier</option>
-              <option value="warehouse_worker">Warehouse Worker</option>
-              <option value="admin">Admin</option>
-            </select>
+            <Select value={role} onValueChange={(v) => setRole(v as "admin" | "user" | "cashier" | "warehouse_worker")}>
+              <SelectTrigger id="ud-role" className="col-span-3"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="cashier">Cashier</SelectItem>
+                <SelectItem value="warehouse_worker">Warehouse Worker</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

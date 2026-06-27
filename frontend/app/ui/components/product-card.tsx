@@ -11,6 +11,7 @@ import { Product } from "~/lib/types";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
+import { formatCurrency } from "~/lib/utils/format";
 
 type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
   onAddToCart?: (productId: number) => void;
@@ -126,10 +127,10 @@ export const ProductCard = React.memo(function ProductCard({
               <>
                 <div className="mt-1.5">{renderStars()}</div>
                 <div className="mt-2 flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">₴{price.toFixed(2)}</span>
+                  <span className="font-medium text-foreground">{formatCurrency(price)}</span>
                   {originalPrice > 0 && (
                     <span className="text-sm text-muted-foreground line-through">
-                      ₴{originalPrice.toFixed(2)}
+                      {formatCurrency(originalPrice)}
                     </span>
                   )}
                 </div>
@@ -158,10 +159,10 @@ export const ProductCard = React.memo(function ProductCard({
             <CardFooter className="p-4 pt-0">
               <div className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">₴{price.toFixed(2)}</span>
+                  <span className="font-medium text-foreground">{formatCurrency(price)}</span>
                   {originalPrice > 0 && (
                     <span className="text-sm text-muted-foreground line-through">
-                      ₴{originalPrice.toFixed(2)}
+                      {formatCurrency(originalPrice)}
                     </span>
                   )}
                 </div>

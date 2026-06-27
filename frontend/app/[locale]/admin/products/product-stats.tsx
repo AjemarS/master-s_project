@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "~/ui/primitives/card";
+import { formatCurrency } from "~/lib/utils/format";
 
 interface ProductStatsCardsProps {
   stats: {
@@ -38,7 +39,7 @@ export function ProductStatsCards({ stats }: ProductStatsCardsProps) {
       <Card className="dark:bg-slate-800/80 dark:border-slate-700">
         <CardContent className="pt-6">
           <div className="text-sm text-slate-600 dark:text-slate-400">{t("totalValue")}</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.totalValue.toFixed(2)} ₴</div>
+          <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.totalValue)}</div>
         </CardContent>
       </Card>
     </div>

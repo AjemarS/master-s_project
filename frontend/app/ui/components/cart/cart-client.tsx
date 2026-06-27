@@ -17,6 +17,7 @@ import {
   DrawerTrigger,
 } from "~/ui/primitives/drawer";
 import { Separator } from "~/ui/primitives/separator";
+import { formatCurrency } from "~/lib/utils/format";
 import {
   Sheet,
   SheetClose,
@@ -63,7 +64,7 @@ export function CartClient({ className }: CartProps) {
     return `You have ${totalItems} item${totalItems !== 1 ? "s" : ""} in your cart`;
   }, [totalItems]);
 
-  const formattedSubtotal = React.useMemo(() => `₴${subtotal.toFixed(2)}`, [subtotal]);
+  const formattedSubtotal = React.useMemo(() => formatCurrency(subtotal), [subtotal]);
 
   const handleUpdateQuantity = (id: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -250,7 +251,7 @@ export function CartClient({ className }: CartProps) {
                           </button>
                         </div>
                         <div className="text-sm font-medium">
-                          ₴{(item.price * item.quantity).toFixed(2)}
+                          {formatCurrency(item.price * item.quantity)}
                         </div>
                       </div>
                     </div>

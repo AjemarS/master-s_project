@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
@@ -12,10 +11,21 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { Warehouse as WarehouseIcon, Package, ArrowLeft, Plus, ArrowRightLeft } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { Checkbox } from "~/ui/primitives/checkbox";
+import { Warehouse as WarehouseIcon, Package, Plus, ArrowRightLeft } from "lucide-react";
+import { AdminPageHeader } from "../components";
 import { useWarehouses, useCreateWarehouse, useStock, useTransferStock } from "~/lib/hooks/use-api-data";
 import type { Warehouse, Stock } from "~/lib/types";
-import { TableSkeleton } from "../components";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "~/ui/primitives/table";
+import { TableSkeleton, EmptyState } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
 
 export function WarehousesClient() {
@@ -91,21 +101,12 @@ export function WarehousesClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("backToStore")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <WarehouseIcon className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={WarehouseIcon}
+          backLabel={tc("backToStore")}
+          actions={
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => setShowTransfer(true)} className="flex items-center gap-2">
                 <ArrowRightLeft className="h-4 w-4" /> {t("transferStock")}
@@ -114,8 +115,8 @@ export function WarehousesClient() {
                 <Plus className="h-4 w-4" /> {t("createWarehouse")}
               </Button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         <ErrorAlert message={error?.message || null} />
 
@@ -138,44 +139,39 @@ export function WarehousesClient() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                      <tr>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("name")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("type")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("address")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("active")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="border rounded-lg dark:border-slate-700">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                        <TableHead>{t("name")}</TableHead>
+                        <TableHead>{t("type")}</TableHead>
+                        <TableHead>{t("address")}</TableHead>
+                        <TableHead>{t("active")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {warehouses.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                            <WarehouseIcon className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                            {t("noWarehouses")}
-                          </td>
-                        </tr>
+                        <EmptyState icon={WarehouseIcon} message={t("noWarehouses")} colSpan={4} />
                       ) : (
                         warehouses.map((wh) => (
-                          <tr key={wh.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100">{wh.name}</td>
-                            <td className="p-4">
+                          <TableRow key={wh.id}>
+                            <TableCell className="font-medium">{wh.name}</TableCell>
+                            <TableCell>
                               <Badge variant={wh.type === "warehouse" ? "default" : "secondary"}>
                                 {wh.type === "warehouse" ? t("warehouse") : t("showroom")}
                               </Badge>
-                            </td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{wh.address}</td>
-                            <td className="p-4">
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{wh.address}</TableCell>
+                            <TableCell>
                               <Badge variant={wh.is_active ? "default" : "secondary"}>
                                 {wh.is_active ? tc("yes") : tc("no")}
                               </Badge>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -230,38 +226,33 @@ export function WarehousesClient() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                      <tr>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("productId")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("warehouse")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("qty")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("reserved")}</th>
-                        <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("available")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="border rounded-lg dark:border-slate-700">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                        <TableHead>{t("productId")}</TableHead>
+                        <TableHead>{t("warehouse")}</TableHead>
+                        <TableHead>{t("qty")}</TableHead>
+                        <TableHead>{t("reserved")}</TableHead>
+                        <TableHead>{t("available")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {stock.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                            <Package className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                            {t("noStock")}
-                          </td>
-                        </tr>
+                        <EmptyState icon={Package} message={t("noStock")} colSpan={5} />
                       ) : (
                         stock.map((s) => (
-                          <tr key={s.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{s.product_id}</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{s.warehouse_name}</td>
-                            <td className="p-4 text-slate-900 dark:text-slate-200">{s.quantity}</td>
-                            <td className="p-4 text-orange-600 dark:text-orange-400">{s.reserved}</td>
-                            <td className="p-4 text-green-600 dark:text-green-400 font-semibold">{s.available}</td>
-                          </tr>
+                          <TableRow key={s.id}>
+                            <TableCell className="font-medium">#{s.product_id}</TableCell>
+                            <TableCell className="text-muted-foreground">{s.warehouse_name}</TableCell>
+                            <TableCell>{s.quantity}</TableCell>
+                            <TableCell className="text-orange-600 dark:text-orange-400">{s.reserved}</TableCell>
+                            <TableCell className="text-green-600 dark:text-green-400 font-semibold">{s.available}</TableCell>
+                          </TableRow>
                         ))
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
@@ -282,11 +273,13 @@ export function WarehousesClient() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("type")}</Label>
-              <select value={formType} onChange={(e) => setFormType(e.target.value as "warehouse" | "showroom")}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="warehouse">{t("warehouse")}</option>
-                <option value="showroom">{t("showroom")}</option>
-              </select>
+              <Select value={formType} onValueChange={(v) => setFormType(v as "warehouse" | "showroom")}>
+                <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="warehouse">{t("warehouse")}</SelectItem>
+                  <SelectItem value="showroom">{t("showroom")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("address")}</Label>
@@ -295,8 +288,7 @@ export function WarehousesClient() {
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("active")}</Label>
               <div className="col-span-3 flex items-center gap-2">
-                <input type="checkbox" checked={formActive} onChange={(e) => setFormActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300" />
+                <Checkbox checked={formActive} onCheckedChange={(c) => setFormActive(c === true)} />
                 <span className="text-sm text-slate-600">{formActive ? tc("yes") : tc("no")}</span>
               </div>
             </div>
@@ -324,19 +316,21 @@ export function WarehousesClient() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("fromWarehouse")} *</Label>
-              <select value={transferFromWh} onChange={(e) => setTransferFromWh(e.target.value)}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">{t("fromWarehouse")}...</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              <Select value={transferFromWh} onValueChange={setTransferFromWh}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder={t("fromWarehouse")} /></SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("toWarehouse")} *</Label>
-              <select value={transferToWh} onChange={(e) => setTransferToWh(e.target.value)}
-                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">{t("toWarehouse")}...</option>
-                {warehouses.filter((w) => String(w.id) !== transferFromWh).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              <Select value={transferToWh} onValueChange={setTransferToWh}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder={t("toWarehouse")} /></SelectTrigger>
+                <SelectContent>
+                  {warehouses.filter((w) => String(w.id) !== transferFromWh).map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("qty")} *</Label>

@@ -120,9 +120,9 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
                   <AlertCircle className="h-5 w-5 text-red-600" />
                   {tSum("lowStock")}
                 </CardTitle>
-                <Link href="/admin/products">
-                  <Button variant="outline" size="sm">{tSum("viewAll")}</Button>
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/admin/products">{tSum("viewAll")}</Link>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>

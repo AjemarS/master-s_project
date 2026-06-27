@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, CardContent } from "~/ui/primitives/card";
@@ -10,8 +9,8 @@ import { ErrorAlert } from "~/ui/components/error-alert";
 import {
   Users,
   Plus,
-  ArrowLeft,
 } from "lucide-react";
+import { AdminPageHeader } from "../components";
 import { useDebounce } from "~/lib/hooks/use-debounce";
 import { UserDialog } from "./user-dialog";
 import { UserTable } from "./user-table";
@@ -89,21 +88,12 @@ export default function UsersPageClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("back")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <Users className="h-10 w-10 text-blue-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={Users}
+          backLabel={tc("back")}
+          actions={
             <Button
               className="flex items-center gap-2"
               onClick={() => {
@@ -116,8 +106,8 @@ export default function UsersPageClient() {
               <Plus className="h-4 w-4" />
               {t("addUser")}
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         <ErrorAlert message={error} />
 

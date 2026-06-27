@@ -1,22 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "~/ui/primitives/button";
 import {
   Package,
   Plus,
-  ArrowLeft,
   Filter,
   X,
-  ChevronsUpDown,
-  ChevronUp,
-  ChevronDown,
 } from "lucide-react";
 import type { Product, Category } from "~/lib/types";
-import { ConfirmDialog, StatsGridSkeleton } from "../components";
+import { ConfirmDialog, StatsGridSkeleton, AdminPageHeader } from "../components";
 import { useDebounce } from "~/lib/hooks/use-debounce";
 import { useRecentProducts } from "~/lib/hooks/use-recent-products";
 import { useCurrentUser } from "~/lib/auth-client";
@@ -85,7 +80,7 @@ export default function AdminProductsClient({
     ordering: sortField ? (sortDir === "desc" ? `-${sortField}` : sortField) : undefined,
   } as Record<string, string | number | boolean | undefined>;
 
-  const { data: pageData, error, isLoading, mutate } = useProducts(params);
+  const { data: pageData, error, isLoading, isValidating, mutate } = useProducts(params);
   const { data: catData, mutate: mutateCategories } = useCategories();
   const { trigger: deleteProductTrigger } = useDeleteProduct();
 
@@ -224,11 +219,6 @@ export default function AdminProductsClient({
     setShowFilters(!showFilters);
   };
 
-  const renderSortIcon = (field: string) => {
-    if (sortField !== field) return <ChevronsUpDown className="h-3 w-3 ml-1 inline opacity-40" />;
-    return sortDir === "asc" ? <ChevronUp className="h-3 w-3 ml-1 inline" /> : <ChevronDown className="h-3 w-3 ml-1 inline" />;
-  };
-
   const stats = {
     total: products.length,
     active: products.filter((p) => p.in_stock).length,
@@ -239,29 +229,18 @@ export default function AdminProductsClient({
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("back")}
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={Package}
+          backLabel={tc("back")}
+          actions={isAdmin ? (
+            <Button className="flex items-center gap-2" onClick={handleAddClick}>
+              <Plus className="h-4 w-4" />
+              {t("addProduct")}
             </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <Package className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
-            {isAdmin && (
-              <Button className="flex items-center gap-2" onClick={handleAddClick}>
-                <Plus className="h-4 w-4" />
-                {t("addProduct")}
-              </Button>
-            )}
-          </div>
-        </div>
+          ) : undefined}
+        />
 
         <ErrorAlert message={error?.message || null} />
 
@@ -277,12 +256,14 @@ export default function AdminProductsClient({
           onEdit={handleEditClick}
           onDelete={handleDeleteClick}
           expandedId={expandedId}
-          onToggleExpand={handleToggleExpand}
+          onToggleExpand={(id) => handleToggleExpand(id as number)}
           isAdmin={isAdmin}
           onExport={handleExport}
-          renderSortIcon={renderSortIcon}
+          sortField={sortField}
+          sortDir={sortDir}
           searchTerm={searchTerm}
           isLoading={isLoading}
+          isValidating={isValidating}
           filterToggle={
             <Button variant="outline" size="sm" onClick={handleToggleFilters}>
               {showFilters ? <X className="h-4 w-4 mr-2" /> : <Filter className="h-4 w-4 mr-2" />}

@@ -8,6 +8,7 @@ import { Button } from "~/ui/primitives/button";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle, Package, ChevronDown, ChevronUp, Archive } from "lucide-react";
 import { orderApi } from "~/lib/api/admin-api";
+import { formatCurrency } from "~/lib/utils/format";
 import type { Order, OrderDetail } from "~/lib/types";
 import { TableSkeleton } from "../../admin/components";
 
@@ -117,7 +118,7 @@ export function MyOrdersClient() {
                     {order.channel === "online" ? "Онлайн" : "POS"}
                   </Badge>
                 </td>
-                <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{Number(order.total_amount).toFixed(2)} ₴</td>
+                <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(order.total_amount)}</td>
                 <td className="p-4 text-sm text-slate-600 dark:text-slate-400">{new Date(order.created_at).toLocaleDateString("uk-UA")}</td>
                 <td className="p-4 text-right">
                   <Button size="sm" variant="ghost" onClick={() => toggleExpand(order.id)}>
