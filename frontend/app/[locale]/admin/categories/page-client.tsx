@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, Fragment } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
@@ -11,10 +10,19 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { FolderTree, ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "~/ui/primitives/table";
+import { FolderTree, Plus, Pencil, Trash2 } from "lucide-react";
 import { categoryApi } from "~/lib/api/admin-api";
 import type { Category } from "~/lib/types";
-import { ConfirmDialog, TableSkeleton } from "../components";
+import { ConfirmDialog, TableSkeleton, EmptyState, AdminPageHeader } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { useCategories } from "~/lib/hooks/use-api-data";
 
@@ -95,25 +103,17 @@ export function CategoriesClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" /> {tc("back")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <FolderTree className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={FolderTree}
+          backLabel={tc("back")}
+          actions={
             <Button onClick={openCreate} className="flex items-center gap-2">
               <Plus className="h-4 w-4" /> {t("addCategory")}
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         <ErrorAlert message={error?.message ?? null} />
 
@@ -128,36 +128,31 @@ export function CategoriesClient() {
             {isLoading ? (
               <TableSkeleton rows={5} cols={4} />
             ) : (
-              <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                <table className="w-full">
-                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                    <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("id")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("name")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("parent")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("products")}</th>
-                      <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tc("actions")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="border rounded-lg dark:border-slate-700">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                      <TableHead>{t("id")}</TableHead>
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>{t("parent")}</TableHead>
+                      <TableHead>{t("products")}</TableHead>
+                      <TableHead className="text-right">{tc("actions")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {categories.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                          <FolderTree className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          {t("noCategories")}
-                        </td>
-                      </tr>
+                      <EmptyState icon={FolderTree} message={t("noCategories")} colSpan={5} />
                     ) : (
                       categories.filter((c) => !c.parent).map((cat) => (
                         <Fragment key={cat.id}>
-                          <tr className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{cat.id}</td>
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-200">
+                          <TableRow>
+                            <TableCell className="font-medium">#{cat.id}</TableCell>
+                            <TableCell className="font-medium">
                               <span className="flex items-center gap-1"><FolderTree className="h-3.5 w-3.5 text-purple-500" /> {cat.name}</span>
-                            </td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">—</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{cat.product_count ?? "—"}</td>
-                            <td className="p-4">
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">—</TableCell>
+                            <TableCell className="text-muted-foreground">{cat.product_count ?? "—"}</TableCell>
+                            <TableCell>
                               <div className="flex justify-end gap-2">
                                 <Button size="sm" variant="outline" onClick={() => openEdit(cat)}>
                                   <Pencil className="h-4 w-4" />
@@ -166,15 +161,15 @@ export function CategoriesClient() {
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                           {cat.children?.map((child) => (
-                            <tr key={child.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                              <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{child.id}</td>
-                              <td className="p-4 font-medium text-slate-900 dark:text-slate-200 pl-8">└ {child.name}</td>
-                              <td className="p-4 text-slate-600 dark:text-slate-400">{cat.name}</td>
-                              <td className="p-4 text-slate-600 dark:text-slate-400">{child.product_count ?? "—"}</td>
-                              <td className="p-4">
+                            <TableRow key={child.id}>
+                              <TableCell className="font-medium">#{child.id}</TableCell>
+                              <TableCell className="font-medium pl-8">└ {child.name}</TableCell>
+                              <TableCell className="text-muted-foreground">{cat.name}</TableCell>
+                              <TableCell className="text-muted-foreground">{child.product_count ?? "—"}</TableCell>
+                              <TableCell>
                                 <div className="flex justify-end gap-2">
                                   <Button size="sm" variant="outline" onClick={() => openEdit(child)}>
                                     <Pencil className="h-4 w-4" />
@@ -183,14 +178,14 @@ export function CategoriesClient() {
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           ))}
                         </Fragment>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
@@ -220,13 +215,15 @@ export function CategoriesClient() {
             </div>
             <div>
               <Label htmlFor="cat-parent">{t("parent")}</Label>
-              <select id="cat-parent" value={formParent} onChange={(e) => setFormParent(e.target.value)}
-                className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                <option value="">{t("noParent")}</option>
-                {categories.filter((c) => c.id !== dialogCategory?.id).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <Select value={formParent} onValueChange={setFormParent}>
+                <SelectTrigger id="cat-parent" className="mt-2"><SelectValue placeholder={t("noParent")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{t("noParent")}</SelectItem>
+                  {categories.filter((c) => c.id !== dialogCategory?.id).map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

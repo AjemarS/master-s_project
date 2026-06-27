@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Badge } from "~/ui/primitives/badge";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, ArrowLeft, CreditCard } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, CreditCard } from "lucide-react";
+import { AdminPageHeader } from "../components";
+import { formatCurrency } from "~/lib/utils/format";
 import { productApi, warehouseApi, orderApi } from "~/lib/api/admin-api";
 import type { Product, Warehouse } from "~/lib/types";
 
@@ -130,23 +132,12 @@ export function POSClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("back")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <CreditCard className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
-          </div>
-        </div>
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={CreditCard}
+          backLabel={tc("back")}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -188,7 +179,7 @@ export function POSClient() {
                       <div>
                         <div className="font-medium text-slate-900 dark:text-slate-100">{product.name}</div>
                         <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                          {Number(product.price).toFixed(2)} ₴
+                          {formatCurrency(product.price)}
                         </div>
                         <Badge variant={product.in_stock ? "default" : "secondary"} className="mt-1">
                           {product.in_stock ? t("inStock") : t("outOfStock")}
@@ -222,16 +213,14 @@ export function POSClient() {
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("warehouse")}</label>
-                  <select
-                    value={selectedWarehouse ?? ""}
-                    onChange={(e) => setSelectedWarehouse(e.target.value ? Number(e.target.value) : null)}
-                    className="flex h-9 w-full rounded-md border border-input bg-background dark:bg-slate-800 px-3 py-1 text-sm dark:text-slate-200 dark:border-slate-700"
-                  >
-                    <option value="">{t("selectWarehouse")}</option>
-                    {warehouses.map((wh) => (
-                      <option key={wh.id} value={wh.id}>{wh.name}</option>
-                    ))}
-                  </select>
+                  <Select value={selectedWarehouse ? String(selectedWarehouse) : ""} onValueChange={(v) => setSelectedWarehouse(v ? Number(v) : null)}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map((wh) => (
+                        <SelectItem key={wh.id} value={String(wh.id)}>{wh.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -264,7 +253,7 @@ export function POSClient() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-slate-900 dark:text-slate-200 truncate">{item.name}</div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">
-                              {item.quantity} × {item.price.toFixed(2)} ₴
+                              {item.quantity} × {formatCurrency(item.price)}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 ml-2">
@@ -286,7 +275,7 @@ export function POSClient() {
 
                   <div className="flex items-center justify-between pt-4 text-lg font-bold text-slate-900 dark:text-slate-100">
                     <span>{t("total")}</span>
-                    <span>{total.toFixed(2)} ₴</span>
+                    <span>{formatCurrency(total)}</span>
                   </div>
 
                   <Button

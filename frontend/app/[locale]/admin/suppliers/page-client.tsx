@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
@@ -12,8 +11,17 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { Truck, ArrowLeft, Plus } from "lucide-react";
-import { TableSkeleton } from "../components";
+import { Truck, Plus } from "lucide-react";
+import { AdminPageHeader } from "../components";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "~/ui/primitives/table";
+import { TableSkeleton, EmptyState } from "../components";
 import { useCurrentUser } from "~/lib/auth-client";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { useSuppliers, useCreateSupplier } from "~/lib/hooks/use-api-data";
@@ -56,28 +64,17 @@ export function SuppliersClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              {tc("back")}
+        <AdminPageHeader
+          title={t("title")}
+          subtitle={t("subtitle")}
+          icon={Truck}
+          backLabel={tc("back")}
+          actions={isAdmin ? (
+            <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" /> {t("addSupplier")}
             </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <Truck className="h-10 w-10 text-purple-600" />
-                {t("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{t("subtitle")}</p>
-            </div>
-            {isAdmin && (
-              <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" /> {t("addSupplier")}
-              </Button>
-            )}
-          </div>
-        </div>
+          ) : undefined}
+        />
 
         <ErrorAlert message={error?.message ?? null} />
 
@@ -96,42 +93,37 @@ export function SuppliersClient() {
             {isLoading ? (
               <TableSkeleton rows={4} cols={5} />
             ) : (
-              <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                <table className="w-full">
-                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                    <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("name")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("contactPerson")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("phone")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{t("email")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tc("active")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="border rounded-lg dark:border-slate-700">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>{t("contactPerson")}</TableHead>
+                      <TableHead>{t("phone")}</TableHead>
+                      <TableHead>{t("email")}</TableHead>
+                      <TableHead>{tc("active")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {suppliers.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                          <Truck className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          {t("noSuppliers")}
-                        </td>
-                      </tr>
+                      <EmptyState icon={Truck} message={t("noSuppliers")} colSpan={5} />
                     ) : (
                       suppliers.map((s) => (
-                        <tr key={s.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="p-4 font-medium text-slate-900 dark:text-slate-100">{s.name}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{s.contact_person}</td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400">{s.phone}</td>
-                          <td className="p-4 text-blue-600 dark:text-blue-400">{s.email}</td>
-                          <td className="p-4">
+                        <TableRow key={s.id}>
+                          <TableCell className="font-medium">{s.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{s.contact_person}</TableCell>
+                          <TableCell className="text-muted-foreground">{s.phone}</TableCell>
+                          <TableCell className="text-blue-600 dark:text-blue-400">{s.email}</TableCell>
+                          <TableCell>
                             <Badge variant={s.is_active ? "default" : "secondary"}>
                               {s.is_active ? tc("yes") : tc("no")}
                             </Badge>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>

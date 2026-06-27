@@ -5,6 +5,8 @@ import { Search } from "lucide-react";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { Checkbox } from "~/ui/primitives/checkbox";
 
 interface ProductFiltersProps {
   searchTerm: string;
@@ -63,14 +65,13 @@ export function ProductFilters({
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-slate-500">{t("category")}</Label>
-              <select
-                value={filterCategory}
-                onChange={(e) => onFilterChange("filterCategory", e.target.value)}
-                className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">{t("allCategories")}</option>
-                {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-              </select>
+              <Select value={filterCategory} onValueChange={(v) => onFilterChange("filterCategory", v)}>
+                <SelectTrigger className="w-44"><SelectValue placeholder={t("allCategories")} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{t("allCategories")}</SelectItem>
+                  {categories.map((cat) => <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="minPrice" className="text-xs text-slate-500">{t("minPrice")}</Label>
@@ -101,9 +102,8 @@ export function ProductFilters({
               <Input type="date" value={filterDateTo} onChange={(e) => onFilterChange("filterDateTo", e.target.value)} className="w-36" />
             </div>
             <div className="flex items-center gap-2 pb-1">
-              <input id="inStock" type="checkbox" checked={filterInStock === true}
-                onChange={(e) => onFilterChange("filterInStock", e.target.checked || undefined)}
-                className="h-4 w-4 rounded border-gray-300" />
+              <Checkbox id="inStock" checked={filterInStock === true}
+                onCheckedChange={(checked) => onFilterChange("filterInStock", checked === true ? true : undefined)} />
               <Label htmlFor="inStock" className="text-xs text-slate-500 cursor-pointer">{t("onlyInStock")}</Label>
             </div>
             <div className="flex gap-2">

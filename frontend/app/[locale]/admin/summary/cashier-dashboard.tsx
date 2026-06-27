@@ -13,6 +13,7 @@ import {
 import { StatsCardSkeleton } from "../components";
 import { useOrders } from "~/lib/hooks/use-api-data";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
+import { formatCurrency } from "~/lib/utils/format";
 
 export function CashierDashboard() {
   const tSum = useTranslations("summary");
@@ -88,11 +89,11 @@ export function CashierDashboard() {
             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <AlertDescription className="text-amber-800 dark:text-amber-300 flex items-center gap-2">
               <span>{staleUnpaidCount === 1 ? tSum("staleUnpaidOne", { count: staleUnpaidCount }) : tSum("staleUnpaid", { count: staleUnpaidCount })}</span>
-              <Link href="/admin/orders?status=unpaid">
-                <Button variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100">
+              <Button variant="outline" size="sm" asChild className="border-amber-300 text-amber-700 hover:bg-amber-100">
+                <Link href="/admin/orders?status=unpaid">
                   {tc("view")}
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -167,7 +168,7 @@ export function CashierDashboard() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">₴{Number(o.total_amount || 0).toFixed(2)}</span>
+                        <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{formatCurrency(o.total_amount)}</span>
                         <OrderStatusBadge status={o.status} />
                       </div>
                     </Link>

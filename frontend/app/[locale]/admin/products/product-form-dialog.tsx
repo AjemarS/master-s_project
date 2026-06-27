@@ -13,6 +13,8 @@ import {
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { Textarea } from "~/ui/primitives/textarea";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle, Plus, X, Upload } from "lucide-react";
 import { productApi, categoryApi } from "~/lib/api/admin-api";
@@ -57,12 +59,11 @@ function FeaturesInput({ features, onChange }: { features: string[]; onChange: (
           </span>
         ))}
       </div>
-      <input
+      <Input
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addFeature(); } }}
         placeholder="Type and press Enter to add..."
-        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
     </div>
   );
@@ -335,35 +336,29 @@ export function ProductFormDialog({
             {/* Description */}
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="pd-description" className="text-right pt-2">Description *</Label>
-              <textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)}
-                className="col-span-3 flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" />
+              <Textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3 min-h-[80px]" />
             </div>
             <div className="grid grid-cols-4 items-start gap-2">
               <Label className="text-right text-xs text-slate-500 pt-1">UK</Label>
-              <textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською"
-                className="col-span-3 flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" />
+              <Textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською" className="col-span-3 min-h-[60px]" />
             </div>
             <div className="grid grid-cols-4 items-start gap-2">
               <Label className="text-right text-xs text-slate-500 pt-1">EN</Label>
-              <textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English"
-                className="col-span-3 flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" />
+              <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English" className="col-span-3 min-h-[60px]" />
             </div>
 
             {/* Category */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="pd-category" className="text-right">Category *</Label>
               <div className="col-span-3 flex gap-2">
-                <select
-                  id="pd-category"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">Select category...</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger id="pd-category" className="flex-1"><SelectValue placeholder="Select category..." /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button variant="outline" size="sm" onClick={() => setShowCategoryDialog(true)} type="button" className="shrink-0">
                   <Plus className="h-4 w-4 mr-1" /> New
                 </Button>

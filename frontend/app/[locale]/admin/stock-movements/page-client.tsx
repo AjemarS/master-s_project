@@ -2,7 +2,6 @@
 
 import { useTranslations, useLocale } from "next-intl";
 import { useState } from "react";
-import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
@@ -12,11 +11,20 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "~/ui/primitives/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
-import { ArrowLeft, ArrowRightLeft, Filter, X, Pencil } from "lucide-react";
+import { ArrowRightLeft, Filter, X, Pencil } from "lucide-react";
+import { AdminPageHeader } from "../components";
 import { useStockMovements, useAdjustStock, useWarehouses } from "~/lib/hooks/use-api-data";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
-import { TableSkeleton } from "../components";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "~/ui/primitives/table";
+import { TableSkeleton, EmptyState } from "../components";
 
 export function StockMovementsClient() {
   const tSM = useTranslations("stockMovements");
@@ -102,20 +110,12 @@ export function StockMovementsClient() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <Link href="/admin/summary">
-            <Button variant="ghost" className="mb-4 flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" /> {tCommon("back")}
-            </Button>
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-                <ArrowRightLeft className="h-10 w-10 text-purple-600" />
-                {tSM("title")}
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400">{tSM("subtitle")}</p>
-            </div>
+        <AdminPageHeader
+          title={tSM("title")}
+          subtitle={tSM("subtitle")}
+          icon={ArrowRightLeft}
+          backLabel={tCommon("back")}
+          actions={
             <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2">
@@ -159,8 +159,8 @@ export function StockMovementsClient() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
+          }
+        />
 
         <ErrorAlert message={movementsError?.message || null} />
 
@@ -185,10 +185,12 @@ export function StockMovementsClient() {
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs text-slate-500">{tSM("type")}</Label>
-                    <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                      <option value="">{tSM("allTypes")}</option>
-                      {Object.entries(MOVEMENT_TYPES).map(([val, info]) => <option key={val} value={val}>{info.label}</option>)}
-                    </select>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-44"><SelectValue placeholder={tSM("allTypes")} /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(MOVEMENT_TYPES).map(([val, info]) => <SelectItem key={val} value={val}>{info.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs text-slate-500">{tSM("productId")}</Label>
@@ -196,17 +198,21 @@ export function StockMovementsClient() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs text-slate-500">{tSM("from")}</Label>
-                    <select value={filterFromWarehouse} onChange={(e) => setFilterFromWarehouse(e.target.value)} className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                      <option value="">{tSM("all")}</option>
-                      {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
+                    <Select value={filterFromWarehouse} onValueChange={setFilterFromWarehouse}>
+                      <SelectTrigger className="w-44"><SelectValue placeholder={tSM("all")} /></SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs text-slate-500">{tSM("to")}</Label>
-                    <select value={filterToWarehouse} onChange={(e) => setFilterToWarehouse(e.target.value)} className="h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                      <option value="">{tSM("all")}</option>
-                      {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
+                    <Select value={filterToWarehouse} onValueChange={setFilterToWarehouse}>
+                      <SelectTrigger className="w-44"><SelectValue placeholder={tSM("all")} /></SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label className="text-xs text-slate-500">{tCommon("dateFrom")}</Label>
@@ -227,47 +233,42 @@ export function StockMovementsClient() {
             {movementsLoading ? (
               <TableSkeleton rows={8} cols={8} />
             ) : (
-              <div className="border rounded-lg overflow-x-auto dark:border-slate-700">
-                <table className="w-full">
-                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                    <tr>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("id")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("type")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("productId")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("from")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("to")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("quantity")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("date")}</th>
-                      <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">{tSM("user")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="border rounded-lg dark:border-slate-700">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                      <TableHead>{tSM("id")}</TableHead>
+                      <TableHead>{tSM("type")}</TableHead>
+                      <TableHead>{tSM("productId")}</TableHead>
+                      <TableHead>{tSM("from")}</TableHead>
+                      <TableHead>{tSM("to")}</TableHead>
+                      <TableHead>{tSM("quantity")}</TableHead>
+                      <TableHead>{tSM("date")}</TableHead>
+                      <TableHead>{tSM("user")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {movements.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                          <ArrowRightLeft className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-                          {tSM("noMovements")}
-                        </td>
-                      </tr>
+                      <EmptyState icon={ArrowRightLeft} message={tSM("noMovements")} colSpan={8} />
                     ) : (
                       movements.map((m) => {
                         const typeInfo = MOVEMENT_TYPES[m.type] || { label: m.type, variant: "outline" as const };
                         return (
-                          <tr key={m.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100">#{m.id}</td>
-                            <td className="p-4"><Badge variant={typeInfo.variant}>{typeInfo.label}</Badge></td>
-                            <td className="p-4 font-mono text-sm text-slate-600 dark:text-slate-400">#{m.product_id}</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{m.from_warehouse_name || "—"}</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{m.to_warehouse_name || "—"}</td>
-                            <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{m.quantity}</td>
-                            <td className="p-4 text-sm text-slate-500 dark:text-slate-400">{formatDate(m.created_at)}</td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400">{m.created_by || "—"}</td>
-                          </tr>
+                          <TableRow key={m.id}>
+                            <TableCell className="font-medium">#{m.id}</TableCell>
+                            <TableCell><Badge variant={typeInfo.variant}>{typeInfo.label}</Badge></TableCell>
+                            <TableCell className="font-mono text-sm text-muted-foreground">#{m.product_id}</TableCell>
+                            <TableCell className="text-muted-foreground">{m.from_warehouse_name || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground">{m.to_warehouse_name || "—"}</TableCell>
+                            <TableCell className="font-semibold">{m.quantity}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDate(m.created_at)}</TableCell>
+                            <TableCell className="text-muted-foreground">{m.created_by || "—"}</TableCell>
+                          </TableRow>
                         );
                       })
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>

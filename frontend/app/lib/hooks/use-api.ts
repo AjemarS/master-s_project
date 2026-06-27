@@ -12,7 +12,7 @@ export function useApiGet<T>(
   fetcher: () => Promise<ApiResponse<T>>,
   config?: SWRConfiguration<T>
 ) {
-  return useSWR<T>(key, async () => unwrap(await fetcher()), config);
+  return useSWR<T>(key, async () => unwrap(await fetcher()), { keepPreviousData: true, ...config });
 }
 
 export function useApiMutation<T, P = void>(
