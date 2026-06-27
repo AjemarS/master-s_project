@@ -336,15 +336,15 @@ export function ProductFormDialog({
             {/* Description */}
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="pd-description" className="text-right pt-2">Description *</Label>
-              <Textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3 min-h-[80px]" />
+              <Textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3 min-h-20" />
             </div>
             <div className="grid grid-cols-4 items-start gap-2">
               <Label className="text-right text-xs text-slate-500 pt-1">UK</Label>
-              <Textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською" className="col-span-3 min-h-[60px]" />
+              <Textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською" className="col-span-3 min-h-15" />
             </div>
             <div className="grid grid-cols-4 items-start gap-2">
               <Label className="text-right text-xs text-slate-500 pt-1">EN</Label>
-              <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English" className="col-span-3 min-h-[60px]" />
+              <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English" className="col-span-3 min-h-15" />
             </div>
 
             {/* Category */}
@@ -408,7 +408,7 @@ export function ProductFormDialog({
                 <Button variant="outline" size="sm" onClick={() => document.getElementById("pd-image")?.click()} type="button">
                   <Upload className="h-4 w-4 mr-1" /> {image ? "Change" : "Upload"}
                 </Button>
-                {image && <span className="text-sm text-muted-foreground truncate max-w-[200px]">{image.name}</span>}
+                {image && <span className="text-sm text-muted-foreground truncate max-w-50">{image.name}</span>}
                 <input
                   id="pd-image"
                   type="file"
