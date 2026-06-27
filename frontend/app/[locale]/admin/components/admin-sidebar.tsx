@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, usePathname } from "~/i18n/navigation";
-import { useState, useCallback, useRef } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Users, Package, LayoutDashboard, LogOut, Store, Warehouse,
@@ -58,7 +58,13 @@ const navigationGroups: NavGroup[] = [
   { key: "users", href: "/admin/users", icon: Users, roles: ["admin"] },
 ];
 
-const TEXT_DELAY = 150;
+const labelCls = (pinned: boolean) =>
+  cn(
+    "whitespace-nowrap transition-opacity duration-300 ease-in-out",
+    pinned
+      ? "opacity-100"
+      : "opacity-0 group-hover:opacity-100",
+  );
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -72,8 +78,6 @@ export function AdminSidebar() {
   );
 
   const [pinned, setPinned] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [showText, setShowText] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const g of groups) {
@@ -83,25 +87,6 @@ export function AdminSidebar() {
     }
     return initial;
   });
-  const showTextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const collapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const isExpanded = pinned || hovered;
-  const textVisible = pinned || showText;
-
-  const handleMouseEnter = useCallback(() => {
-    if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current);
-    setHovered(true);
-    if (!pinned) {
-      showTextTimeoutRef.current = setTimeout(() => setShowText(true), TEXT_DELAY);
-    }
-  }, [pinned]);
-
-  const handleMouseLeave = useCallback(() => {
-    if (showTextTimeoutRef.current) clearTimeout(showTextTimeoutRef.current);
-    setShowText(false);
-    collapseTimeoutRef.current = setTimeout(() => setHovered(false), 100);
-  }, []);
 
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -116,40 +101,32 @@ export function AdminSidebar() {
     group.children?.some((c) => pathname.startsWith(c.href)) ?? false;
 
   return (
-    <div
+    <aside
       className={cn(
-        "relative flex min-h-screen flex-col border-r bg-card transition-[width] duration-200 ease-out",
-        isExpanded ? "w-64" : "w-14",
+        "group relative flex min-h-screen flex-col border-r bg-card transition-all duration-300 ease-in-out",
+        pinned ? "w-64" : "w-14 hover:w-64",
       )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       {/* Pin button */}
       <button
         onClick={() => setPinned(!pinned)}
-        className="absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted"
+        className={cn(
+          "absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted transition-opacity duration-300 ease-in-out",
+          pinned ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        )}
         title={pinned ? tNav("unpin") : tNav("pin")}
       >
         {pinned ? <PinOff className="h-3 w-3 text-muted-foreground" /> : <Pin className="h-3 w-3 text-muted-foreground" />}
       </button>
 
       {/* Logo */}
-      <div className={cn("flex items-center h-16 shrink-0 px-2 mb-8", isExpanded ? "gap-2" : "justify-center gap-0")}>
+      <div className="flex items-center gap-3 h-16 shrink-0 px-3 mb-8">
         <Store className="h-6 w-6 shrink-0 text-primary" />
-        {isExpanded && (
-          <span
-            className={cn(
-              "text-xl font-bold transition-opacity duration-100",
-              textVisible ? "opacity-100" : "opacity-0",
-            )}
-          >
-            TechHub
-          </span>
-        )}
+        <span className={cn("text-xl font-bold", labelCls(pinned))}>TechHub</span>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2">
+      <nav className="flex-1 space-y-1 px-1">
         {groups.map((group) => {
           if (!group.children) {
             const isActive = pathname.startsWith(group.href!);
@@ -158,20 +135,15 @@ export function AdminSidebar() {
                 key={group.key}
                 href={group.href!}
                 className={cn(
-                  "flex items-center rounded-md py-2 text-sm font-medium transition-colors duration-100",
-                  isExpanded ? "gap-3 px-3 justify-start" : "justify-center",
+                  "flex items-center gap-3 px-3 justify-start rounded-md py-2 text-sm font-medium transition-colors duration-200",
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
-                title={isExpanded ? undefined : tNav(group.key)}
+                title={tNav(group.key)}
               >
                 <group.icon className="h-5 w-5 shrink-0" />
-                {isExpanded && (
-                  <span className={cn("transition-opacity duration-100", textVisible ? "opacity-100" : "opacity-0")}>
-                    {tNav(group.key)}
-                  </span>
-                )}
+                <span className={labelCls(pinned)}>{tNav(group.key)}</span>
               </Link>
             );
           }
@@ -183,31 +155,27 @@ export function AdminSidebar() {
             <Collapsible key={group.key} open={isOpen} onOpenChange={() => toggleGroup(group.key)}>
               <CollapsibleTrigger
                 className={cn(
-                  "flex w-full items-center rounded-md py-2 text-sm font-medium transition-colors duration-100 group",
-                  isExpanded ? "gap-3 px-3 justify-start" : "justify-center",
+                  "flex items-center gap-3 px-3 justify-start rounded-md py-2 text-sm font-medium transition-colors duration-200 w-full",
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
-                title={isExpanded ? undefined : tNav(group.key)}
+                title={tNav(group.key)}
               >
                 <group.icon className="h-5 w-5 shrink-0" />
-                {isExpanded && (
-                  <>
-                    <span className={cn("flex-1 text-left transition-opacity duration-100", textVisible ? "opacity-100" : "opacity-0")}>
-                      {tNav(group.key)}
-                    </span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition-transform duration-200",
-                        isOpen && "rotate-180",
-                      )}
-                    />
-                  </>
-                )}
+                <span className={cn("flex-1 text-left", labelCls(pinned))}>{tNav(group.key)}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-all duration-300 ease-in-out",
+                    isOpen && "rotate-180",
+                    pinned
+                      ? "opacity-100"
+                      : "opacity-0 group-hover:opacity-100",
+                  )}
+                />
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapse-up data-[state=open]:animate-collapse-down">
-                <div className={cn("mt-1 space-y-1", isExpanded ? "px-3" : "")}>
+                <div className="mt-1 space-y-1">
                   {group.children.map((child) => {
                     const isChildActive = pathname.startsWith(child.href);
                     return (
@@ -215,21 +183,17 @@ export function AdminSidebar() {
                         key={child.key}
                         href={child.href}
                         className={cn(
-                          "flex items-center rounded-md py-1.5 text-sm font-medium transition-colors duration-100",
-                          isExpanded ? "gap-3 pl-9 justify-start" : "justify-center",
+                          "flex items-center gap-3 pl-6 justify-start rounded-md py-1.5 text-sm font-medium transition-colors duration-200",
                           isChildActive
                             ? "bg-primary/10 text-primary"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground",
                         )}
-                        title={isExpanded ? undefined : tNav(child.key)}
+                        title={tNav(child.key)}
                       >
-                        {isExpanded ? (
-                          <span className={cn("transition-opacity duration-100", textVisible ? "opacity-100" : "opacity-0")}>
-                            {tNav(child.key)}
-                          </span>
-                        ) : (
-                          <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {!pinned && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-current shrink-0 group-hover:hidden" />
                         )}
+                        <span className={labelCls(pinned)}>{tNav(child.key)}</span>
                       </Link>
                     );
                   })}
@@ -241,60 +205,56 @@ export function AdminSidebar() {
       </nav>
 
       {/* Bottom links */}
-      <div className="mt-auto space-y-1 border-t px-2 pt-4">
+      <div className="mt-auto space-y-1 border-t px-1 pt-4">
+        {/* Locale switcher */}
+        <div className={cn(
+          "flex items-center gap-1 px-1 py-1 transition-opacity duration-300 ease-in-out",
+          pinned
+            ? "opacity-100"
+            : "opacity-0 group-hover:opacity-100",
+        )}>
+          {[
+            { code: "ua", label: "UA" },
+            { code: "en", label: "EN" },
+          ].map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => { window.location.href = `/${lang.code}${pathname}`; }}
+              className={cn(
+                "px-2 py-0.5 text-xs rounded font-medium transition-colors",
+                lang.code === "ua"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+
         <Link
           href="/"
           className={cn(
-            "flex items-center rounded-md py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-100",
-            isExpanded ? "gap-3 px-3 justify-start" : "justify-center",
+            "flex items-center gap-3 px-2.5 justify-start rounded-md py-2 text-sm font-medium transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
-          title={isExpanded ? undefined : tNav("toStore")}
+          title={tNav("toStore")}
         >
           <ExternalLink className="h-5 w-5 shrink-0" />
-          {isExpanded && (
-            <span className={cn("transition-opacity duration-100", textVisible ? "opacity-100" : "opacity-0")}>
-              {tNav("toStore")}
-            </span>
-          )}
+          <span className={labelCls(pinned)}>{tNav("toStore")}</span>
         </Link>
-        {isExpanded && (
-          <div className="flex items-center gap-1 px-1 py-1">
-            {[
-              { code: "ua", label: "UA" },
-              { code: "en", label: "EN" },
-            ].map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => { window.location.href = `/${lang.code}${pathname}`; }}
-                className={cn(
-                  "px-2 py-0.5 text-xs rounded font-medium transition-colors",
-                  lang.code === "ua"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                {lang.label}
-              </button>
-            ))}
-          </div>
-        )}
+
         <Button
           variant="ghost"
           className={cn(
-            "w-full text-muted-foreground hover:text-destructive transition-colors duration-100",
-            isExpanded ? "gap-3 px-3 justify-start" : "justify-center px-0",
+            "flex items-center gap-3 px-3 justify-start w-full text-muted-foreground hover:text-destructive transition-colors duration-200",
           )}
           onClick={handleSignOut}
-          title={isExpanded ? undefined : tNav("signOut")}
+          title={tNav("signOut")}
         >
           <LogOut className="h-5 w-5 shrink-0" />
-          {isExpanded && (
-            <span className={cn("transition-opacity duration-100", textVisible ? "opacity-100" : "opacity-0")}>
-              {tNav("signOut")}
-            </span>
-          )}
+          <span className={labelCls(pinned)}>{tNav("signOut")}</span>
         </Button>
       </div>
-    </div>
+    </aside>
   );
 }
