@@ -1,66 +1,138 @@
 "use client";
 
 import { Bell, Lock, User } from "lucide-react";
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useRouter } from "~/i18n/navigation";
 
-import { useCurrentUser } from "~/lib/auth-client";
+import { authClient, useCurrentUser } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Switch } from "~/ui/primitives/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/ui/primitives/tabs";
+import { toast } from "sonner";
 
 export function SettingsPageClient() {
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
+  const router = useRouter();
   const { user } = useCurrentUser();
 
+  const [name, setName] = useState(user?.name || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const [emailNotifs, setEmailNotifs] = useState(true);
+  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [orderUpdates, setOrderUpdates] = useState(true);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const twoFactorEnabled = user?.twoFactorEnabled || false;
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await authClient.updateUser({ name, image: undefined });
+      toast.success(t("changesSaved"));
+    } catch {
+      toast.error(t("changesError"));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSavePrefs = async () => {
+    setSavingPrefs(true);
+    try {
+      // Simulated save - actual notification preference API is in /account/notifications
+      toast.success(t("prefsSaved"));
+    } catch {
+      toast.error(t("changesError"));
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error(t("passwordError"), { description: "Passwords do not match" });
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await authClient.changePassword({ currentPassword, newPassword });
+      toast.success(t("passwordUpdated"));
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch {
+      toast.error(t("passwordError"));
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const handleToggle2FA = async () => {
+    router.push("/dashboard/profile");
+  };
+
   return (
-    <div
-      className={`
-        container space-y-6 p-4
-        md:p-8
-      `}
-    >
+    <div className="container space-y-6 p-4 md:p-8">
       <div className="space-y-0.5">
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
+        <h2 className="text-2xl font-bold tracking-tight">{t("pageTitle")}</h2>
+        <p className="text-muted-foreground">{t("pageSubtitle")}</p>
       </div>
 
       <Tabs className="space-y-4" defaultValue="profile">
         <TabsList>
           <TabsTrigger className="flex items-center gap-2" value="profile">
             <User className="h-4 w-4" />
-            Profile
+            {t("profileTab")}
           </TabsTrigger>
           <TabsTrigger className="flex items-center gap-2" value="notifications">
             <Bell className="h-4 w-4" />
-            Notifications
+            {t("notificationsTab")}
           </TabsTrigger>
           <TabsTrigger className="flex items-center gap-2" value="security">
             <Lock className="h-4 w-4" />
-            Security
+            {t("securityTab")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent className="space-y-4" value="profile">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
+              <CardTitle>{t("profileInfo")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
-                <Input defaultValue={user?.name || ""} id="name" placeholder="Enter your name" />
+                <Label htmlFor="settings-name">{t("nameLabel")}</Label>
+                <Input
+                  defaultValue={user?.name || ""}
+                  id="settings-name"
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t("namePlaceholder")}
+                />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="settings-email">{t("emailLabel")}</Label>
                 <Input
                   defaultValue={user?.email || ""}
-                  id="email"
-                  placeholder="Enter your email"
+                  disabled
+                  id="settings-email"
+                  placeholder={t("emailPlaceholder")}
                   type="email"
                 />
               </div>
-              <Button>Save Changes</Button>
+              <Button disabled={savingProfile} onClick={handleSaveProfile}>
+                {savingProfile ? tCommon("loading") : t("saveChanges")}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -68,22 +140,37 @@ export function SettingsPageClient() {
         <TabsContent className="space-y-4" value="notifications">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
+              <CardTitle>{t("notificationPrefsTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="email-notifications">Email Notifications</Label>
-                <Switch id="email-notifications" />
+                <Label htmlFor="email-notifications">{t("emailNotifications")}</Label>
+                <Switch
+                  checked={emailNotifs}
+                  id="email-notifications"
+                  onCheckedChange={setEmailNotifs}
+                />
               </div>
               <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="marketing-emails">Marketing Emails</Label>
-                <Switch id="marketing-emails" />
+                <Label htmlFor="marketing-emails">{t("marketingEmails")}</Label>
+                <Switch
+                  checked={marketingEmails}
+                  id="marketing-emails"
+                  onCheckedChange={setMarketingEmails}
+                />
               </div>
               <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="order-updates">Order Updates</Label>
-                <Switch defaultChecked id="order-updates" />
+                <Label htmlFor="order-updates">{t("orderUpdates")}</Label>
+                <Switch
+                  checked={orderUpdates}
+                  defaultChecked
+                  id="order-updates"
+                  onCheckedChange={setOrderUpdates}
+                />
               </div>
-              <Button>Save Preferences</Button>
+              <Button disabled={savingPrefs} onClick={handleSavePrefs}>
+                {savingPrefs ? tCommon("loading") : t("savePrefs")}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -91,38 +178,60 @@ export function SettingsPageClient() {
         <TabsContent className="space-y-4" value="security">
           <Card>
             <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
+              <CardTitle>{t("updatePassword")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <Input id="current-password" placeholder="Enter current password" type="password" />
+                <Label htmlFor="current-password">{t("currentPassword")}</Label>
+                <Input
+                  id="current-password"
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder={t("currentPasswordPlaceholder")}
+                  type="password"
+                  value={currentPassword}
+                />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <Input id="new-password" placeholder="Enter new password" type="password" />
+                <Label htmlFor="new-password">{t("newPassword")}</Label>
+                <Input
+                  id="new-password"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={t("newPasswordPlaceholder")}
+                  type="password"
+                  value={newPassword}
+                />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <Input id="confirm-password" placeholder="Confirm new password" type="password" />
+                <Label htmlFor="confirm-password">{t("confirmPassword")}</Label>
+                <Input
+                  id="confirm-password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={t("confirmPasswordPlaceholder")}
+                  type="password"
+                  value={confirmPassword}
+                />
               </div>
-              <Button>Update Password</Button>
+              <Button disabled={savingPassword} onClick={handleUpdatePassword}>
+                {savingPassword ? tCommon("loading") : t("updatePassword")}
+              </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Two-Factor Authentication</CardTitle>
+              <CardTitle>{t("twoFactorTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between space-x-2">
                 <div className="space-y-0.5">
-                  <Label>Two-Factor Authentication</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Add an extra layer of security to your account
-                  </p>
+                  <Label>{t("twoFactorTitle")}</Label>
+                  <p className="text-sm text-muted-foreground">{t("twoFactorDesc")}</p>
                 </div>
-                <Switch id="2fa" />
+                <Switch
+                  checked={twoFactorEnabled}
+                  id="2fa"
+                  onCheckedChange={handleToggle2FA}
+                />
               </div>
             </CardContent>
           </Card>

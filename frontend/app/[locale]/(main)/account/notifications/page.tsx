@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCurrentUser } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
@@ -10,40 +11,18 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { notificationsApi, type NotificationPreferences } from "~/lib/api/notifications";
 
-const PREF_GROUPS = [
-  {
-    type: "order_confirmed",
-    label: "Підтвердження замовлення",
-    desc: "Отримувати сповіщення після успішної оплати",
-  },
-  {
-    type: "order_shipped",
-    label: "Відправлення замовлення",
-    desc: "Отримувати сповіщення при відправленні",
-  },
-  {
-    type: "order_delivered",
-    label: "Доставка замовлення",
-    desc: "Отримувати сповіщення при доставці",
-  },
-  {
-    type: "order_cancelled",
-    label: "Скасування замовлення",
-    desc: "Отримувати сповіщення при скасуванні",
-  },
-  {
-    type: "marketing",
-    label: "Маркетингові сповіщення",
-    desc: "Отримувати новини та акції",
-  },
-  {
-    type: "low_stock",
-    label: "Низький залишок",
-    desc: "Сповіщення про низькі залишки (адміністратори)",
-  },
-];
+const PREF_TYPES = [
+  "order_confirmed",
+  "order_shipped",
+  "order_delivered",
+  "order_cancelled",
+  "marketing",
+  "low_stock",
+] as const;
 
 export default function NotificationPreferencesPage() {
+  const t = useTranslations("notifications");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const { user, isPending } = useCurrentUser();
   const [prefs, setPrefs] = useState<Record<string, boolean>>({});
@@ -79,19 +58,19 @@ export default function NotificationPreferencesPage() {
     try {
       const res = await notificationsApi.updatePreferences(uid, p);
       if (res.data) {
-        toast.success("Notification preferences saved");
+        toast.success(t("saved"));
       } else {
-        toast.error(res.error?.message || "Failed to save preferences");
+        toast.error(res.error?.message || t("saveError"));
       }
     } catch {
-      toast.error("Failed to save preferences");
+      toast.error(t("saveError"));
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [t]);
 
   if (isPending) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center">{tCommon("loading")}</div>;
   }
 
   if (!user) {
@@ -108,7 +87,7 @@ export default function NotificationPreferencesPage() {
       <div className="max-w-2xl mx-auto">
         <Link href="/account">
           <Button variant="ghost" className="mb-4 flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" /> Back to Account
+            <ArrowLeft className="h-4 w-4" /> {t("backToAccount")}
           </Button>
         </Link>
 
@@ -117,46 +96,46 @@ export default function NotificationPreferencesPage() {
             <div className="flex items-center gap-3">
               <Bell className="h-6 w-6 text-purple-600" />
               <div>
-                <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>Choose which notifications you receive and how.</CardDescription>
+                <CardTitle>{t("pageTitle")}</CardTitle>
+                <CardDescription>{t("pageSubtitle")}</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {loading ? (
-              <p className="text-sm text-slate-500">Loading preferences...</p>
+              <p className="text-sm text-slate-500">{t("loadingPrefs")}</p>
             ) : (
-              PREF_GROUPS.map((g) => (
-                <div key={g.type} className="border-b last:border-0 pb-4 last:pb-0">
+              PREF_TYPES.map((type) => (
+                <div key={type} className="border-b last:border-0 pb-4 last:pb-0">
                   <div className="mb-2">
-                    <p className="font-medium text-sm">{g.label}</p>
-                    <p className="text-xs text-slate-500">{g.desc}</p>
+                    <p className="font-medium text-sm">{t(`groups.${type}`)}</p>
+                    <p className="text-xs text-slate-500">{t(`groups.${type}_desc`)}</p>
                   </div>
                   <div className="flex gap-6 pl-2">
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={prefs[`${g.type}_email`] ?? true}
-                        onChange={() => toggle(`${g.type}_email`)}
+                        checked={prefs[`${type}_email`] ?? true}
+                        onChange={() => toggle(`${type}_email`)}
                         className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
-                      Email
+                      {t("email")}
                     </label>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={prefs[`${g.type}_in_app`] ?? true}
-                        onChange={() => toggle(`${g.type}_in_app`)}
+                        checked={prefs[`${type}_in_app`] ?? true}
+                        onChange={() => toggle(`${type}_in_app`)}
                         className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                       />
-                      In-App
+                      {t("inApp")}
                     </label>
                   </div>
                 </div>
               ))
             )}
             <Button onClick={() => save(user.id, prefs)} disabled={saving || loading} className="w-full">
-              {saving ? "Saving..." : "Save Preferences"}
+              {saving ? t("saving") : t("save")}
             </Button>
           </CardContent>
         </Card>
