@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowRight, Clock, ShoppingBag, Star, Truck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-w
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
 
-import { testimonials } from "~/mocks";
+import { getTestimonials } from "~/data/testimonials";
 import { Category } from "../../lib/types";
 
 async function getCategories(): Promise<Category[]> {
@@ -23,8 +23,10 @@ async function getCategories(): Promise<Category[]> {
 }
 
 export default async function HomePage() {
+  const locale = await getLocale();
   const categories = await getCategories();
   const t = await getTranslations("home");
+  const testimonials = getTestimonials(locale);
 
   const features = [
     {
