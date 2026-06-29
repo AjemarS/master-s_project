@@ -15,10 +15,11 @@ router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req,
       body: { password, issuer },
       headers: fromNodeHeaders(req.headers),
     });
-    return res.json({ message: "Two-factor authentication enabled." });
-  } catch (error: any) {
-    logger.error("Enable 2FA failed", { error: error.message });
-    return res.status(400).json({ success: false, message: error.message || "Failed to enable 2FA" });
+    return res.json({ success: true, message: "Two-factor authentication enabled." });
+  } catch (error: unknown) {
+    const msg = (error as Error).message || "Failed to enable 2FA";
+    logger.error("Enable 2FA failed", { error: msg });
+    return res.status(400).json({ success: false, message: msg });
   }
 });
 
@@ -29,10 +30,11 @@ router.post("/disable", requireAuth, validate(disableTwoFactorSchema), async (re
       body: { password },
       headers: fromNodeHeaders(req.headers),
     });
-    return res.json({ message: "Two-factor authentication disabled." });
-  } catch (error: any) {
-    logger.error("Disable 2FA failed", { error: error.message });
-    return res.status(400).json({ success: false, message: error.message || "Failed to disable 2FA" });
+    return res.json({ success: true, message: "Two-factor authentication disabled." });
+  } catch (error: unknown) {
+    const msg = (error as Error).message || "Failed to disable 2FA";
+    logger.error("Disable 2FA failed", { error: msg });
+    return res.status(400).json({ success: false, message: msg });
   }
 });
 

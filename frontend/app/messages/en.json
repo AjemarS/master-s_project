@@ -515,6 +515,11 @@
   "impersonation": {
     "badge": "Impersonation Mode",
     "exit": "Exit",
-    "otherUser": "Other User"
+    "otherUser": "Other User",
+    "impersonate": "Impersonate",
+    "impersonateUser": "Impersonate User",
+    "confirmImpersonate": "Are you sure you want to impersonate {name}? You will act as this user until you stop impersonation.",
+    "impersonateSuccess": "Now impersonating {name}",
+    "impersonateFailed": "Failed to impersonate user"
   }
 }

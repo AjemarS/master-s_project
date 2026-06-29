@@ -16,10 +16,12 @@ import { UserDialog } from "./user-dialog";
 import { UserTable } from "./user-table";
 import type { UserWithRole } from "better-auth/plugins/admin";
 import { useUsers, useBanUser, useUnbanUser, useDeleteUser } from "~/lib/hooks/use-api-data";
+import { authClient } from "~/lib/auth-client";
 
 export default function UsersPageClient() {
   const t = useTranslations("users");
   const tc = useTranslations("common");
+  const ti = useTranslations("impersonation");
   const PAGE_SIZE = 20;
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,6 +82,21 @@ export default function UsersPageClient() {
       });
     } catch (err) {
       toast.error("Failed to unban user", {
+        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+      });
+    }
+  };
+
+  const handleImpersonate = async (user: UserWithRole) => {
+    try {
+      await authClient.admin.impersonateUser({ userId: user.id });
+      toast.success(ti("impersonateSuccess"), {
+        description: user.name || user.email,
+      });
+      // Refresh page to reflect impersonation state (badge will appear)
+      setTimeout(() => window.location.reload(), 500);
+    } catch (err) {
+      toast.error(ti("impersonateFailed"), {
         description: err instanceof Error ? err.message : "An unexpected error occurred.",
       });
     }
@@ -165,6 +182,7 @@ export default function UsersPageClient() {
           onDelete={handleDelete}
           onBan={handleBan}
           onUnban={handleUnban}
+          onImpersonate={handleImpersonate}
           isLoading={isLoading}
         />
 

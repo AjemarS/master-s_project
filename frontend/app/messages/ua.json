@@ -515,6 +515,11 @@
   "impersonation": {
     "badge": "Режим імперсонації",
     "exit": "Вийти",
-    "otherUser": "Інший користувач"
+    "otherUser": "Інший користувач",
+    "impersonate": "Імперсонувати",
+    "impersonateUser": "Імперсонація",
+    "confirmImpersonate": "Ви дійсно хочете імперсонувати {name}? Ви будете діяти як цей користувач, поки не вийдете з режиму.",
+    "impersonateSuccess": "Тепер ви дієте як {name}",
+    "impersonateFailed": "Не вдалося імперсонувати користувача"
   }
 }

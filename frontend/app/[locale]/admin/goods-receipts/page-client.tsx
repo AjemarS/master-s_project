@@ -181,21 +181,25 @@ export function GoodsReceiptsClient() {
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("supplier")} *</Label>
-              <Select value={formSupplier} onValueChange={setFormSupplier}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder={t("selectSupplier")} /></SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="col-span-3">
+                <Select value={formSupplier} onValueChange={setFormSupplier}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder={t("selectSupplier")} /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("warehouse")} *</Label>
-              <Select value={formWarehouse} onValueChange={setFormWarehouse}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="col-span-3">
+                <Select value={formWarehouse} onValueChange={setFormWarehouse}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("date")}</Label>

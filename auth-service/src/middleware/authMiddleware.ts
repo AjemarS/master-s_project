@@ -1,54 +1,37 @@
 import { Request, Response, NextFunction } from "express";
-import { fromNodeHeaders } from "better-auth/node";
-import { auth } from "../auth";
+import { getSessionFromCacheOrProvider } from "./sessionCache";
 import logger from "../logger";
-
-const bootstrapAdminIds: string[] = (process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
-
-export function getAdminUserIds(): string[] {
-  return bootstrapAdminIds;
-}
-
-export function addAdminUserId(userId: string): void {
-  if (!bootstrapAdminIds.includes(userId)) {
-    bootstrapAdminIds.push(userId);
-  }
-}
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
+    const session = await getSessionFromCacheOrProvider(req.headers);
     if (!session || !session.user) {
-      return res.status(401).json({ message: "Authentication required" });
+      return res.status(401).json({ success: false, message: "Authentication required" });
     }
     res.locals.user = session.user;
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Auth check failed", { error: (error as Error).message });
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 }
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
+    const session = await getSessionFromCacheOrProvider(req.headers);
 
     if (!session || !session.user) {
-      return res.status(401).json({ message: "Authentication required" });
+      return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
     if (session.user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admin only." });
+      return res.status(403).json({ success: false, message: "Access denied. Admin only." });
     }
 
     res.locals.user = session.user;
     next();
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error("Admin check failed", { error: (error as Error).message });
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 }

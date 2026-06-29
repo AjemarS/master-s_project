@@ -26,6 +26,7 @@ import {
   Trash2,
   Filter,
   X,
+  UserCheck,
 } from "lucide-react";
 import type { UserWithRole } from "better-auth/plugins/admin";
 import { DataTable, type Column, ConfirmDialog } from "../components";
@@ -47,6 +48,7 @@ interface UserTableProps {
   onDelete: (userId: string) => Promise<void>;
   onBan: (userId: string, reason: string) => Promise<void>;
   onUnban: (userId: string) => Promise<void>;
+  onImpersonate: (user: UserWithRole) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -66,10 +68,12 @@ export function UserTable({
   onDelete,
   onBan,
   onUnban,
+  onImpersonate,
   isLoading,
 }: UserTableProps) {
   const t = useTranslations("users");
   const tc = useTranslations("common");
+  const ti = useTranslations("impersonation");
   const [showFilters, setShowFilters] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -126,6 +130,22 @@ export function UserTable({
   const handleBanClick = (user: UserWithRole) => {
     setBanningUser(user);
     setBanDialogOpen(true);
+  };
+
+  const handleImpersonateClick = (user: UserWithRole) => {
+    setConfirmTitle(ti("impersonateUser"));
+    setConfirmDescription(ti("confirmImpersonate", { name: user.name || user.email }));
+    setConfirmVariant("default");
+    setConfirmAction(() => async () => {
+      setConfirmLoading(true);
+      try {
+        await onImpersonate(user);
+        setConfirmOpen(false);
+      } finally {
+        setConfirmLoading(false);
+      }
+    });
+    setConfirmOpen(true);
   };
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -196,6 +216,9 @@ export function UserTable({
       headerClassName: "text-right",
       cell: (user) => (
         <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" title={ti("impersonate")} onClick={() => handleImpersonateClick(user)}>
+            <UserCheck className="h-4 w-4" />
+          </Button>
           <Button size="sm" variant="outline" title="Edit user" onClick={() => onEdit(user)}>
             <Pencil className="h-4 w-4" />
           </Button>
