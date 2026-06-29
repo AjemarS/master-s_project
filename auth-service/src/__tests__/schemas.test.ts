@@ -5,27 +5,27 @@ import {
   setRoleSchema,
   enableTwoFactorSchema,
   disableTwoFactorSchema,
-} from "../validation/schemas";
+} from "../validation/schemas.js";
 
 describe("createUserSchema", () => {
   it("accepts valid payload", () => {
-    expect(createUserSchema.safeParse({ email: "a@b.com", password: "12345678", name: "Test" }).success).toBe(true);
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "Pass12345", name: "Test" }).success).toBe(true);
   });
 
   it("rejects missing email", () => {
-    expect(createUserSchema.safeParse({ password: "12345678", name: "Test" }).success).toBe(false);
+    expect(createUserSchema.safeParse({ password: "Pass12345", name: "Test" }).success).toBe(false);
   });
 
   it("rejects invalid email", () => {
-    expect(createUserSchema.safeParse({ email: "bad", password: "12345678", name: "Test" }).success).toBe(false);
+    expect(createUserSchema.safeParse({ email: "bad", password: "Pass12345", name: "Test" }).success).toBe(false);
   });
 
   it("rejects short password (< 8)", () => {
-    expect(createUserSchema.safeParse({ email: "a@b.com", password: "123", name: "Test" }).success).toBe(false);
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "Ab1", name: "Test" }).success).toBe(false);
   });
 
   it("rejects empty name", () => {
-    expect(createUserSchema.safeParse({ email: "a@b.com", password: "12345678", name: "" }).success).toBe(false);
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "Pass12345", name: "" }).success).toBe(false);
   });
 
   it("rejects missing password", () => {
@@ -33,7 +33,23 @@ describe("createUserSchema", () => {
   });
 
   it("rejects missing name", () => {
-    expect(createUserSchema.safeParse({ email: "a@b.com", password: "12345678" }).success).toBe(false);
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "Pass12345" }).success).toBe(false);
+  });
+
+  it("rejects password without uppercase", () => {
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "pass12345", name: "Test" }).success).toBe(false);
+  });
+
+  it("rejects password without lowercase", () => {
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "PASS12345", name: "Test" }).success).toBe(false);
+  });
+
+  it("rejects password without digit", () => {
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "Password", name: "Test" }).success).toBe(false);
+  });
+
+  it("rejects common password", () => {
+    expect(createUserSchema.safeParse({ email: "a@b.com", password: "Password123", name: "Test" }).success).toBe(false);
   });
 });
 

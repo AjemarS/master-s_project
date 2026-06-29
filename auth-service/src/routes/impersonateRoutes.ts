@@ -2,13 +2,15 @@ import { Router, Request, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import { auth, pool } from "../auth";
 import { requireAdmin } from "../middleware/authMiddleware";
-import { redisClient } from "../middleware/rateLimiter";
+import { getSessionFromCacheOrProvider } from "../middleware/sessionCache";
+import { writeAuditLog } from "../middleware/auditLog";
+import { redisClient, adminRateLimit } from "../middleware/rateLimiter";
+import { apiImpersonateUser, apiStopImpersonating, getSetCookieHeaders } from "../helpers/betterAuth";
 import { sendImpersonationCode } from "../email/sender";
 import logger from "../logger";
 
 const router = Router();
 
-// Fallback in-memory store for when Redis is unavailable
 const memoryStore = new Map<string, { code: string; expiresAt: Date }>();
 let redisAvailable = true;
 
@@ -20,7 +22,7 @@ setInterval(() => {
 }, 300_000);
 
 async function storeCode(email: string, code: string): Promise<void> {
-  const ttl = 300; // 5 minutes
+  const ttl = 300;
   try {
     if (redisAvailable) {
       await redisClient.setex(`impersonate:code:${email}`, ttl, code);
@@ -61,85 +63,59 @@ async function deleteCode(email: string): Promise<void> {
   memoryStore.delete(email);
 }
 
-function forwardSetCookie(response: any, res: Response): void {
-  if (!response?.headers) return;
-  for (const [key, value] of Object.entries(response.headers)) {
-    if (key.toLowerCase() === "set-cookie") {
-      if (Array.isArray(value)) {
-        res.setHeader("Set-Cookie", value);
-      } else {
-        res.setHeader("Set-Cookie", value as string);
-      }
-    }
+function forwardSetCookie(response: { headers?: Record<string, string | string[]> }, res: Response): void {
+  const value = getSetCookieHeaders(response);
+  if (value !== undefined) {
+    res.setHeader("Set-Cookie", value);
   }
 }
 
-/**
- * POST /auth/admin/stop-impersonation
- * Stop impersonation and restore original session.
- * Works for both admin and cashier — Better Auth handles session restoration.
- */
 router.post("/admin/stop-impersonation", async (req: Request, res: Response) => {
   try {
-    const response = await auth.api.stopImpersonating({
-      headers: fromNodeHeaders(req.headers),
-    }) as any;
-
+    const response = await apiStopImpersonating(req.headers);
     forwardSetCookie(response, res);
-    logger.info("Impersonation stopped");
-    return res.json({ message: "Impersonation stopped" });
-  } catch (error: any) {
-    logger.error("Stop impersonation failed", { error: error.message });
-    return res.status(500).json({ message: "Failed to stop impersonation" });
+    if (response.user?.id) {
+      writeAuditLog({ actorId: response.user.id, action: "stopImpersonation", ipAddress: req.ip || req.socket.remoteAddress });
+    }
+    return res.json({ success: true, message: "Impersonation stopped" });
+  } catch (error: unknown) {
+    logger.error("Stop impersonation failed", { error: (error as Error).message });
+    return res.status(500).json({ success: false, message: "Failed to stop impersonation" });
   }
 });
 
-/**
- * POST /auth/admin/impersonate
- * Admin can impersonate any user.
- */
-router.post("/admin/impersonate", requireAdmin, async (req: Request, res: Response) => {
+router.post("/admin/impersonate", requireAdmin, adminRateLimit, async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
     if (!userId) {
-      return res.status(400).json({ message: "userId is required" });
+      return res.status(400).json({ success: false, message: "userId is required" });
     }
 
-    const adminSession = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
+    const adminSession = await getSessionFromCacheOrProvider(req.headers);
     if (!adminSession) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ success: false, message: "Not authenticated" });
     }
 
     const userResult = await pool.query('SELECT id FROM "user" WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const response = await auth.api.impersonateUser({
-      headers: fromNodeHeaders(req.headers),
-      body: { userId },
-    }) as any;
-
+    const response = await apiImpersonateUser(userId, req.headers);
     forwardSetCookie(response, res);
-    logger.info("Impersonation started", { actorId: adminSession.user.id, targetId: userId });
-    return res.json({ message: "Impersonation started", user: response.user || null });
-  } catch (error: any) {
-    logger.error("Impersonation failed", { error: error.message });
-    return res.status(500).json({ message: "Impersonation failed", error: error.message });
+    writeAuditLog({ actorId: adminSession.user.id, action: "impersonate", targetId: userId, ipAddress: req.ip });
+    return res.json({ success: true, message: "Impersonation started", user: response.user });
+  } catch (error: unknown) {
+    logger.error("Impersonation failed", { error: (error as Error).message });
+    return res.status(500).json({ success: false, message: (error as Error).message || "Impersonation failed" });
   }
 });
 
-/**
- * POST /auth/impersonate/request-code
- * Cashier requests a one-time impersonation code sent to the user's email.
- */
 router.post("/impersonate/request-code", async (req: Request, res: Response) => {
   try {
     const { userEmail } = req.body;
     if (!userEmail) {
-      return res.status(400).json({ message: "userEmail is required" });
+      return res.status(400).json({ success: false, message: "userEmail is required" });
     }
 
     const userResult = await pool.query(
@@ -147,47 +123,41 @@ router.post("/impersonate/request-code", async (req: Request, res: Response) => 
       [userEmail]
     );
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Generate 6-digit code and store (Redis with in-memory fallback)
     const code = String(Math.floor(100000 + Math.random() * 900000));
     await storeCode(userEmail, code);
 
     await sendImpersonationCode(userEmail, code);
-    // Dev fallback: log code to console if email sending skipped
     console.log(`[dev] Impersonation code for ${userEmail}: ${code}`);
-    res.json({ message: "Код надіслано на email", email: userEmail });
+    res.json({ success: true, message: "Код надіслано на email", email: userEmail });
 
-  } catch (error: any) {
-    logger.error("Failed to request impersonation code", { error: error.message });
-    return res.status(500).json({ message: "Failed to send code" });
+  } catch (error: unknown) {
+    logger.error("Failed to request impersonation code", { error: (error as Error).message });
+    return res.status(500).json({ success: false, message: "Failed to send code" });
   }
 });
 
-/**
- * POST /auth/impersonate/verify-code
- * Verify the code and start impersonation.
- */
 router.post("/impersonate/verify-code", async (req: Request, res: Response) => {
   try {
     const { userEmail, code } = req.body;
     if (!userEmail || !code) {
-      return res.status(400).json({ message: "userEmail and code are required" });
+      return res.status(400).json({ success: false, message: "userEmail and code are required" });
     }
 
     const storedCode = await getCode(userEmail);
     if (!storedCode) {
-      return res.status(400).json({ message: "No code requested or code expired" });
+      return res.status(400).json({ success: false, message: "No code requested or code expired" });
     }
 
     if (storedCode !== code) {
-      return res.status(400).json({ message: "Invalid code" });
+      return res.status(400).json({ success: false, message: "Invalid code" });
     }
 
     const userResult = await pool.query('SELECT id FROM "user" WHERE email = $1', [userEmail]);
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
     const userId = userResult.rows[0].id;
@@ -196,14 +166,14 @@ router.post("/impersonate/verify-code", async (req: Request, res: Response) => {
     const response = await auth.api.impersonateUser({
       headers: fromNodeHeaders(req.headers),
       body: { userId },
-    }) as any;
+    }) as Record<string, unknown>;
 
     forwardSetCookie(response, res);
-    logger.info("Cashier impersonation verified", { targetId: userId });
-    return res.json({ message: "Impersonation started", user: response.user || null });
-  } catch (error: any) {
-    logger.error("Impersonation verification failed", { error: error.message });
-    return res.status(500).json({ message: "Impersonation failed" });
+    writeAuditLog({ actorId: req.body.userEmail || "unknown", action: "verifyImpersonationCode", targetId: userId, ipAddress: req.ip });
+    return res.json({ success: true, message: "Impersonation started", user: (response?.user as Record<string, unknown>) || null });
+  } catch (error: unknown) {
+    logger.error("Impersonation verification failed", { error: (error as Error).message });
+    return res.status(500).json({ success: false, message: "Impersonation failed" });
   }
 });
 

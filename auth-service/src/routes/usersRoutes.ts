@@ -3,13 +3,20 @@ import { fromNodeHeaders } from "better-auth/node";
 import { auth } from "../auth";
 import { validate } from "../middleware/validate";
 import { createUserSchema, updateUserSchema, setRoleSchema } from "../validation/schemas";
+import { writeAuditLog } from "../middleware/auditLog";
 import logger from "../logger";
 
 const router = express.Router();
 
 function audit(action: string, target: string, req: express.Request, res: express.Response) {
   const actor = res.locals.user?.id || "unknown";
-  logger.info("Admin action", { actor, action, target, ip: req.ip });
+  const actorEmail = res.locals.user?.email as string | undefined;
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  writeAuditLog({ actorId: actor, actorEmail, action, targetId: target, ipAddress: ip });
+}
+
+function logError(err: unknown, message: string, meta?: Record<string, unknown>) {
+  logger.error(message, { error: (err as Error).message, ...meta });
 }
 
 router.get("/users", async (req, res) => {
@@ -25,9 +32,9 @@ router.get("/users", async (req, res) => {
       headers,
     });
     return res.status(200).json({ success: true, count: users.total ?? 0, users });
-  } catch (error: any) {
-    logger.error("Get users failed", { error: error.message });
-    return res.status(500).json({ success: false, message: error.message || "Failed to fetch users" });
+  } catch (error: unknown) {
+    logError(error, "Get users failed");
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to fetch users" });
   }
 });
 
@@ -36,9 +43,9 @@ router.get("/users/:id", async (req, res) => {
     const { id } = req.params;
     const user = await auth.api.getUser({ query: { id } });
     return res.status(200).json({ success: true, user });
-  } catch (error: any) {
-    logger.error("Get user by ID failed", { error: error.message, userId: req.params.id });
-    return res.status(500).json({ success: false, message: error.message || "Failed to fetch user" });
+  } catch (error: unknown) {
+    logError(error, "Get user by ID failed", { userId: req.params.id });
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to fetch user" });
   }
 });
 
@@ -50,9 +57,9 @@ router.post("/users", validate(createUserSchema), async (req, res) => {
     });
     audit("createUser", user?.user?.id || "unknown", req, res);
     return res.status(201).json({ success: true, user });
-  } catch (error: any) {
-    logger.error("Create user failed", { error: error.message });
-    return res.status(500).json({ success: false, message: error.message || "Failed to create user" });
+  } catch (error: unknown) {
+    logError(error, "Create user failed");
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to create user" });
   }
 });
 
@@ -63,9 +70,9 @@ router.put("/users/:id", validate(updateUserSchema), async (req, res) => {
     const updated = await auth.api.adminUpdateUser({ body: { userId: id, data } });
     audit("updateUser", id, req, res);
     return res.status(200).json({ success: true, updated });
-  } catch (error: any) {
-    logger.error("Update user failed", { error: error.message, userId: req.params.id });
-    return res.status(500).json({ success: false, message: error.message || "Failed to update user" });
+  } catch (error: unknown) {
+    logError(error, "Update user failed", { userId: req.params.id });
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to update user" });
   }
 });
 
@@ -75,9 +82,9 @@ router.delete("/users/:id", async (req, res) => {
     const result = await auth.api.removeUser({ body: { userId: id } });
     audit("removeUser", id, req, res);
     return res.status(200).json({ success: true, result });
-  } catch (error: any) {
-    logger.error("Remove user failed", { error: error.message, userId: req.params.id });
-    return res.status(500).json({ success: false, message: error.message || "Failed to delete user" });
+  } catch (error: unknown) {
+    logError(error, "Remove user failed", { userId: req.params.id });
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to delete user" });
   }
 });
 
@@ -86,9 +93,9 @@ router.get("/users/:id/sessions", async (req, res) => {
     const { id } = req.params;
     const sessions = await auth.api.listUserSessions({ body: { userId: id } });
     return res.status(200).json({ success: true, sessions });
-  } catch (error: any) {
-    logger.error("Get user sessions failed", { error: error.message, userId: req.params.id });
-    return res.status(500).json({ success: false, message: error.message || "Failed to fetch sessions" });
+  } catch (error: unknown) {
+    logError(error, "Get user sessions failed", { userId: req.params.id });
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to fetch sessions" });
   }
 });
 
@@ -101,9 +108,9 @@ router.post("/set-role", validate(setRoleSchema), async (req, res) => {
     });
     audit("setRole", userId, req, res);
     return res.status(200).json({ success: true, response });
-  } catch (error: any) {
-    logger.error("Set user role failed", { error: error.message, userId: req.body.userId });
-    return res.status(500).json({ success: false, message: error.message || "Failed to set user role" });
+  } catch (error: unknown) {
+    logError(error, "Set user role failed", { userId: req.body.userId });
+    return res.status(500).json({ success: false, message: (error as Error).message || "Failed to set user role" });
   }
 });
 

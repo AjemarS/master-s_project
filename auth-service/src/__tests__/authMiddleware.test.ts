@@ -37,7 +37,7 @@ describe("requireAuth", () => {
       user: { id: "u1", role: "user", email: "a@b.com" },
       session: { id: "s1" },
     });
-    const { requireAuth } = await import("../middleware/authMiddleware");
+    const { requireAuth } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -48,7 +48,7 @@ describe("requireAuth", () => {
 
   it("returns 401 when no session", async () => {
     mockGetSession.mockResolvedValue(null);
-    const { requireAuth } = await import("../middleware/authMiddleware");
+    const { requireAuth } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -59,7 +59,7 @@ describe("requireAuth", () => {
 
   it("returns 500 on error", async () => {
     mockGetSession.mockRejectedValue(new Error("DB down"));
-    const { requireAuth } = await import("../middleware/authMiddleware");
+    const { requireAuth } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -75,7 +75,7 @@ describe("requireAdmin", () => {
       user: { id: "u1", role: "admin", email: "admin@b.com" },
       session: { id: "s1" },
     });
-    const { requireAdmin } = await import("../middleware/authMiddleware");
+    const { requireAdmin } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -89,7 +89,7 @@ describe("requireAdmin", () => {
       user: { id: "u1", role: "user", email: "user@b.com" },
       session: { id: "s1" },
     });
-    const { requireAdmin } = await import("../middleware/authMiddleware");
+    const { requireAdmin } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -100,7 +100,7 @@ describe("requireAdmin", () => {
 
   it("returns 401 when no session", async () => {
     mockGetSession.mockResolvedValue(null);
-    const { requireAdmin } = await import("../middleware/authMiddleware");
+    const { requireAdmin } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -111,7 +111,7 @@ describe("requireAdmin", () => {
 
   it("returns 500 on error", async () => {
     mockGetSession.mockRejectedValue(new Error("DB down"));
-    const { requireAdmin } = await import("../middleware/authMiddleware");
+    const { requireAdmin } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
@@ -125,7 +125,7 @@ describe("requireAdmin", () => {
       user: { id: "u1", role: "cashier", email: "cashier@b.com" },
       session: { id: "s1" },
     });
-    const { requireAdmin } = await import("../middleware/authMiddleware");
+    const { requireAdmin } = await import("../middleware/authMiddleware.js");
     const req = mockReq();
     const res = mockRes();
     const next = vi.fn();
