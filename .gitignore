@@ -26,6 +26,12 @@
 .DS_Store
 *.pem
 
+# IDE
+.vscode/
+
+# Python build artifacts
+*.egg-info/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

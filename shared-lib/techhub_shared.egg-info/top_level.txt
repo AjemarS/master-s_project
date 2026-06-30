@@ -1,2 +1,0 @@
-shared_auth
-shared_eventbus
