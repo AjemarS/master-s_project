@@ -136,6 +136,7 @@ services:
       - microservices_network
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py seed_data &&
              python manage.py runserver 0.0.0.0:8000"
 
   # Auth Service (Better Auth)
@@ -209,6 +210,7 @@ services:
       - microservices_network
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py seed_data &&
              python manage.py runserver 0.0.0.0:8001"
 
   # Django Order Service
@@ -246,6 +248,7 @@ services:
       - microservices_network
     command: >
       sh -c "python manage.py migrate &&
+             python manage.py seed_orders &&
              python manage.py runserver 0.0.0.0:8002"
 
   # Product Event Consumer (RabbitMQ)
