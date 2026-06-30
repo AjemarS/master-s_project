@@ -1,6 +1,10 @@
+import io
+import textwrap
 from decimal import Decimal
 
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from PIL import Image, ImageDraw, ImageFont
 
 from products.models import Category, Product
 
@@ -93,4 +97,37 @@ class Command(BaseCommand):
                 product.description_en = f"{name_en} — reliable home appliance. High quality, energy efficiency and modern design."
                 product.save(update_fields=["name_en", "description_en"])
             if created:
+                self._set_placeholder_image(product, name_en, cat_name)
                 self.stdout.write(f"  Created product: {product.name}")
+
+    def _set_placeholder_image(self, product, name_en, cat_name):
+        cat_palette = {
+            "Холодильники": ((227, 242, 253), (21, 101, 192)),
+            "Пральні машини": ((232, 245, 233), (46, 125, 50)),
+            "Духовки": ((255, 243, 224), (230, 81, 0)),
+            "Мікрохвильовки": ((243, 229, 245), (106, 27, 154)),
+            "Пилососи": ((224, 247, 250), (0, 105, 92)),
+            "Кавоварки": ((252, 228, 236), (198, 40, 40)),
+            "Дрібна техніка": ((255, 248, 225), (245, 127, 23)),
+        }
+        bg, fg = cat_palette.get(cat_name, ((245, 245, 245), (51, 51, 51)))
+
+        img = Image.new("RGB", (400, 400), bg)
+        draw = ImageDraw.Draw(img)
+        label = name_en.replace("&", "and")
+        short = textwrap.shorten(label, width=24, placeholder="")
+
+        try:
+            font_lg = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 56)
+            font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+            draw.text((200, 140), short, fill=fg, font=font_lg, anchor="mm")
+            draw.text((200, 260), "TechHub placeholder", fill=fg, font=font_sm, anchor="mm")
+        except (IOError, OSError):
+            font = ImageFont.load_default()
+            draw.text((10, 10), short, fill=fg, font=font)
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        filename = f"product_{product.pk}.png"
+        product.image.save(filename, ContentFile(buf.getvalue()), save=False)
+        product.save(update_fields=["image"])
