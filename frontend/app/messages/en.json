@@ -187,7 +187,10 @@
     "filterBy": "Filter by {category}",
     "all": "All",
     "noProductsFound": "No products found in this category.",
-    "pagination": "Pagination"
+    "pagination": "Pagination",
+    "addToCart": "Add to Cart",
+    "adding": "Adding...",
+    "similarProducts": "Similar Products"
   },
   "orders": {
     "title": "Orders",
@@ -620,7 +623,8 @@
     "passwordUpdated": "Password updated",
     "passwordError": "Failed to update password",
     "twoFactorTitle": "Two-Factor Authentication",
-    "twoFactorDesc": "Add an extra layer of security to your account"
+    "twoFactorDesc": "Add an extra layer of security to your account",
+    "managePrefsLink": "Detailed notification settings"
   },
   "dashboard": {
     "welcomeTitle": "Welcome to your Dashboard",

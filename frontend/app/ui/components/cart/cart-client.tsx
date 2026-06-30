@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, ShoppingCart, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "~/i18n/navigation";
 import * as React from "react";
 
 import { cn } from "~/lib/cn";

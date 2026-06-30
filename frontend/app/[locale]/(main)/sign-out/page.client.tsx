@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "~/i18n/navigation";
 
 import { signOut } from "~/lib/auth-client";
 import { cn } from "~/lib/cn";

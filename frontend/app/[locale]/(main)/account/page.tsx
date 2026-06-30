@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "~/i18n/navigation";
 import { authClient, useCurrentUser } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";

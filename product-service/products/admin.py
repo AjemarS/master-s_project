@@ -25,10 +25,9 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "features",
         "specs",
-        "image",
         "rating",
         "created_at",
     ]
-    # list_filter = ["category", "created_at"]
-    # search_fields = ["name", "description"]
-    # list_editable = ["price", "original_price", "in_stock", "features", "specs", "rating"]
+    list_filter = ["category", "in_stock", "created_at"]
+    search_fields = ["name", "description"]
+    list_editable = ["price", "original_price", "in_stock"]

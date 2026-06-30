@@ -26,6 +26,10 @@ export default function ProductsPageContent() {
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [page, setPage] = React.useState<number>(1);
   const [totalCount, setTotalCount] = React.useState<number>(0);
+  const [search, setSearch] = React.useState("");
+  const [minPrice, setMinPrice] = React.useState("");
+  const [maxPrice, setMaxPrice] = React.useState("");
+  const [onlyInStock, setOnlyInStock] = React.useState(false);
   const pageSize = 20;
 
   const categoryParam = params.get("category");
@@ -40,6 +44,10 @@ export default function ProductsPageContent() {
           page,
           pageSize,
           category: validCategoryId,
+          search: search || undefined,
+          minPrice: minPrice ? parseFloat(minPrice) : undefined,
+          maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+          inStock: onlyInStock || undefined,
         });
 
         if (response.data) {
@@ -58,8 +66,9 @@ export default function ProductsPageContent() {
         setIsLoading(false);
       }
     }
-    fetchProducts();
-  }, [page, validCategoryId]);
+    const timer = setTimeout(fetchProducts, search ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [page, validCategoryId, search, minPrice, maxPrice, onlyInStock]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -126,21 +135,60 @@ export default function ProductsPageContent() {
     <div className="flex min-h-screen flex-col">
       <main className="flex-1 py-10">
         <div className="container px-4 md:px-6">
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">{t("catalog")}</h1>
-              <p className="mt-1 text-lg text-muted-foreground">
-                {t("browseProducts")}
+          <div className="mb-4">
+            <h1 className="text-3xl font-bold tracking-tight">{t("catalog")}</h1>
+            <p className="mt-1 text-lg text-muted-foreground">
+              {t("browseProducts")}
+            </p>
+            {totalCount > 0 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t.rich("showingPage", { page, totalPages, count: totalCount })}
               </p>
-              {totalCount > 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t.rich("showingPage", { page, totalPages, count: totalCount })}
-                </p>
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <input
+                aria-label={t("searchPlaceholder")}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder={t("searchPlaceholder")}
+                type="search"
+                value={search}
+              />
+            </div>
+            <input
+              aria-label={t("minPrice")}
+              className="h-9 w-24 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground"
+              onChange={(e) => { setMinPrice(e.target.value); setPage(1); }}
+              placeholder={t("minPrice")}
+              title={t("minPrice")}
+              type="number"
+              value={minPrice}
+            />
+            <input
+              aria-label={t("maxPrice")}
+              className="h-9 w-24 rounded-md border border-input bg-transparent px-3 py-1 text-sm placeholder:text-muted-foreground"
+              onChange={(e) => { setMaxPrice(e.target.value); setPage(1); }}
+              placeholder={t("maxPrice")}
+              title={t("maxPrice")}
+              type="number"
+              value={maxPrice}
+            />
+            <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+              <input
+                checked={onlyInStock}
+                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                onChange={(e) => { setOnlyInStock(e.target.checked); setPage(1); }}
+                type="checkbox"
+              />
+              {t("inStock")}
+            </label>
+          </div>
+
+          <div className="mb-8 flex flex-wrap gap-2">
+            {categories.map((cat) => (
                 <Button
                   aria-pressed={isActiveCategory(cat)}
                   className="rounded-full"
@@ -154,7 +202,6 @@ export default function ProductsPageContent() {
                 </Button>
               ))}
             </div>
-          </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {products.map((product) => (

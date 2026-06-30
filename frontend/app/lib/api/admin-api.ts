@@ -52,6 +52,10 @@ export const productApi = {
     return apiCall(`${API_URL}/products/${id}/`, { method: "DELETE" });
   },
 
+  async getSimilar(id: number): Promise<ApiResponse<Product[]>> {
+    return apiCall(`${API_URL}/products/${id}/similar/`);
+  },
+
   async updateStock(id: number, quantity: number): Promise<ApiResponse<Product>> {
     return apiCall(`${API_URL}/products/${id}/update_stock/`, {
       method: "POST", body: JSON.stringify({ quantity }),
@@ -64,8 +68,23 @@ export const productApi = {
 };
 
 export const categoryApi = {
-  async getAll(): Promise<ApiResponse<{ results: Category[]; count: number; next: string | null; previous: string | null }>> {
-    return apiCall(`${API_URL}/categories/`);
+  async getAll(params?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    parent?: number;
+  }): Promise<ApiResponse<{ results: Category[]; count: number; next: string | null; previous: string | null }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.pageSize) queryParams.append("page_size", params.pageSize.toString());
+    if (params?.search) queryParams.append("search", params.search);
+    if (params?.parent !== undefined) queryParams.append("parent", params.parent.toString());
+    const url = `${API_URL}/categories/${queryParams.toString() ? `?${queryParams}` : ""}`;
+    return apiCall(url);
+  },
+
+  async getById(id: number): Promise<ApiResponse<Category>> {
+    return apiCall(`${API_URL}/categories/${id}/`);
   },
 
   async create(category: Partial<Category>): Promise<ApiResponse<Category>> {

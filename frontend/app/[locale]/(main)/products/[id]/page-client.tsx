@@ -2,20 +2,19 @@
 
 import { Minus, Plus, ShoppingCart, Star } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter } from "~/i18n/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
 
 import { useCart } from "~/lib/hooks/use-cart";
 import { getImageUrl } from "~/lib/utils/image-url";
-import { ProductDetail } from "~/lib/types";
+import { formatPrice } from "~/lib/utils/format";
+import { ProductDetail, Product } from "~/lib/types";
 import { Button } from "~/ui/primitives/button";
 import { Separator } from "~/ui/primitives/separator";
-
-const CURRENCY_FORMATTER = new Intl.NumberFormat("uk-UA", {
-  currency: "UAH",
-  style: "currency",
-});
+import { ProductCard } from "~/ui/components/product-card";
+import { productApi } from "~/lib/api/admin-api";
 
 const slugify = (str: string) =>
   str
@@ -26,8 +25,20 @@ const slugify = (str: string) =>
 const range = (length: number) => Array.from({ length }, (_, i) => i);
 
 export default function ProductDetailClient({ product }: { product: ProductDetail }) {
+  const t = useTranslations("products");
+  const locale = useLocale();
   const router = useRouter();
   const { addItem } = useCart();
+  const [similar, setSimilar] = React.useState<Product[]>([]);
+  const priceInfo = React.useMemo(() => formatPrice(product, locale), [product, locale]);
+
+  React.useEffect(() => {
+    productApi.getSimilar(product.id).then((res) => {
+      if (res.data) {
+        setSimilar(res.data.filter((p) => p.id !== product.id).slice(0, 4));
+      }
+    }).catch(() => {});
+  }, [product.id]);
 
   const [quantity, setQuantity] = React.useState(1);
   const [isAdding, setIsAdding] = React.useState(false);
@@ -117,13 +128,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               <div className="mb-6">
                 <p className="text-lg font-medium text-muted-foreground">{product.category.name}</p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-3xl font-bold">
-                    {CURRENCY_FORMATTER.format(product.price)}
-                  </span>
-                  {product.original_price && (
-                    <span className="text-xl text-muted-foreground line-through">
-                      {CURRENCY_FORMATTER.format(product.original_price)}
-                    </span>
+                  <span className="text-3xl font-bold">{priceInfo.price}</span>
+                  {priceInfo.originalPrice && (
+                    <span className="text-xl text-muted-foreground line-through">{priceInfo.originalPrice}</span>
                   )}
                 </div>
               </div>
@@ -132,9 +139,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
 
               <div aria-atomic="true" aria-live="polite" className="mb-6">
                 {product.in_stock ? (
-                  <p className="text-sm font-medium text-green-600">In Stock</p>
+                  <p className="text-sm font-medium text-green-600">{t("inStock")}</p>
                 ) : (
-                  <p className="text-sm font-medium text-red-500">Out of Stock</p>
+                  <p className="text-sm font-medium text-red-500">{t("outOfStock")}</p>
                 )}
               </div>
 
@@ -165,7 +172,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   onClick={handleAddToCart}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  {isAdding ? "Adding\u2026" : "Add to Cart"}
+                  {isAdding ? t("adding") : t("addToCart")}
                 </Button>
               </div>
             </div>
@@ -175,7 +182,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <section>
-              <h2 className="mb-4 text-2xl font-bold">Features</h2>
+              <h2 className="mb-4 text-2xl font-bold">{t("features")}</h2>
               <ul className="space-y-2">
                 {product.features.map((feature) => (
                   <li className="flex items-start" key={`feature-${product.id}-${slugify(feature)}`}>
@@ -186,7 +193,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               </ul>
             </section>
             <section>
-              <h2 className="mb-4 text-2xl font-bold">Specifications</h2>
+              <h2 className="mb-4 text-2xl font-bold">{t("specs")}</h2>
               <div className="space-y-2">
                 {Object.entries(product.specs).map(([key, value]) => (
                   <div className="flex justify-between border-b pb-2 text-sm" key={key}>
@@ -199,6 +206,28 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               </div>
             </section>
           </div>
+
+          {similar.length > 0 && (
+            <section className="mt-16">
+              <h2 className="mb-6 text-2xl font-bold">{t("similarProducts")}</h2>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {similar.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={{
+                      ...p,
+                      price: Number(p.price),
+                      original_price: Number(p.original_price),
+                      rating: Number(p.rating),
+                    }}
+                    onAddToCart={(id) => {
+                      addItem({ id: String(id), name: p.name, price: p.price, image: getImageUrl(p.image_url), category: p.category_name }, 1);
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </div>

@@ -1,13 +1,15 @@
 import logging
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+
+from shared_eventbus.publisher import publish_event
 
 from .filters import ProductFilter
 from .models import Category, Product
@@ -161,6 +163,12 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
             product.refresh_from_db()
 
+            if product.stock == 0:
+                publish_event("inventory.stock.critical", {
+                    "product_id": product.pk,
+                    "stock": 0,
+                })
+
             logger.info(
                 "Stock updated | id=%s delta=%+d new_stock=%d user=%s",
                 product.pk,
@@ -184,7 +192,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = StandardResultsSetPagination
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["name", "parent"]
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
@@ -220,3 +229,18 @@ class CategoryViewSet(viewsets.ModelViewSet):
             self.request.user,
         )
         instance.delete()
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Basic health check that verifies DB connectivity."""
+    try:
+        connection.ensure_connection()
+        return Response({"status": "healthy"})
+    except Exception:
+        logger.exception("Health check failed")
+        return Response(
+            {"status": "unhealthy"},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )

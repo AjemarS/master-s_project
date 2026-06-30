@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Download, ChevronDown, Package, Edit, Trash2 } from "lucide-react";
+import { Download, ChevronDown, Package, Edit, Trash2, PackagePlus } from "lucide-react";
 import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
 import {
@@ -21,6 +21,7 @@ interface ProductTableProps {
   onSort: (field: string) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+  onStockAdjust: (product: Product) => void;
   expandedId: number | null;
   onToggleExpand: (id: number) => void;
   isAdmin: boolean;
@@ -39,6 +40,7 @@ export function ProductTable({
   onSort,
   onEdit,
   onDelete,
+  onStockAdjust,
   expandedId,
   onToggleExpand,
   isAdmin,
@@ -114,6 +116,9 @@ export function ProductTable({
         <div className="flex justify-end gap-2">
           {isAdmin && (
             <>
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onStockAdjust(product); }} title="Adjust stock">
+                <PackagePlus className="h-4 w-4" />
+              </Button>
               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onEdit(product); }} title={tc("edit")}>
                 <Edit className="h-4 w-4" />
               </Button>
@@ -125,7 +130,7 @@ export function ProductTable({
         </div>
       ),
     },
-  ], [t, tc, expandedId, isAdmin, onEdit, onDelete]);
+  ], [t, tc, expandedId, isAdmin, onEdit, onDelete, onStockAdjust]);
 
   return (
     <Card className="dark:bg-slate-800/80 dark:border-slate-700">

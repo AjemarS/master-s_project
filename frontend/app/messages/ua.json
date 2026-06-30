@@ -187,7 +187,10 @@
     "specValue": "Значення",
     "addSpec": "Додати характеристику",
     "addFeature": "Додати особливість",
-    "featurePlaceholder": "Введіть та натисніть Enter..."
+    "featurePlaceholder": "Введіть та натисніть Enter...",
+    "addToCart": "Додати в кошик",
+    "adding": "Додавання...",
+    "similarProducts": "Схожі товари"
   },
   "orders": {
     "title": "Керування замовленнями",
@@ -620,7 +623,8 @@
     "passwordUpdated": "Пароль оновлено",
     "passwordError": "Не вдалося оновити пароль",
     "twoFactorTitle": "Двофакторна аутентифікація",
-    "twoFactorDesc": "Додайте додатковий рівень безпеки до вашого акаунту"
+    "twoFactorDesc": "Додайте додатковий рівень безпеки до вашого акаунту",
+    "managePrefsLink": "Детальні налаштування сповіщень"
   },
   "dashboard": {
     "welcomeTitle": "Вітаємо в панелі керування",
