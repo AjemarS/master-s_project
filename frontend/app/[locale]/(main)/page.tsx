@@ -1,11 +1,11 @@
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowRight, Clock, ShoppingBag, Star, Truck } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-with-marquee";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
+import { CategoryImage } from "~/ui/components/category-image";
 
 import { getTestimonials } from "~/data/testimonials";
 import { Category } from "../../lib/types";
@@ -129,12 +129,13 @@ export default async function HomePage() {
               >
                 <div className="relative aspect-4/3 overflow-hidden">
                   <div className="absolute inset-0 z-10 bg-linear-to-t from-background/80 to-transparent" />
-                  <Image
-                    alt={category.name}
-                    className="object-cover transition duration-300 group-hover:scale-105"
+                  <CategoryImage
+                    categoryId={category.id}
+                    categoryName={category.name}
+                    className="group-hover:scale-105"
                     fill
+                    imageUrl={category.image_url}
                     sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
-                    src={category.image}
                   />
                 </div>
                 <div className="relative z-20 -mt-6 p-4">
