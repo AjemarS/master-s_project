@@ -1,17 +1,16 @@
 "use client";
 
 import { ShoppingCart, Star } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
 
 import { cn } from "~/lib/cn";
-import { getImageUrl } from "~/lib/utils/image-url";
 import { Product } from "~/lib/types";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
 import { formatCurrency } from "~/lib/utils/format";
+import { ProductImage } from "~/ui/components/product-image";
 
 type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
   onAddToCart?: (productId: number) => void;
@@ -39,8 +38,6 @@ export const ProductCard = React.memo(function ProductCard({
     : 0;
   const rating =
     typeof product.rating === "number" ? product.rating : Number(product.rating);
-  const imageSrc = getImageUrl(product.image_url);
-
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     if (onAddToCart) {
@@ -94,18 +91,17 @@ export const ProductCard = React.memo(function ProductCard({
           onMouseLeave={() => setIsHovered(false)}
         >
           <div className="relative aspect-square overflow-hidden rounded-t-lg">
-            {imageSrc && (
-              <Image
-                alt={product.name}
-                className={cn(
-                  "object-cover transition-transform duration-300 ease-in-out",
-                  isHovered && "scale-105"
-                )}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                src={imageSrc}
-              />
-            )}
+            <ProductImage
+              className={cn(
+                "transition-transform duration-300 ease-in-out",
+                isHovered && "scale-105"
+              )}
+              fill
+              imageUrl={product.image_url}
+              productId={product.id}
+              productName={product.name}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
 
             <Badge className="absolute top-2 left-2 bg-background/80 backdrop-blur-sm" variant="outline">
               {product.category_name}

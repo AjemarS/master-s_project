@@ -96,8 +96,8 @@ class Command(BaseCommand):
                 product.name_en = name_en
                 product.description_en = f"{name_en} — reliable home appliance. High quality, energy efficiency and modern design."
                 product.save(update_fields=["name_en", "description_en"])
+            self._set_placeholder_image(product, name_en, cat_name)
             if created:
-                self._set_placeholder_image(product, name_en, cat_name)
                 self.stdout.write(f"  Created product: {product.name}")
 
     def _set_placeholder_image(self, product, name_en, cat_name):

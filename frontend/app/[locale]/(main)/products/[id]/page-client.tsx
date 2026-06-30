@@ -1,7 +1,6 @@
 "use client";
 
 import { Minus, Plus, ShoppingCart, Star } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "~/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import * as React from "react";
@@ -14,6 +13,7 @@ import { ProductDetail, Product } from "~/lib/types";
 import { Button } from "~/ui/primitives/button";
 import { Separator } from "~/ui/primitives/separator";
 import { ProductCard } from "~/ui/components/product-card";
+import { ProductImage } from "~/ui/components/product-image";
 import { productApi } from "~/lib/api/admin-api";
 
 const slugify = (str: string) =>
@@ -86,13 +86,14 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
           </Button>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-              <Image
-                alt={product.name}
+            <div className="relative aspect-square overflow-hidden rounded-lg">
+              <ProductImage
                 className="object-cover"
                 fill
+                imageUrl={product.image_url}
+                productId={product.id}
+                productName={product.name}
                 priority
-                src={getImageUrl(product.image_url)}
               />
               {discountPercentage > 0 && (
                 <div className="absolute top-2 left-2 rounded-full bg-red-500 px-2 py-1 text-xs font-bold text-white">
