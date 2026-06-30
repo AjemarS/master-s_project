@@ -3,9 +3,10 @@
 import { Bell, Lock, User } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "~/i18n/navigation";
+import { Link, useRouter } from "~/i18n/navigation";
 
 import { authClient, useCurrentUser } from "~/lib/auth-client";
+import { notificationsApi } from "~/lib/api/notifications";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Input } from "~/ui/primitives/input";
@@ -48,10 +49,24 @@ export function SettingsPageClient() {
   };
 
   const handleSavePrefs = async () => {
+    if (!user) return;
     setSavingPrefs(true);
     try {
-      // Simulated save - actual notification preference API is in /account/notifications
-      toast.success(t("prefsSaved"));
+      const payload: Record<string, boolean> = {};
+      for (const type of ["order_confirmed", "order_shipped", "order_delivered", "order_cancelled"]) {
+        payload[`${type}_email`] = emailNotifs;
+        payload[`${type}_in_app`] = orderUpdates;
+      }
+      payload.marketing_email = marketingEmails;
+      payload.marketing_in_app = marketingEmails;
+      payload.low_stock_email = false;
+      payload.low_stock_in_app = false;
+      const res = await notificationsApi.updatePreferences(user.id, payload);
+      if (res.data) {
+        toast.success(t("prefsSaved"));
+      } else {
+        toast.error(res.error?.message || t("changesError"));
+      }
     } catch {
       toast.error(t("changesError"));
     } finally {
@@ -171,6 +186,11 @@ export function SettingsPageClient() {
               <Button disabled={savingPrefs} onClick={handleSavePrefs}>
                 {savingPrefs ? tCommon("loading") : t("savePrefs")}
               </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                <Link href="/account/notifications" className="underline hover:text-primary">
+                  {t("managePrefsLink")}
+                </Link>
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

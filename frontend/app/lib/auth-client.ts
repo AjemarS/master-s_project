@@ -2,7 +2,7 @@
 
 import { createAuthClient } from "better-auth/react";
 import { adminClient, inferAdditionalFields, twoFactorClient } from "better-auth/client/plugins";
-import { useRouter } from "next/navigation";
+import { useRouter } from "~/i18n/navigation";
 import { useEffect } from "react";
 
 export const authClient = createAuthClient({

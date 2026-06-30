@@ -18,7 +18,7 @@ import { UserWithRole } from "better-auth/plugins/admin";
 import type { Product, RevenueReport, SalesReport } from "~/lib/types";
 import { StatsCardSkeleton } from "../components";
 import { useRecentProducts } from "~/lib/hooks/use-recent-products";
-import { useOrders, useWarehouses, useStock } from "~/lib/hooks/use-api-data";
+import { useOrders, useWarehouses, useStock, useLowStock } from "~/lib/hooks/use-api-data";
 import { useApiGet } from "~/lib/hooks/use-api";
 import { reportApi } from "~/lib/api/admin-api";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
@@ -85,6 +85,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
     rabbitmq: { status: "loading", label: "RabbitMQ" },
   });
 
+  const { data: lowStockData } = useLowStock(10);
   const { data: ordersData, isLoading: ordersLoading } = useOrders();
   const { data: unpaidData, isLoading: unpaidLoading } = useOrders({ status: "unpaid" });
   const { data: warehousesData, isLoading: warehousesLoading } = useWarehouses();
@@ -373,20 +374,28 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
               </div>
             </CardHeader>
             <CardContent>
-              {initialProducts.filter((p) => p.stock < 10).length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center">{tSum("inStock")}</p>
-              ) : (
-                <div className="space-y-1">
-                  {initialProducts.filter((p) => p.stock < 10).slice(0, 10).map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{p.name}</span>
+              {(() => {
+                const raw = lowStockData as unknown as { results?: { id: number; name: string; stock: number }[] } | undefined;
+                const lowItems = Array.isArray(lowStockData) ? lowStockData : (raw?.results || []);
+                const items = lowItems.length > 0
+                  ? lowItems.slice(0, 10)
+                  : initialProducts.filter((p) => p.stock < 10).slice(0, 10);
+                if (items.length === 0) {
+                  return <p className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center">{tSum("inStock")}</p>;
+                }
+                return (
+                  <div className="space-y-1">
+                    {items.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{p.name}</span>
+                        </div>
+                        <Badge variant="destructive" className="shrink-0">{tSum("units", { count: p.stock })}</Badge>
                       </div>
-                      <Badge variant="destructive" className="shrink-0">{tSum("units", { count: p.stock })}</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>

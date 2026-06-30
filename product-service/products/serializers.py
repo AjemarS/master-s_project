@@ -1,8 +1,24 @@
 from decimal import Decimal
-from django.conf import settings
+
 from rest_framework import serializers
 
+from .currency import uah_to_usd
 from .models import Category, Product
+
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+def validate_image_file(value):
+    if not value:
+        return value
+    if hasattr(value, "content_type") and value.content_type not in ALLOWED_IMAGE_TYPES:
+        raise serializers.ValidationError(
+            f"Unsupported image type. Allowed: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
+    if hasattr(value, "size") and value.size > MAX_IMAGE_SIZE:
+        raise serializers.ValidationError("Image size must not exceed 5 MB.")
+    return value
 
 
 def _get_locale(request):
@@ -44,9 +60,13 @@ class CategorySerializer(serializers.ModelSerializer):
         return obj.products.count()
 
     def get_children(self, obj):
+        depth = self.context.get("category_depth", 0)
+        if depth > 5:
+            return []
         children = obj.children.all()
         if children:
-            return CategorySerializer(children, many=True, context=self.context).data
+            ctx = {**self.context, "category_depth": depth + 1}
+            return CategorySerializer(children, many=True, context=ctx).data
         return []
 
     def to_representation(self, instance):
@@ -61,13 +81,7 @@ class CategorySerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate_image(self, value):
-        if value:
-            allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-            if hasattr(value, "content_type") and value.content_type not in allowed_types:
-                raise serializers.ValidationError(
-                    f"Unsupported image type. Allowed: {', '.join(allowed_types)}"
-                )
-        return value
+        return validate_image_file(value)
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -117,11 +131,8 @@ class ProductSerializer(serializers.ModelSerializer):
         data["name"] = _localized(instance, "name", locale)
         data["description"] = _localized(instance, "description", locale)
         if locale == "en":
-            rate = Decimal(str(getattr(settings, "UAH_TO_USD_RATE", 41.5)))
-            price = Decimal(str(instance.price))
-            orig = Decimal(str(instance.original_price))
-            data["price_usd"] = round(float(price / rate), 2)
-            data["original_price_usd"] = round(float(orig / rate), 2)
+            data["price_usd"] = uah_to_usd(instance.price)
+            data["original_price_usd"] = uah_to_usd(instance.original_price)
         return data
 
     def validate_name(self, value):
@@ -138,6 +149,9 @@ class ProductSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("Stock quantity cannot be negative.")
         return value
+
+    def validate_image(self, value):
+        return validate_image_file(value)
 
     def validate_rating(self, value):
         from decimal import Decimal
@@ -162,14 +176,17 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        original_price = attrs.get("original_price") or (
-            self.instance.original_price if self.instance else None
-        )
-        price = attrs.get("price") or (
-            self.instance.price if self.instance else None
-        )
+        original_price = attrs.get("original_price")
+        if original_price is None:
+            original_price = (
+                self.instance.original_price if self.instance else Decimal("0")
+            )
+        price = attrs.get("price")
+        if price is None:
+            price = self.instance.price if self.instance else None
         if original_price is not None and price is not None and original_price < price:
             raise serializers.ValidationError(
                 {"original_price": "Original price cannot be less than current price."}
             )
+        attrs["original_price"] = original_price
         return attrs

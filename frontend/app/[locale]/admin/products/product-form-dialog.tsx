@@ -103,19 +103,27 @@ function CategoryCreateDialog({
   onCreated: (cat: Category) => void;
 }) {
   const [name, setName] = useState("");
+  const [nameUk, setNameUk] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
     if (!name.trim()) return;
     setCreating(true);
     try {
-      const res = await categoryApi.create({ name: name.trim() });
+      const res = await categoryApi.create({
+        name: name.trim(),
+        name_uk: nameUk.trim() || undefined,
+        name_en: nameEn.trim() || undefined,
+      });
       if (res.error) {
         toast.error("Failed to create category", { description: res.error.message });
       } else if (res.data) {
         onCreated(res.data);
         onOpenChange(false);
         setName("");
+        setNameUk("");
+        setNameEn("");
         toast.success("Категорію створено", { description: `Категорію "${name.trim()}" створено.` });
       }
     } catch (err) {
@@ -132,9 +140,19 @@ function CategoryCreateDialog({
           <DialogTitle>Додати категорію</DialogTitle>
           <DialogDescription>Створіть нову категорію товарів.</DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <Label htmlFor="cat-name">Назва</Label>
-          <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Назва категорії" className="mt-2" autoFocus />
+        <div className="py-4 space-y-3">
+          <div>
+            <Label htmlFor="cat-name">Назва (основна)</Label>
+            <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Назва категорії" className="mt-2" autoFocus />
+          </div>
+          <div>
+            <Label htmlFor="cat-name-uk">Назва (укр.)</Label>
+            <Input id="cat-name-uk" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="Назва українською" className="mt-2" />
+          </div>
+          <div>
+            <Label htmlFor="cat-name-en">Назва (англ.)</Label>
+            <Input id="cat-name-en" value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Назва англійською" className="mt-2" />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating} type="button">Скасувати</Button>
@@ -181,6 +199,7 @@ export function ProductFormDialog({
     return [];
   });
   const [image, setImage] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
@@ -402,19 +421,37 @@ export function ProductFormDialog({
             </div>
 
             {/* Image */}
-            <div className="grid grid-cols-4 items-center gap-4">
+              <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="pd-image" className="text-right">Image</Label>
               <div className="col-span-3 flex items-center gap-3">
                 <Button variant="outline" size="sm" onClick={() => document.getElementById("pd-image")?.click()} type="button">
                   <Upload className="h-4 w-4 mr-1" /> {image ? "Change" : "Upload"}
                 </Button>
                 {image && <span className="text-sm text-muted-foreground truncate max-w-50">{image.name}</span>}
+                {imageError && <span className="text-sm text-destructive">{imageError}</span>}
                 <input
                   id="pd-image"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
                   className="hidden"
-                  onChange={(e) => setImage(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setImageError(null);
+                    if (file) {
+                      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+                      if (!allowed.includes(file.type)) {
+                        setImageError("Only JPEG, PNG, WebP, GIF allowed");
+                        setImage(null);
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        setImageError("Image must not exceed 5 MB");
+                        setImage(null);
+                        return;
+                      }
+                    }
+                    setImage(file);
+                  }}
                 />
               </div>
             </div>

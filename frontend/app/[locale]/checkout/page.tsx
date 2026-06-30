@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "~/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "~/ui/primitives/button";
