@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     postgresql-client \
     gcc \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Спільна бібліотека (shared-auth, спільні утиліти)
