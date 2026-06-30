@@ -35,6 +35,7 @@ export interface Category {
   name_en?: string;
   parent?: number | null;
   image: string;
+  image_url?: string | null;
   product_count: number;
   children?: Category[];
   created_at?: string;

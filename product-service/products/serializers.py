@@ -40,12 +40,13 @@ def _localized(obj, field_base, locale):
 class CategorySerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
         fields = [
             "id", "name", "name_uk", "name_en", "parent",
-            "image", "product_count", "children",
+            "image", "image_url", "product_count", "children",
             "created_at", "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
@@ -68,6 +69,11 @@ class CategorySerializer(serializers.ModelSerializer):
             ctx = {**self.context, "category_depth": depth + 1}
             return CategorySerializer(children, many=True, context=ctx).data
         return []
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

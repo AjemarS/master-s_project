@@ -18,7 +18,16 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Seed data created successfully"))
 
     def _create_categories(self):
-        categories = [
+        cat_palette = {
+            "Холодильники": ("#e3f2fd", "#1565c0"),
+            "Пральні машини": ("#e8f5e9", "#2e7d32"),
+            "Духовки": ("#fff3e0", "#e65100"),
+            "Мікрохвильовки": ("#f3e5f5", "#6a1b9a"),
+            "Пилососи": ("#e0f7fa", "#00695c"),
+            "Кавоварки": ("#fce4ec", "#c62828"),
+            "Дрібна техніка": ("#fff8e1", "#f57f17"),
+        }
+        for name, name_en in [
             ("Холодильники", "Refrigerators"),
             ("Пральні машини", "Washing Machines"),
             ("Духовки", "Ovens"),
@@ -26,8 +35,7 @@ class Command(BaseCommand):
             ("Пилососи", "Vacuum Cleaners"),
             ("Кавоварки", "Coffee Machines"),
             ("Дрібна техніка", "Small Appliances"),
-        ]
-        for name, name_en in categories:
+        ]:
             cat, created = Category.objects.get_or_create(
                 name=name,
                 defaults={"name_en": name_en},
@@ -35,6 +43,7 @@ class Command(BaseCommand):
             if not created:
                 cat.name_en = name_en
                 cat.save(update_fields=["name_en"])
+            self._set_category_placeholder(cat, name_en)
             if created:
                 self.stdout.write(f"  Created category: {cat.name}")
 
@@ -131,3 +140,38 @@ class Command(BaseCommand):
         filename = f"product_{product.pk}.png"
         product.image.save(filename, ContentFile(buf.getvalue()), save=False)
         product.save(update_fields=["image"])
+
+    def _set_category_placeholder(self, cat, name_en):
+        palettes = [
+            ("#e3f2fd", "#1565c0"),
+            ("#e8f5e9", "#2e7d32"),
+            ("#fff3e0", "#e65100"),
+            ("#f3e5f5", "#6a1b9a"),
+            ("#e0f7fa", "#00695c"),
+            ("#fce4ec", "#c62828"),
+            ("#fff8e1", "#f57f17"),
+            ("#f1f8e9", "#558b2f"),
+            ("#ede7f6", "#4527a0"),
+            ("#fbe9e7", "#bf360c"),
+        ]
+        bg, fg = palettes[cat.pk % len(palettes)]
+
+        img = Image.new("RGB", (400, 300), bg)
+        draw = ImageDraw.Draw(img)
+        label = name_en.replace("&", "and")
+        short = textwrap.shorten(label, width=20, placeholder="")
+
+        try:
+            font_lg = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
+            font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
+            draw.text((200, 110), short, fill=fg, font=font_lg, anchor="mm")
+            draw.text((200, 210), "TechHub category", fill=fg, font=font_sm, anchor="mm")
+        except (IOError, OSError):
+            font = ImageFont.load_default()
+            draw.text((10, 10), short, fill=fg, font=font)
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        filename = f"category_{cat.pk}.png"
+        cat.image.save(filename, ContentFile(buf.getvalue()), save=False)
+        cat.save(update_fields=["image"])
