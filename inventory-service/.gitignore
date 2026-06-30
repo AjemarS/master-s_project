@@ -17,4 +17,4 @@ pip-env/
 media/
 staticfiles/
 local_settings.py
-migrations/
+# DO NOT ignore migrations/ — they must be tracked for reproducible DB state
