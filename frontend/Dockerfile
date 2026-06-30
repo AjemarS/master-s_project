@@ -5,6 +5,9 @@ WORKDIR /app
 # Копіювання package files
 COPY package*.json ./
 
+# Build tools for native addons (better-sqlite3 via better-auth)
+RUN apk add --no-cache python3 build-base
+
 # Встановлення залежностей
 RUN npm install
 
