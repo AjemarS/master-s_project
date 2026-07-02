@@ -11,10 +11,14 @@ router.get("/me", async (req: Request, res: Response) => {
   const session = await getSessionFromCacheOrProvider(req.headers);
   if (session?.user) {
     const user = session.user as Record<string, unknown>;
-    if (user.id) res.setHeader("X-User-Id", String(user.id));
-    res.setHeader("X-User-Role", String(user.role ?? "user"));
-    if (user.email) res.setHeader("X-User-Email", String(user.email));
-    if (user.name) res.setHeader("X-User-Name", String(user.name));
+    try {
+      if (user.id) res.setHeader("X-User-Id", String(user.id));
+      res.setHeader("X-User-Role", String(user.role ?? "user"));
+      if (user.email) res.setHeader("X-User-Email", String(user.email));
+      if (user.name) res.setHeader("X-User-Name", String(user.name).replace(/[^\x20-\x7E]/g, "?").trim());
+    } catch (err) {
+      logger.error("Failed to set user headers", { error: (err as Error).message });
+    }
   }
   return res.json(session);
 });

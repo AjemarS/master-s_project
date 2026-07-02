@@ -591,7 +591,14 @@
     "enableError": "Failed to enable two-factor authentication. Please try again.",
     "enableErrorFormat": "Failed to enable two-factor authentication. Unexpected response format.",
     "disableError": "Failed to disable two-factor authentication. Please try again.",
-    "passwordRequired": "Password is required"
+    "passwordRequired": "Password is required",
+    "emailVerified": "Email Verified",
+    "emailNotVerified": "Email Not Verified",
+    "emailVerifiedDesc": "Your email address has been verified.",
+    "emailNotVerifiedDesc": "Your email address is not verified. Some features may be limited.",
+    "sendVerificationEmail": "Send Verification Email",
+    "verificationEmailSent": "Verification email sent! Please check your inbox.",
+    "verificationEmailFailed": "Failed to send verification email. Please try again."
   },
   "settings": {
     "pageTitle": "Settings",

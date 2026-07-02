@@ -1,5 +1,6 @@
 import { getTranslations, getLocale } from "next-intl/server";
 import { ArrowRight, Clock, ShoppingBag, Star, Truck } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-with-marquee";

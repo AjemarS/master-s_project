@@ -162,7 +162,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@techhub.shop}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -326,7 +326,7 @@ services:
       PORT: "8003"
       RABBITMQ_URL: ${RABBITMQ_URL}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@techhub.shop}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       NOTIFICATIONS_DATABASE_URL: postgresql://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@notifications_db:5432/${NOTIFICATIONS_DB_NAME}
       AUTH_DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth_db:5432/${AUTH_DB_NAME}
