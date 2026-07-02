@@ -1,5 +1,5 @@
-const { getNotifPool } = require("./db");
-const { getUserEmails } = require("./admin");
+import { getNotifPool } from "./db";
+import { getUserEmails } from "./admin";
 
 const ALLOWED_COLUMNS = new Set([
   "order_confirmed_email", "order_confirmed_in_app",
@@ -10,7 +10,7 @@ const ALLOWED_COLUMNS = new Set([
   "low_stock_email", "low_stock_in_app",
 ]);
 
-const DEFAULTS = {
+const DEFAULTS: Record<string, boolean> = {
   order_confirmed_email: true,
   order_confirmed_in_app: true,
   order_shipped_email: true,
@@ -25,19 +25,29 @@ const DEFAULTS = {
   low_stock_in_app: true,
 };
 
-async function ensureDefaults(userId) {
+interface PrefsRow {
+  user_id: string;
+  [key: string]: boolean | string | Date;
+}
+
+interface MarketingTarget {
+  user_id: string;
+  marketing_in_app: boolean;
+  marketing_email: boolean;
+  email: string | null;
+}
+
+export async function ensureDefaults(userId: string): Promise<void> {
   const pool = getNotifPool();
   await pool.query(
-    `INSERT INTO notification_preferences (user_id)
-     VALUES ($1)
-     ON CONFLICT (user_id) DO NOTHING`,
+    `INSERT INTO notification_preferences (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`,
     [userId]
   );
 }
 
-async function getPreferences(userId) {
+export async function getPreferences(userId: string): Promise<PrefsRow> {
   const pool = getNotifPool();
-  const { rows } = await pool.query(
+  const { rows } = await pool.query<PrefsRow>(
     `SELECT * FROM notification_preferences WHERE user_id = $1`,
     [userId]
   );
@@ -47,10 +57,10 @@ async function getPreferences(userId) {
   return rows[0];
 }
 
-async function setPreferences(userId, updates) {
+export async function setPreferences(userId: string, updates: Record<string, unknown>): Promise<PrefsRow> {
   const pool = getNotifPool();
-  const keys = [];
-  const vals = [];
+  const keys: string[] = [];
+  const vals: unknown[] = [];
   let idx = 1;
 
   for (const [key, val] of Object.entries(updates)) {
@@ -73,16 +83,16 @@ async function setPreferences(userId, updates) {
   setClauses.push(`updated_at = NOW()`);
   vals.unshift(userId);
 
-  const { rows } = await pool.query(
+  const { rows } = await pool.query<PrefsRow>(
     `UPDATE notification_preferences SET ${setClauses.join(", ")} WHERE user_id = $1 RETURNING *`,
     vals
   );
   return rows[0];
 }
 
-async function getMarketingTargets(limit = 1000) {
+export async function getMarketingTargets(limit = 1000): Promise<MarketingTarget[]> {
   const notifPool = getNotifPool();
-  const { rows: prefs } = await notifPool.query(
+  const { rows: prefs } = await notifPool.query<{ user_id: string; marketing_in_app: boolean; marketing_email: boolean }>(
     `SELECT user_id, marketing_in_app, marketing_email
      FROM notification_preferences
      WHERE marketing_in_app = true OR marketing_email = true
@@ -102,5 +112,3 @@ async function getMarketingTargets(limit = 1000) {
     email: emailMap[p.user_id] || null,
   }));
 }
-
-module.exports = { getPreferences, setPreferences, ensureDefaults, DEFAULTS, getMarketingTargets };

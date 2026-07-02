@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "~/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { signIn } from "~/lib/auth-client";
@@ -16,6 +17,8 @@ import { Separator } from "~/ui/primitives/separator";
 
 export function SignInPageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justRegistered = searchParams.get("registered") === "true";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -130,6 +133,12 @@ export function SignInPageClient() {
               Enter your credentials to access your account
             </p>
           </div>
+
+          {justRegistered && (
+            <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+              Registration successful! Please check your email to verify your account before signing in.
+            </div>
+          )}
 
           <Card className="border-none shadow-sm">
             <CardContent className="pt-2">

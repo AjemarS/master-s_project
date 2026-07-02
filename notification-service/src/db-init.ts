@@ -1,6 +1,6 @@
-const { getNotifPool } = require("./db");
+import { getNotifPool } from "./db";
 
-async function initTables() {
+export async function initTables(): Promise<void> {
   const pool = getNotifPool();
   const client = await pool.connect();
   try {
@@ -68,5 +68,3 @@ async function initTables() {
     client.release();
   }
 }
-
-module.exports = { initTables };

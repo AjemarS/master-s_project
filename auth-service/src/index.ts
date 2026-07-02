@@ -6,6 +6,7 @@ import { auth, pool } from "./auth";
 import logger from "./logger";
 import dotenv from "dotenv";
 import { healthRoutes } from "./routes/healthRoutes";
+import { internalRoutes } from "./routes/internalRoutes";
 import { sessionRoutes } from "./routes/sessionRoutes";
 import { adminRoutes } from "./routes/adminRoutes";
 import { twoFactorRoutes } from "./routes/twoFactorRoutes";
@@ -78,6 +79,7 @@ export function createApp() {
   // Routes
   app.use(healthRoutes);
   app.use(openApiRouter);
+  app.use(internalRoutes);
 
   // Sign-in rate limiter intercept (before Better Auth handler)
   app.use("/auth/sign-in/email", async (req: Request, res: Response, next: NextFunction) => {

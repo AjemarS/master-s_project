@@ -2,24 +2,31 @@
   "name": "notification-service",
   "version": "1.0.0",
   "description": "Email notification service for TechHub",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test": "vitest run"
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "migrate": "node-pg-migrate --migration-file-language sql --migrations-dir ./migrations --envVar NOTIFICATIONS_DATABASE_URL up"
   },
   "dependencies": {
     "amqplib": "^0.10.7",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "ioredis": "^5.6.1",
+    "node-pg-migrate": "^7.0.0",
     "pg": "^8.22.0",
-    "resend": "^4.0.0"
+    "resend": "^4.0.0",
+    "tsx": "^4.19.0",
+    "winston": "^3.19.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "devDependencies": {
+    "@types/amqplib": "^0.10.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^4.17.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.7.0",
     "vitest": "^4.1.9"
   }
 }

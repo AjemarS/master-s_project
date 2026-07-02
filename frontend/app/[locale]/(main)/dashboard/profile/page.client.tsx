@@ -27,6 +27,19 @@ export function ProfilePageClient() {
 
   const [name, setName] = useState(user?.name || "");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+
+  const handleSendVerificationEmail = async () => {
+    setVerifyingEmail(true);
+    try {
+      await authClient.sendVerificationEmail({ email: user?.email || "" });
+      toast.success(t("verificationEmailSent"));
+    } catch {
+      toast.error(t("verificationEmailFailed"));
+    } finally {
+      setVerifyingEmail(false);
+    }
+  };
 
   if (isPending) {
     return (
@@ -162,6 +175,32 @@ export function ProfilePageClient() {
               <Button disabled={savingProfile} onClick={handleSaveProfile}>
                 {savingProfile ? tCommon("loading") : t("saveChanges")}
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("emailVerified")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    user?.emailVerified ? "bg-green-500" : "bg-amber-500"
+                  }`}
+                />
+                <span className="text-sm font-medium">
+                  {user?.emailVerified ? t("emailVerified") : t("emailNotVerified")}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {user?.emailVerified ? t("emailVerifiedDesc") : t("emailNotVerifiedDesc")}
+              </p>
+              {!user?.emailVerified && (
+                <Button disabled={verifyingEmail} onClick={handleSendVerificationEmail} variant="outline">
+                  {verifyingEmail ? tCommon("loading") : t("sendVerificationEmail")}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
