@@ -159,13 +159,15 @@ export const orderApi = {
     return apiCall(`${ORDERS_API_URL}/${id}/pay/`, { method: "POST" });
   },
 
-  async getAll(params?: { page?: number; status?: string; channel?: string }): Promise<
+  async getAll(params?: { page?: number; status?: string; channel?: string; search?: string; ordering?: string }): Promise<
     ApiResponse<{ results: Order[]; count: number; next: string | null; previous: string | null }>
   > {
     const q = new URLSearchParams();
     if (params?.page) q.append("page", String(params.page));
     if (params?.status) q.append("status", params.status);
     if (params?.channel) q.append("channel", params.channel);
+    if (params?.search) q.append("search", params.search);
+    if (params?.ordering) q.append("ordering", params.ordering);
     return apiCall(`${ORDERS_API_URL}/${q.toString() ? `?${q}` : ""}`);
   },
 
@@ -188,6 +190,10 @@ export const orderApi = {
     items: { product_id: number; quantity: number; price: number }[];
   }): Promise<ApiResponse<OrderDetail>> {
     return apiCall(`${ORDERS_API_URL}/pos/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async cancel(id: number): Promise<ApiResponse<OrderDetail>> {
+    return apiCall(`${ORDERS_API_URL}/${id}/cancel/`, { method: "POST" });
   },
 };
 

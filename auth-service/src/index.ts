@@ -48,10 +48,9 @@ export function createApp() {
   const app = express();
 
   const corsOrigins = (() => {
-    const origins = ["http://localhost", "http://localhost:3000"];
     const fe = process.env.FRONTEND_URL;
-    if (fe && !origins.includes(fe)) origins.push(fe);
-    return origins;
+    if (fe) return [fe, fe.replace(/:\d+$/, "")];
+    return ["http://localhost", "http://localhost:3000", "http://localhost:3001"];
   })();
 
   app.use(cors({ origin: corsOrigins, credentials: true }));
@@ -129,12 +128,14 @@ export function createApp() {
   });
 
   // Global error handler
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    logger.error("Unhandled Express error", { error: err.message, stack: err.stack });
-    if (!res.headersSent) res.status(500).json({ success: false, message: "Internal Server Error" });
+  app.use((err: Error & { status?: number; statusCode?: number }, _req: Request, res: Response, _next: NextFunction) => {
+    const statusCode = err.status || err.statusCode || 500;
+    const message = statusCode < 500 ? err.message : "Internal Server Error";
+    logger.error("Unhandled Express error", { error: err.message, stack: err.stack, statusCode });
+    if (!res.headersSent) res.status(statusCode).json({ success: false, message });
   });
 
-  app.all("/", async (_req: Request, res: Response) => { res.redirect("http://localhost/"); });
+  app.all("/", async (_req: Request, res: Response) => { res.redirect(process.env.FRONTEND_URL || "http://localhost/"); });
 
   return app;
 }

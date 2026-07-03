@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "~/i18n/navigation";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, Package, ChevronDown, ChevronUp, Archive } from "lucide-react";
+import { AlertCircle, Package, ChevronDown, ChevronUp, Archive, XCircle } from "lucide-react";
 import { orderApi } from "~/lib/api/admin-api";
 import { formatCurrency } from "~/lib/utils/format";
+import { getAllowedTransitions } from "~/lib/utils/order-status";
 import type { Order, OrderDetail } from "~/lib/types";
 import { TableSkeleton } from "../../admin/components";
 
@@ -69,6 +71,18 @@ export function MyOrdersClient() {
     return () => clearTimeout(id);
   }, [now]);
 
+  const handleCancel = async (orderId: number) => {
+    try {
+      const res = await orderApi.cancel(orderId);
+      if (res.error) throw new Error(res.error.message);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" as const } : o))
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel order");
+    }
+  };
+
   const sorted = useMemo(
     () => [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [orders]
@@ -120,7 +134,12 @@ export function MyOrdersClient() {
                 </td>
                 <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(order.total_amount)}</td>
                 <td className="p-4 text-sm text-slate-600 dark:text-slate-400">{new Date(order.created_at).toLocaleDateString("uk-UA")}</td>
-                <td className="p-4 text-right">
+                <td className="p-4 text-right flex items-center justify-end gap-1">
+                  {getAllowedTransitions(order.status).includes("cancelled") && (
+                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => handleCancel(order.id)}>
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => toggleExpand(order.id)}>
                     {expandedId === order.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </Button>

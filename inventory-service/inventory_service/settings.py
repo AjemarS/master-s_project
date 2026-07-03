@@ -27,6 +27,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "shared_auth.audit_middleware.AuditMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -90,6 +91,7 @@ from shared_auth.settings_base import BASE_REST_FRAMEWORK, BASE_SPECTACULAR_SETT
 REST_FRAMEWORK = {**BASE_REST_FRAMEWORK}
 
 PRODUCT_SERVICE_URL = os.environ.get("PRODUCT_SERVICE_URL", "http://product-service:8000")
+AUDIT_SERVICE_URL = os.environ.get("AUDIT_SERVICE_URL", "http://audit-service:8005")
 LOW_STOCK_THRESHOLD = int(os.environ.get("LOW_STOCK_THRESHOLD", "5"))
 
 SPECTACULAR_SETTINGS = {

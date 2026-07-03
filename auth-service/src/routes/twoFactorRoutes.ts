@@ -4,11 +4,10 @@ import { auth } from "../auth";
 import { requireAuth } from "../middleware/authMiddleware";
 import { validate } from "../middleware/validate";
 import { enableTwoFactorSchema, disableTwoFactorSchema } from "../validation/schemas";
-import logger from "../logger";
 
 const router = express.Router();
 
-router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req, res) => {
+router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req, res, next) => {
   try {
     const { password, issuer } = req.body;
     await auth.api.enableTwoFactor({
@@ -17,13 +16,11 @@ router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req,
     });
     return res.json({ success: true, message: "Two-factor authentication enabled." });
   } catch (error: unknown) {
-    const msg = (error as Error).message || "Failed to enable 2FA";
-    logger.error("Enable 2FA failed", { error: msg });
-    return res.status(400).json({ success: false, message: msg });
+    return res.status(400).json({ success: false, message: (error as Error).message || "Failed to enable 2FA" });
   }
 });
 
-router.post("/disable", requireAuth, validate(disableTwoFactorSchema), async (req, res) => {
+router.post("/disable", requireAuth, validate(disableTwoFactorSchema), async (req, res, next) => {
   try {
     const { password } = req.body;
     await auth.api.disableTwoFactor({
@@ -32,9 +29,7 @@ router.post("/disable", requireAuth, validate(disableTwoFactorSchema), async (re
     });
     return res.json({ success: true, message: "Two-factor authentication disabled." });
   } catch (error: unknown) {
-    const msg = (error as Error).message || "Failed to disable 2FA";
-    logger.error("Disable 2FA failed", { error: msg });
-    return res.status(400).json({ success: false, message: msg });
+    return res.status(400).json({ success: false, message: (error as Error).message || "Failed to disable 2FA" });
   }
 });
 

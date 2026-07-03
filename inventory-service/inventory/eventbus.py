@@ -38,52 +38,7 @@ def _check_and_publish_low_stock(product_id, warehouse_id, quantity, warehouse_n
             "warehouse_name": warehouse_name,
             "quantity": quantity,
         })
-        logger.info("Low stock alert | product=%s warehouse=%s qty=%d", product_id, warehouse_id, quantity)
-
-
-def _handle_order_created(event):
-    from .models import Stock, StockMovement
-    order_id = event.get("order_id")
-    warehouse_id = event.get("warehouse_id")
-    items = event.get("items", [])
-    if not warehouse_id or not items:
-        logger.warning("order.created missing warehouse_id or items")
-        return
-    for item in items:
-        product_id = item.get("product_id")
-        quantity = item.get("quantity", 0)
-        try:
-            stock = Stock.objects.select_for_update().get(product_id=product_id, warehouse_id=warehouse_id)
-            available = stock.quantity - stock.reserved
-            if available >= quantity:
-                Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(reserved=F("reserved") + quantity)
-                StockMovement.objects.create(product_id=product_id, from_warehouse_id=warehouse_id, quantity=quantity, type=StockMovement.RESERVE, reference_type="order", reference_id=str(order_id))
-                logger.info("Async reserve | product=%s warehouse=%s qty=%d", product_id, warehouse_id, quantity)
-            else:
-                logger.warning("Async reserve insufficient | product=%s available=%d needed=%d", product_id, available, quantity)
-        except Stock.DoesNotExist:
-            logger.warning("Async reserve no stock | product=%s warehouse=%s", product_id, warehouse_id)
-
-
-def _handle_order_cancelled(event):
-    from .models import Stock, StockMovement
-    order_id = event.get("order_id")
-    warehouse_id = event.get("warehouse_id")
-    items = event.get("items", [])
-    if not warehouse_id or not items:
-        return
-    for item in items:
-        product_id = item.get("product_id")
-        quantity = item.get("quantity", 0)
-        try:
-            stock = Stock.objects.select_for_update().get(product_id=product_id, warehouse_id=warehouse_id)
-            release_qty = min(quantity, stock.reserved)
-            if release_qty > 0:
-                Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(reserved=F("reserved") - release_qty)
-                StockMovement.objects.create(product_id=product_id, from_warehouse_id=warehouse_id, quantity=release_qty, type=StockMovement.RELEASE, reference_type="order", reference_id=str(order_id))
-                logger.info("Async release | product=%s warehouse=%s qty=%d", product_id, warehouse_id, release_qty)
-        except Stock.DoesNotExist:
-            pass
+        logger.warning("Low stock alert | product=%s warehouse=%s qty=%d", product_id, warehouse_id, quantity)
 
 
 def _handle_event(routing_key, event, event_id):
@@ -98,9 +53,11 @@ def _handle_event(routing_key, event, event_id):
         dedup_claim(event_id, ProcessedEvent)
         if routing_key == "order.created":
             logger.info("order.created received (async reserve)")
-            _handle_order_created(event)
+            from .stock_service import async_reserve
+            async_reserve(event.get("order_id"), event.get("warehouse_id"), event.get("items", []))
         elif routing_key == "order.cancelled":
-            _handle_order_cancelled(event)
+            from .stock_service import async_release
+            async_release(event.get("order_id"), event.get("warehouse_id"), event.get("items", []))
 
 
 QUEUE_MAP = {

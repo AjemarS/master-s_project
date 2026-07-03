@@ -55,7 +55,7 @@ async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiRe
 
       return {
         error: {
-          message: errorData.message || errorData.detail || "Request failed",
+          message: errorData.message || errorData.detail || errorData.error || "Request failed",
           status: response.status,
           details: errorData,
         },

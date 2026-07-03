@@ -50,7 +50,7 @@ router.get("/api/notifications", requireOwnUserId, async (req: Request, res: Res
     });
     res.json(result);
   } catch (err) {
-    logger.error(`[error] GET /api/notifications: ${(err as Error).message}`);
+    logger.error("GET /api/notifications failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -60,7 +60,7 @@ router.get("/api/notifications/unread/:userId", requireOwnUserId, async (req: Re
     const count = await notifDb.getUnreadCount(req.params.userId);
     res.json({ count });
   } catch (err) {
-    logger.error(`[error] GET /api/notifications/unread: ${(err as Error).message}`);
+    logger.error("GET /api/notifications/unread failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -72,7 +72,7 @@ router.patch("/api/notifications/:id/read", requireGatewayId, async (req: Reques
     if (!notif) { res.status(404).json({ error: "Notification not found" }); return; }
     res.json(notif);
   } catch (err) {
-    logger.error(`[error] PATCH /api/notifications/:id/read: ${(err as Error).message}`);
+    logger.error("PATCH /api/notifications/:id/read failed", { error: (err as Error).message, id: req.params.id });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -82,7 +82,7 @@ router.patch("/api/notifications/read-all/:userId", requireOwnUserId, async (req
     await notifDb.markAllRead(req.params.userId);
     res.json({ success: true });
   } catch (err) {
-    logger.error(`[error] PATCH /api/notifications/read-all: ${(err as Error).message}`);
+    logger.error("PATCH /api/notifications/read-all failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -94,7 +94,7 @@ router.post("/api/notifications/:id/dismiss", requireGatewayId, async (req: Requ
     if (!notif) { res.status(404).json({ error: "Notification not found" }); return; }
     res.json(notif);
   } catch (err) {
-    logger.error(`[error] POST /api/notifications/:id/dismiss: ${(err as Error).message}`);
+    logger.error("POST /api/notifications/:id/dismiss failed", { error: (err as Error).message, id: req.params.id });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -104,7 +104,7 @@ router.delete("/api/notifications/:userId", requireOwnUserId, async (req: Reques
     await notifDb.clearAll(req.params.userId);
     res.json({ success: true });
   } catch (err) {
-    logger.error(`[error] DELETE /api/notifications/:userId: ${(err as Error).message}`);
+    logger.error("DELETE /api/notifications/:userId failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -114,7 +114,7 @@ router.get("/api/notifications/preferences/:userId", requireOwnUserId, async (re
     const prefs = await prefsDb.getPreferences(req.params.userId);
     res.json(prefs);
   } catch (err) {
-    logger.error(`[error] GET /api/notifications/preferences: ${(err as Error).message}`);
+    logger.error("GET /api/notifications/preferences failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -124,7 +124,7 @@ router.patch("/api/notifications/preferences/:userId", requireOwnUserId, async (
     const prefs = await prefsDb.setPreferences(req.params.userId, req.body);
     res.json(prefs);
   } catch (err) {
-    logger.error(`[error] PATCH /api/notifications/preferences: ${(err as Error).message}`);
+    logger.error("PATCH /api/notifications/preferences failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -189,11 +189,11 @@ router.post("/api/notifications/marketing", rateLimit({ max: 5, windowMs: 60000 
     const created = results.filter(r => r.status === "fulfilled").length;
     const failed = results.filter(r => r.status === "rejected");
     if (failed.length > 0) {
-      logger.error(`[marketing] ${failed.length}/${tasks.length} tasks failed`);
+      logger.error("Marketing push partial failure", { failed: failed.length, total: tasks.length });
     }
     res.json({ success: true, created, total: tasks.length });
   } catch (err) {
-    logger.error(`[error] POST /api/notifications/marketing: ${(err as Error).message}`);
+    logger.error("POST /api/notifications/marketing failed", { error: (err as Error).message });
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -27,6 +27,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "shared_auth.audit_middleware.AuditMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -88,12 +89,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 INVENTORY_SERVICE_URL = os.environ.get(
     "INVENTORY_SERVICE_URL", "http://inventory-service:8001"
 )
+AUDIT_SERVICE_URL = os.environ.get(
+    "AUDIT_SERVICE_URL", "http://audit-service:8005"
+)
 
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "http://localhost")
 
 from shared_auth.settings_base import BASE_REST_FRAMEWORK, BASE_SPECTACULAR_SETTINGS
 
-REST_FRAMEWORK = {**BASE_REST_FRAMEWORK}
+REST_FRAMEWORK = {
+    **BASE_REST_FRAMEWORK,
+    "COERCE_DECIMAL_TO_STRING": False,
+}
 
 SPECTACULAR_SETTINGS = {
     **BASE_SPECTACULAR_SETTINGS,

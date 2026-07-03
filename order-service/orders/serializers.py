@@ -1,6 +1,30 @@
+import logging
+
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from .models import Order, OrderItem
+
+logger = logging.getLogger(__name__)
+
+
+def _validate_stock(data):
+    warehouse_id = data.get("warehouse_id")
+    items = data.get("items", [])
+    if not warehouse_id or not items:
+        return
+    for item in items:
+        ok, msg = check_availability(
+            product_id=item["product_id"],
+            warehouse_id=warehouse_id,
+            quantity=item["quantity"],
+        )
+        if ok is False:
+            raise ValidationError(
+                f"Product {item.get('product_name', item['product_id'])}: {msg}"
+            )
+        if ok is None:
+            logger.warning("Stock check unavailable for product=%s", item["product_id"])
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -110,6 +134,21 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("At least one item is required.")
         return value
 
+<<<<<<< Updated upstream
+=======
+    def validate_warehouse_id(self, value):
+        channel = self.initial_data.get("channel", Order.ONLINE)
+        if channel == Order.OFFLINE and not value:
+            raise serializers.ValidationError(
+                "Warehouse is required for offline (POS) orders."
+            )
+        return value
+
+    def validate(self, data):
+        _validate_stock(data)
+        return data
+
+>>>>>>> Stashed changes
 
 class OrderStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Order.STATUS_CHOICES)
@@ -131,3 +170,7 @@ class POSOrderSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("At least one item is required.")
         return value
+
+    def validate(self, data):
+        _validate_stock(data)
+        return data

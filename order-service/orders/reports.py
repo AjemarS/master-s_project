@@ -85,19 +85,31 @@ def revenue_report(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def inventory_value_report(request):
+<<<<<<< Updated upstream
+=======
+    """Inventory value report based on delivered/completed orders' cost data."""
+    completed_orders = Order.objects.filter(status__in=["delivered", "completed"])
+>>>>>>> Stashed changes
     items_by_product = (
-        OrderItem.objects.values("product_id", "product_name")
+        OrderItem.objects.filter(order__in=completed_orders)
+        .values("product_id", "product_name")
         .annotate(
             total_quantity=Sum("quantity"),
             total_cost=Sum(F("cost_price") * F("quantity")),
         )
         .order_by("-total_cost")
     )
+<<<<<<< Updated upstream
 
     total_inventory_value = sum(
         item["total_cost"] for item in items_by_product
     )
 
+=======
+    total_inventory_value = items_by_product.aggregate(
+        total=Sum(F("cost_price") * F("quantity")),
+    )["total"] or 0
+>>>>>>> Stashed changes
     return Response({
         "total_value": float(total_inventory_value),
         "item_count": len(items_by_product),

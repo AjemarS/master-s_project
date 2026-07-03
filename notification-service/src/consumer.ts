@@ -45,16 +45,16 @@ async function handleOrderEvent(routingKey: string, event: Record<string, unknow
   const total_amount = event.total_amount as string | undefined;
   const status = event.status as string | undefined;
 
-  let type: string | undefined;
-  if (routingKey === "order.created") type = "order_confirmed";
-  else if (routingKey === "order.cancelled") type = "order_cancelled";
-  else if (routingKey === "order.status_changed") {
-    if (status === "delivered") type = "order_delivered";
-    else type = "order_shipped";
-  }
+  const typeMap: Record<string, string | ((status?: string) => string)> = {
+    "order.created": "order_confirmed",
+    "order.cancelled": "order_cancelled",
+    "order.status_changed": (s?: string) => s === "delivered" ? "order_delivered" : "order_shipped",
+  };
+  const mapped = typeMap[routingKey];
+  const type = typeof mapped === "function" ? mapped(status) : mapped;
 
   if (!type) {
-    logger.info(`[skip] Unknown order event type for ${routingKey}`);
+    logger.info("Unknown order event type", { routingKey });
     return;
   }
 
@@ -63,7 +63,7 @@ async function handleOrderEvent(routingKey: string, event: Record<string, unknow
     try {
       user = await admin.getUserById(event.user_id as string);
     } catch (err) {
-      logger.error(`[error] Failed to look up user by id: ${(err as Error).message}`);
+      logger.error("Failed to look up user by id", { error: (err as Error).message, userId: event.user_id });
     }
     if (!user) {
       user = { id: event.user_id as string };
@@ -72,7 +72,7 @@ async function handleOrderEvent(routingKey: string, event: Record<string, unknow
     try {
       user = await admin.getUserByEmail(customer_email);
     } catch (err) {
-      logger.error(`[error] Failed to look up user by email: ${(err as Error).message}`);
+      logger.error("Failed to look up user by email", { error: (err as Error).message, email: customer_email });
     }
   }
 
@@ -99,7 +99,7 @@ async function handleOrderEvent(routingKey: string, event: Record<string, unknow
   } else if (customer_email) {
     await sendEmail(customer_email, subject, html);
   } else {
-    logger.info(`[skip] No recipient for ${routingKey} event ${eventId || "?"}`);
+    logger.info("No recipient for event", { routingKey, eventId: eventId || null });
   }
 }
 
@@ -111,7 +111,7 @@ async function handleLowStock(event: Record<string, unknown>, eventId?: string):
   if (ADMIN_EMAIL) {
     await sendEmail(ADMIN_EMAIL, subject, html);
   } else {
-    logger.warn(`[skip] ADMIN_EMAIL not configured — low stock alert lost for product #${event.product_id}`);
+    logger.warn("ADMIN_EMAIL not set — low stock alert lost", { product_id: event.product_id });
   }
 
   try {
@@ -132,21 +132,21 @@ async function handleLowStock(event: Record<string, unknown>, eventId?: string):
       }
     }
   } catch (err) {
-    logger.error(`[error] Failed to create low_stock in-app notifications: ${(err as Error).message}`);
+    logger.error("Failed to create low_stock in-app notifications", { error: (err as Error).message });
   }
 }
 
 export async function handleEvent(routingKey: string, event: Record<string, unknown>, eventId?: string): Promise<void> {
   if (eventId) {
     if (processedIds.has(eventId)) {
-      logger.info(`[dedup] Skipping ${eventId} (in-memory)`);
+      logger.info("Duplicate event skipped (in-memory)", { eventId });
       return;
     }
     const inserted = await events.markProcessed(eventId);
     if (!inserted) {
       processedIds.add(eventId);
       setTimeout(() => processedIds.delete(eventId), DEDUP_TTL);
-      logger.info(`[dedup] Skipping ${eventId} (db)`);
+      logger.info("Duplicate event skipped (db)", { eventId });
       return;
     }
     processedIds.add(eventId);
@@ -154,14 +154,19 @@ export async function handleEvent(routingKey: string, event: Record<string, unkn
   }
 
   if (!TEMPLATES[routingKey]) {
-    logger.info(`[unknown] No template for ${routingKey}`);
+    logger.info("No template for routing key", { routingKey });
     return;
   }
 
-  if (routingKey === "inventory.low_stock") {
-    await handleLowStock(event, eventId);
-  } else if (["order.created", "order.status_changed", "order.cancelled"].includes(routingKey)) {
-    await handleOrderEvent(routingKey, event, eventId);
+  const handlers: Record<string, (event: Record<string, unknown>, eventId?: string) => Promise<void>> = {
+    "inventory.low_stock": handleLowStock,
+    "order.created": handleOrderEvent,
+    "order.status_changed": handleOrderEvent,
+    "order.cancelled": handleOrderEvent,
+  };
+  const handler = handlers[routingKey];
+  if (handler) {
+    await handler(event, eventId);
   }
 }
 
@@ -173,14 +178,14 @@ export async function startConsumer(): Promise<void> {
   connection.on("close", () => {
     reconnectAttempt++;
     const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt - 1), RECONNECT_MAX) + Math.random() * 1000;
-    logger.error(`[rabbitmq] Connection closed — reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttempt})`);
+    logger.error("RabbitMQ connection closed — reconnecting", { delay: Math.round(delay), attempt: reconnectAttempt });
     channel = null;
     setTimeout(startConsumer, delay);
   });
   connection.on("error", (err) => {
     reconnectAttempt++;
     const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt - 1), RECONNECT_MAX) + Math.random() * 1000;
-    logger.error(`[rabbitmq] Connection error: ${err.message} — reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttempt})`);
+    logger.error("RabbitMQ connection error", { error: err.message, delay: Math.round(delay), attempt: reconnectAttempt });
     channel = null;
     setTimeout(startConsumer, delay);
   });
@@ -192,7 +197,7 @@ export async function startConsumer(): Promise<void> {
     await channel.assertQueue(queue, { durable: true });
     const routingKey = BINDINGS[queue];
     await channel.bindQueue(queue, EXCHANGE, routingKey);
-    logger.info(`[queue] Bound ${queue} <- ${routingKey}`);
+    logger.info("Queue bound", { queue, routingKey });
   }
 
   function createConsumer(queue: string, routingKey: string): void {
@@ -202,7 +207,7 @@ export async function startConsumer(): Promise<void> {
       try {
         event = JSON.parse(msg.content.toString());
       } catch (err) {
-        logger.error(`[error] Failed to parse message on ${queue}: ${(err as Error).message}`);
+        logger.error("Failed to parse message", { queue, error: (err as Error).message });
         channel!.nack(msg, false, false);
         return;
       }
@@ -210,7 +215,7 @@ export async function startConsumer(): Promise<void> {
         await handleEvent(routingKey, event, event.event_id as string || msg.properties.messageId?.toString());
         channel!.ack(msg);
       } catch (err) {
-        logger.error(`[error] Failed processing ${routingKey}: ${(err as Error).message}`);
+        logger.error("Failed processing event", { routingKey, error: (err as Error).message });
         channel!.ack(msg);
       }
     });
@@ -221,7 +226,7 @@ export async function startConsumer(): Promise<void> {
   createConsumer("notification.order.cancelled", "order.cancelled");
   createConsumer("notification.low_stock", "inventory.low_stock");
 
-  logger.info(`[ready] Notification service consuming events`);
+  logger.info("Notification service consuming events");
 }
 
 export function getHealthStatus(): { connected: boolean } {

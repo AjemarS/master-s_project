@@ -39,11 +39,13 @@ export function useCategories() {
   return useApiGet<{ results: Category[]; count: number }>("/categories", () => categoryApi.getAll());
 }
 
-export function useOrders(params?: { page?: number; status?: string; channel?: string }) {
+export function useOrders(params?: { page?: number; status?: string; channel?: string; search?: string; ordering?: string }) {
   const q = new URLSearchParams();
   if (params?.page) q.append("page", String(params.page));
   if (params?.status) q.append("status", params.status);
   if (params?.channel) q.append("channel", params.channel);
+  if (params?.search) q.append("search", params.search);
+  if (params?.ordering) q.append("ordering", params.ordering);
   return useApiGet<{ results: Order[]; count: number; next: string | null; previous: string | null }>(
     `/orders/?${q}`, () => orderApi.getAll(params)
   );
