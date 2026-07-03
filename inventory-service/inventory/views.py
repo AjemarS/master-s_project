@@ -5,12 +5,16 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
+<<<<<<< Updated upstream
 from rest_framework import filters, status, viewsets
+=======
+from rest_framework import filters, permissions, status, views, viewsets
+>>>>>>> Stashed changes
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from .eventbus import publish_event
+from .eventbus import publish_event, _check_and_publish_low_stock
 from .filters import StockFilter, StockMovementFilter
 from .models import GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
 from shared_auth.permissions import IsAdminOrWarehouseWorker
@@ -26,26 +30,53 @@ from .serializers import (
     TransferStockSerializer,
     WarehouseSerializer,
 )
-
 logger = logging.getLogger(__name__)
 
-LOW_STOCK_THRESHOLD = getattr(settings, "LOW_STOCK_THRESHOLD", 5)
 
+def _stock_action(request, serializer_cls, movement_type, check_and_update, post_action=None):
+    serializer = serializer_cls(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
-def _check_and_publish_low_stock(product_id: int, warehouse_id: int, quantity: int, warehouse_name: str = ""):
-    """Publish inventory.low_stock if quantity is at or below threshold."""
-    if quantity <= LOW_STOCK_THRESHOLD:
-        publish_event(
-            "inventory.low_stock",
-            {
-                "event_id": str(uuid4()),
-                "product_id": product_id,
-                "warehouse_id": warehouse_id,
-                "warehouse_name": warehouse_name,
-                "quantity": quantity,
-            },
+    product_id = serializer.validated_data["product_id"]
+    warehouse_id = serializer.validated_data["warehouse_id"]
+    quantity = serializer.validated_data["quantity"]
+    reference_type = serializer.validated_data.get("reference_type", "order")
+    reference_id = serializer.validated_data.get("reference_id", "")
+    idempotency_key = serializer.validated_data.get("idempotency_key", "")
+
+    if idempotency_key:
+        existing = StockMovement.objects.filter(
+            idempotency_key=idempotency_key,
+            type=movement_type,
+        ).exists()
+        if existing:
+            stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+            return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
+
+    with transaction.atomic():
+        stock = Stock.objects.select_for_update().get(
+            product_id=product_id, warehouse_id=warehouse_id
         )
-        logger.info("Low stock alert | product=%s warehouse=%s qty=%d", product_id, warehouse_id, quantity)
+        error = check_and_update(stock, product_id, warehouse_id, quantity)
+        if error:
+            return Response(error, status=status.HTTP_400_BAD_REQUEST)
+
+        stock.refresh_from_db()
+
+        StockMovement.objects.create(
+            product_id=product_id,
+            from_warehouse_id=warehouse_id,
+            quantity=quantity,
+            type=movement_type,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            created_by=request.user.username if request.user.is_authenticated else "",
+        )
+
+    if post_action:
+        post_action(product_id, warehouse_id, quantity, stock)
+
+    return Response(StockSerializer(stock).data)
 
 
 class WarehouseViewSet(viewsets.ModelViewSet):
@@ -70,7 +101,7 @@ class WarehouseViewSet(viewsets.ModelViewSet):
         logger.info("Warehouse updated | id=%s name=%r", instance.pk, instance.name)
 
     def perform_destroy(self, instance):
-        logger.warning("Warehouse deleted | id=%s name=%r", instance.pk, instance.name)
+        logger.info("Warehouse deleted | id=%s name=%r", instance.pk, instance.name)
         instance.delete()
 
     @action(detail=True, methods=["get"])
@@ -107,7 +138,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         logger.info("Supplier updated | id=%s name=%r", instance.pk, instance.name)
 
     def perform_destroy(self, instance):
-        logger.warning("Supplier deleted | id=%s name=%r", instance.pk, instance.name)
+        logger.info("Supplier deleted | id=%s name=%r", instance.pk, instance.name)
         instance.delete()
 
 
@@ -130,6 +161,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def reserve(self, request):
+<<<<<<< Updated upstream
         serializer = ReserveStockSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -155,43 +187,20 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 product_id=product_id, warehouse_id=warehouse_id
             )
 
+=======
+        def check_and_update(stock, product_id, warehouse_id, quantity):
+>>>>>>> Stashed changes
             available = stock.quantity - stock.reserved
             if available < quantity:
-                return Response(
-                    {
-                        "error": "Insufficient available stock",
-                        "available": available,
-                        "requested": quantity,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return {"error": "Insufficient available stock", "available": available, "requested": quantity}
+            Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(reserved=F("reserved") + quantity)
+            logger.info("Stock reserved | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
 
-            Stock.objects.filter(
-                product_id=product_id, warehouse_id=warehouse_id
-            ).update(reserved=F("reserved") + quantity)
-            stock.refresh_from_db()
-
-            StockMovement.objects.create(
-                product_id=product_id,
-                from_warehouse_id=warehouse_id,
-                quantity=quantity,
-                type=StockMovement.RESERVE,
-                reference_type=reference_type,
-                reference_id=reference_id,
-                created_by=request.user.username if request.user.is_authenticated else "",
-            )
-
-            logger.info(
-                "Stock reserved | product=%s warehouse=%s quantity=%d",
-                product_id,
-                warehouse_id,
-                quantity,
-            )
-
-        return Response(StockSerializer(stock).data)
+        return _stock_action(request, ReserveStockSerializer, StockMovement.RESERVE, check_and_update)
 
     @action(detail=False, methods=["post"])
     def release(self, request):
+<<<<<<< Updated upstream
         serializer = ReserveStockSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -217,42 +226,19 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 product_id=product_id, warehouse_id=warehouse_id
             )
 
+=======
+        def check_and_update(stock, product_id, warehouse_id, quantity):
+>>>>>>> Stashed changes
             if stock.reserved < quantity:
-                return Response(
-                    {
-                        "error": "Cannot release more than reserved",
-                        "reserved": stock.reserved,
-                        "requested": quantity,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return {"error": "Cannot release more than reserved", "reserved": stock.reserved, "requested": quantity}
+            Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(reserved=F("reserved") - quantity)
+            logger.info("Stock released | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
 
-            Stock.objects.filter(
-                product_id=product_id, warehouse_id=warehouse_id
-            ).update(reserved=F("reserved") - quantity)
-            stock.refresh_from_db()
-
-            StockMovement.objects.create(
-                product_id=product_id,
-                from_warehouse_id=warehouse_id,
-                quantity=quantity,
-                type=StockMovement.RELEASE,
-                reference_type=reference_type,
-                reference_id=reference_id,
-                created_by=request.user.username if request.user.is_authenticated else "",
-            )
-
-            logger.info(
-                "Stock released | product=%s warehouse=%s quantity=%d",
-                product_id,
-                warehouse_id,
-                quantity,
-            )
-
-        return Response(StockSerializer(stock).data)
+        return _stock_action(request, ReserveStockSerializer, StockMovement.RELEASE, check_and_update)
 
     @action(detail=False, methods=["post"])
     def deduct(self, request):
+<<<<<<< Updated upstream
         serializer = DeductStockSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -278,63 +264,32 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 product_id=product_id, warehouse_id=warehouse_id
             )
 
+=======
+        def check_and_update(stock, product_id, warehouse_id, quantity):
+>>>>>>> Stashed changes
             available = stock.quantity - stock.reserved
             if available < quantity:
-                return Response(
-                    {
-                        "error": "Insufficient available stock",
-                        "available": available,
-                        "requested": quantity,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            Stock.objects.filter(
-                product_id=product_id, warehouse_id=warehouse_id
-            ).update(
+                return {"error": "Insufficient available stock", "available": available, "requested": quantity}
+            Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(
                 quantity=F("quantity") - quantity,
                 reserved=F("reserved") - min(stock.reserved, quantity),
             )
-            stock.refresh_from_db()
+            logger.info("Stock deducted | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
 
-            StockMovement.objects.create(
-                product_id=product_id,
-                from_warehouse_id=warehouse_id,
-                quantity=quantity,
-                type=StockMovement.DEDUCT,
-                reference_type=reference_type,
-                reference_id=reference_id,
-                created_by=request.user.username if request.user.is_authenticated else "",
-            )
-
-            logger.info(
-                "Stock deducted | product=%s warehouse=%s quantity=%d",
-                product_id,
-                warehouse_id,
-                quantity,
-            )
-
+        def post_action(product_id, warehouse_id, quantity, stock):
             def publish_stock_changed():
-                current = Stock.objects.get(
-                    product_id=product_id, warehouse_id=warehouse_id
-                )
-                publish_event(
-                    "inventory.stock.changed",
-                    {
-                        "event_id": str(uuid4()),
-                        "product_id": product_id,
-                        "warehouse_id": warehouse_id,
-                        "quantity": current.quantity,
-                        "change": -quantity,
-                    },
-                )
-                _check_and_publish_low_stock(
-                    product_id, warehouse_id, current.quantity,
-                    warehouse_name=stock.warehouse.name,
-                )
-
+                current = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+                publish_event("inventory.stock.changed", {
+                    "event_id": str(uuid4()),
+                    "product_id": product_id,
+                    "warehouse_id": warehouse_id,
+                    "quantity": current.quantity,
+                    "change": -quantity,
+                })
+                _check_and_publish_low_stock(product_id, warehouse_id, current.quantity, warehouse_name=stock.warehouse.name)
             transaction.on_commit(publish_stock_changed)
-        return Response(StockSerializer(stock).data)
+
+        return _stock_action(request, DeductStockSerializer, StockMovement.DEDUCT, check_and_update, post_action=post_action)
 
     @action(detail=False, methods=["post"])
     def transfer(self, request):

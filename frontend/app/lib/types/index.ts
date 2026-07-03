@@ -161,6 +161,7 @@ export interface Order {
   order_number: string;
   channel: "online" | "offline";
   status: "unpaid" | "paid" | "delivering" | "delivered" | "completed" | "cancelled";
+  payment_status: "unpaid" | "paid" | "refunded";
   warehouse_id: number | null;
   delivery_method: "pickup" | "nova_poshta" | "courier" | "";
   shipping_city: string;
@@ -177,6 +178,9 @@ export interface Order {
 }
 
 export interface OrderDetail extends Order {
+  stripe_session_id: string;
+  stripe_payment_intent_id: string;
+  paid_at: string | null;
   notes: string;
   items: OrderItem[];
 }

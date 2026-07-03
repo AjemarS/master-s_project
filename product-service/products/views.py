@@ -164,7 +164,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             product.refresh_from_db()
 
             if product.stock == 0:
+                from uuid import uuid4
                 publish_event("inventory.stock.critical", {
+                    "event_id": str(uuid4()),
                     "product_id": product.pk,
                     "stock": 0,
                 })
@@ -234,13 +236,17 @@ class CategoryViewSet(viewsets.ModelViewSet):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(request):
-    """Basic health check that verifies DB connectivity."""
+    """Health check with database connectivity probe."""
     try:
         connection.ensure_connection()
-        return Response({"status": "healthy"})
+        return Response({
+            "status": "healthy",
+            "service": "product-service",
+            "checks": {"database": "connected"},
+        })
     except Exception:
         logger.exception("Health check failed")
         return Response(
-            {"status": "unhealthy"},
+            {"status": "unhealthy", "service": "product-service", "checks": {"database": "disconnected"}},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )

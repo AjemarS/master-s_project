@@ -12,14 +12,12 @@ export const auth = betterAuth({
 
   secret: process.env.BETTER_AUTH_SECRET,
 
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost/auth",
+  baseURL: process.env.BETTER_AUTH_URL || (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth` : "http://localhost/auth"),
 
-  trustedOrigins: [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-  ],
+  trustedOrigins: (() => {
+    const fe = process.env.FRONTEND_URL;
+    return fe ? [fe, fe.replace(/:\d+$/, "")] : ["http://localhost", "http://localhost:3000", "http://localhost:3001"];
+  })(),
   appName: "TechHub",
   plugins: [
     admin({

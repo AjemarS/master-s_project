@@ -16,10 +16,23 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
 };
 
+export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
+  unpaid: ["paid", "cancelled"],
+  paid: ["delivering", "cancelled"],
+  delivering: ["delivered", "cancelled"],
+  delivered: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+};
+
 export function orderStatusLabel(status: string): string {
   return ORDER_STATUS_LABELS[status] || status;
 }
 
 export function orderChannelLabel(channel: string): string {
   return channel === "online" ? "Онлайн" : channel === "offline" ? "POS" : channel;
+}
+
+export function getAllowedTransitions(status: string): string[] {
+  return ORDER_STATUS_TRANSITIONS[status] || [];
 }

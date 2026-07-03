@@ -1,39 +1,15 @@
 import logging
 
-import requests
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
 from orders.eventbus import publish_event
+from orders.event_builder import build_order_event
+from orders.inventory_client import release_stock as release_inventory_stock
 from orders.models import Order
 
 logger = logging.getLogger(__name__)
-
-
-def _build_order_event(order):
-    from uuid import uuid4
-
-    return {
-        "event_id": str(uuid4()),
-        "order_id": order.id,
-        "order_number": order.order_number,
-        "channel": order.channel,
-        "status": order.status,
-        "warehouse_id": order.warehouse_id,
-        "total_amount": str(order.total_amount),
-        "customer_email": order.customer_email,
-        "items": [
-            {
-                "product_id": item.product_id,
-                "product_name": item.product_name,
-                "quantity": item.quantity,
-                "price": str(item.price),
-            }
-            for item in order.items.all()
-        ],
-    }
 
 
 class Command(BaseCommand):
@@ -60,7 +36,7 @@ class Command(BaseCommand):
         stuck = Order.objects.filter(
             status=Order.PAID,
             paid_at__lt=cutoff,
-        )
+        ).prefetch_related("items")
 
         self.stdout.write(f"Found {stuck.count()} stuck orders (paid > {timeout_minutes} min ago)")
 
@@ -85,7 +61,7 @@ class Command(BaseCommand):
             order.save(update_fields=["status", "payment_status"])
 
             transaction.on_commit(
-                lambda: publish_event("order.cancelled", _build_order_event(order))
+                lambda o=order: publish_event("order.cancelled", build_order_event(o))
             )
 
         self.stdout.write(self.style.SUCCESS(f"    Cancelled"))
@@ -95,27 +71,11 @@ class Command(BaseCommand):
             return
 
         for item in order.items.all():
-            url = f"{settings.INVENTORY_SERVICE_URL}/api/stock/release/"
-            try:
-                resp = requests.post(
-                    url,
-                    json={
-                        "product_id": item.product_id,
-                        "warehouse_id": order.warehouse_id,
-                        "quantity": item.quantity,
-                        "reference_type": "order",
-                        "reference_id": str(order.id),
-                        "idempotency_key": f"release-{order.id}-{item.product_id}",
-                    },
-                    timeout=10,
-                )
-                if resp.status_code not in (200, 201, 409):
-                    logger.warning(
-                        "Release failed | order=%s product=%s status=%s",
-                        order.order_number, item.product_id, resp.status_code,
-                    )
-            except requests.RequestException as e:
-                logger.error(
-                    "Release request failed | order=%s product=%s error=%s",
-                    order.order_number, item.product_id, e,
-                )
+            release_inventory_stock(
+                product_id=item.product_id,
+                warehouse_id=order.warehouse_id,
+                quantity=item.quantity,
+                reference_type="order",
+                reference_id=str(order.id),
+                idempotency_key=f"release-{order.id}-{item.product_id}",
+            )

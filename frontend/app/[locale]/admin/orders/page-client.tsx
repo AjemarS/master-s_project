@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AdminPageHeader, DataTable } from "../components";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
+import { Input } from "~/ui/primitives/input";
 import {
   ShoppingCart,
   ChevronDown,
   Package,
+  Search,
+  ArrowUpDown,
+  Loader2,
 } from "lucide-react";
 import { orderApi } from "~/lib/api/admin-api";
 import type { Order, OrderDetail } from "~/lib/types";
@@ -18,8 +22,9 @@ import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
 import { formatCurrency, formatDate } from "~/lib/utils/format";
-import { orderStatusLabel, orderChannelLabel } from "~/lib/utils/order-status";
+import { orderStatusLabel, orderChannelLabel, getAllowedTransitions } from "~/lib/utils/order-status";
 import { useOrders, useUpdateOrderStatus } from "~/lib/hooks/use-api-data";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -73,6 +78,8 @@ export function AdminOrdersClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [channelFilter, setChannelFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [ordering, setOrdering] = useState("-created_at");
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
 
@@ -80,7 +87,14 @@ export function AdminOrdersClient() {
     page: currentPage,
     status: statusFilter || undefined,
     channel: channelFilter || undefined,
+    search: searchTerm || undefined,
+    ordering,
   });
+
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
 
   const { trigger: updateOrderStatus } = useUpdateOrderStatus();
 
@@ -152,7 +166,7 @@ export function AdminOrdersClient() {
         </div>
 
         {/* Channel Filter Tabs */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-2 flex flex-wrap gap-2">
           {CHANNEL_TABS.map((tab) => (
             <Button
               key={tab.value}
@@ -166,6 +180,32 @@ export function AdminOrdersClient() {
               {tab.label}
             </Button>
           ))}
+        </div>
+
+        {/* Search + Ordering */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder={t("searchOrders")}
+              value={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={ordering} onValueChange={(v) => { setOrdering(v); setCurrentPage(1); }}>
+            <SelectTrigger className="w-[180px]">
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="-created_at">{t("newest")}</SelectItem>
+              <SelectItem value="created_at">{t("oldest")}</SelectItem>
+              <SelectItem value="-total_amount">{t("highestAmount")}</SelectItem>
+              <SelectItem value="total_amount">{t("lowestAmount")}</SelectItem>
+              <SelectItem value="status">{t("byStatus")}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <Card className="dark:bg-slate-800/80 dark:border-slate-700">
@@ -235,7 +275,7 @@ export function AdminOrdersClient() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          {STATUS_UPDATE_OPTIONS.filter((opt) => opt.value !== order.status).map((opt) => (
+                          {STATUS_UPDATE_OPTIONS.filter((opt) => getAllowedTransitions(order.status).includes(opt.value)).map((opt) => (
                             <DropdownMenuItem key={opt.value} onClick={() => handleStatusUpdate(order.id, opt.value)}>
                               {opt.label}
                             </DropdownMenuItem>

@@ -24,7 +24,7 @@ def publish_event(routing_key, event_data):
             ),
         )
         logger.info("Event published | key=%s event_id=%s", routing_key, event_id)
-        return True
+        return True, None
     except Exception as e:
         logger.error("Event publish failed | key=%s error=%s", routing_key, e)
-        return False
+        return False, str(e)

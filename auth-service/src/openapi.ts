@@ -13,8 +13,8 @@ const spec: Record<string, unknown> = {
     ].join("\n\n"),
   },
   servers: [
-    { url: "http://localhost/auth", description: "Via Nginx gateway" },
-    { url: "http://localhost:3001", description: "Direct (dev only)" },
+    { url: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/auth` : "http://localhost/auth", description: "Via Nginx gateway" },
+    { url: process.env.FRONTEND_URL || "http://localhost:3001", description: "Direct (dev only)" },
   ],
   components: {
     schemas: {
