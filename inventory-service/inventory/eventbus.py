@@ -111,4 +111,10 @@ QUEUE_MAP = {
 
 def start_consumer():
     declare_queues(get_connection().channel())
+    from django.utils import timezone
+    from datetime import timedelta
+    cutoff = timezone.now() - timedelta(days=7)
+    purged, _ = ProcessedEvent.objects.filter(processed_at__lt=cutoff).delete()
+    if purged:
+        logger.info("Purged %d stale ProcessedEvent records", purged)
     shared_start_consumer(QUEUE_MAP, "Inventory")

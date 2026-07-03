@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, status, views, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -76,7 +76,7 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def stock(self, request, pk=None):
         warehouse = self.get_object()
-        stocks = Stock.objects.filter(warehouse=warehouse).select_related("warehouse")
+        stocks = Stock.objects.filter(warehouse=warehouse).select_related("warehouse").order_by("product_id")
         page = self.paginate_queryset(stocks)
         if page is not None:
             serializer = StockSerializer(page, many=True)
@@ -142,8 +142,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         if idempotency_key:
             existing = StockMovement.objects.filter(
-                product_id=product_id,
-                reference_id=reference_id,
+                idempotency_key=idempotency_key,
                 type=StockMovement.RESERVE,
             ).exists()
             if existing:
@@ -204,8 +203,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         if idempotency_key:
             existing = StockMovement.objects.filter(
-                product_id=product_id,
-                reference_id=reference_id,
+                idempotency_key=idempotency_key,
                 type=StockMovement.RELEASE,
             ).exists()
             if existing:
@@ -265,8 +263,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         if idempotency_key:
             existing = StockMovement.objects.filter(
-                product_id=product_id,
-                reference_id=reference_id,
+                idempotency_key=idempotency_key,
                 type=StockMovement.DEDUCT,
             ).exists()
             if existing:
@@ -458,6 +455,19 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             )
 
+            transaction.on_commit(
+                lambda p=product_id, w=warehouse_id, q=abs(delta): publish_event(
+                    "inventory.stock.changed",
+                    {
+                        "event_id": str(uuid4()),
+                        "product_id": p,
+                        "warehouse_id": w,
+                        "quantity": Stock.objects.get(product_id=p, warehouse_id=w).quantity,
+                        "change": q,
+                    },
+                )
+            )
+
         return Response(StockSerializer(stock).data)
 
     @action(detail=True, methods=["get"])
@@ -465,7 +475,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
         stock = self.get_object()
         movements = StockMovement.objects.filter(
             product_id=stock.product_id,
-        ).select_related("from_warehouse", "to_warehouse")[:100]
+        ).select_related("from_warehouse", "to_warehouse").order_by("-created_at")
+        page = self.paginate_queryset(movements)
+        if page is not None:
+            serializer = StockMovementSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = StockMovementSerializer(movements, many=True)
         return Response(serializer.data)
 
@@ -521,10 +535,11 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             stock.refresh_from_db()
 
             # Weighted-average cost recalculation
-            old_qty = stock.quantity - item.quantity
+            from decimal import Decimal
+            old_qty = Decimal(stock.quantity - item.quantity)
             old_cost = stock.average_cost
             if old_qty > 0:
-                new_avg = (old_qty * old_cost + item.quantity * item.cost_price) / (old_qty + item.quantity)
+                new_avg = (old_qty * old_cost + Decimal(item.quantity) * item.cost_price) / (old_qty + Decimal(item.quantity))
             else:
                 new_avg = item.cost_price
             Stock.objects.filter(pk=stock.pk).update(average_cost=new_avg)
@@ -577,3 +592,11 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
                 )
             )
         logger.info("GRN created | id=%s supplier=%s", instance.pk, instance.supplier.name)
+
+
+class HealthView(views.APIView):
+    """Service health check."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response({"status": "healthy", "service": "inventory-service", "database": "connected"})

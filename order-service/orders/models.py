@@ -115,6 +115,8 @@ class Order(models.Model):
             models.Index(fields=["channel"]),
             models.Index(fields=["customer_email"]),
             models.Index(fields=["order_number"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["warehouse_id"]),
         ]
 
     def __str__(self):
@@ -148,3 +150,58 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name or self.product_id} x{self.quantity}"
+
+
+class OrderSagaState(models.Model):
+    """
+    Tracks the state of distributed transactions (Sagas) across services.
+    Records each step of a multi-service operation (e.g., order creation + stock reservation)
+    so that compensation actions can be taken if any step fails.
+    """
+    PENDING = "pending"
+    RESERVING = "reserving"
+    RESERVED = "reserved"
+    DEDUCTING = "deducting"
+    DEDUCTED = "deducted"
+    RELEASING = "releasing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+    SAGA_STEP_CHOICES = [
+        (PENDING, "Pending"),
+        (RESERVING, "Reserving Stock"),
+        (RESERVED, "Stock Reserved"),
+        (DEDUCTING, "Deducting Stock"),
+        (DEDUCTED, "Stock Deducted"),
+        (RELEASING, "Releasing Stock"),
+        (COMPLETED, "Completed"),
+        (FAILED, "Failed"),
+    ]
+
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="saga_states",
+        verbose_name="Замовлення"
+    )
+    step = models.CharField(
+        max_length=20, choices=SAGA_STEP_CHOICES, default=PENDING,
+        verbose_name="Крок саги"
+    )
+    status = models.CharField(
+        max_length=20, default=PENDING, verbose_name="Статус кроку"
+    )
+    error_message = models.TextField(
+        blank=True, default="", verbose_name="Помилка"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+
+    class Meta:
+        verbose_name = "Стан саги"
+        verbose_name_plural = "Стани саги"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["order", "step"]),
+        ]
+
+    def __str__(self):
+        return f"Saga #{self.order_id}: {self.step}={self.status}"

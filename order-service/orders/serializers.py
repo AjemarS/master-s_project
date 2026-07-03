@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import Order, OrderItem
+from .inventory_client import check_availability
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -108,6 +109,15 @@ class OrderCreateSerializer(serializers.Serializer):
     def validate_items(self, value):
         if not value:
             raise serializers.ValidationError("At least one item is required.")
+        return value
+
+    def validate_warehouse_id(self, value):
+        """warehouse_id is required when channel is 'offline' (POS)."""
+        channel = self.initial_data.get("channel", Order.ONLINE)
+        if channel == Order.OFFLINE and not value:
+            raise serializers.ValidationError(
+                "Warehouse is required for offline (POS) orders."
+            )
         return value
 
 

@@ -6,7 +6,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, OrderSagaState
 
 User = get_user_model()
 
@@ -86,6 +86,20 @@ class OrderModelTest(TestCase):
         self.assertEqual(online.channel, Order.ONLINE)
         self.assertEqual(offline.channel, Order.OFFLINE)
 
+    def test_can_transition_to_completed_no_further(self):
+        order = _create_order()
+        order.status = Order.COMPLETED
+        order.save()
+        self.assertFalse(order.can_transition_to(Order.CANCELLED))
+        self.assertFalse(order.can_transition_to(Order.PAID))
+
+    def test_can_transition_from_cancelled_blocked(self):
+        order = _create_order()
+        order.status = Order.CANCELLED
+        order.save()
+        self.assertFalse(order.can_transition_to(Order.PAID))
+        self.assertFalse(order.can_transition_to(Order.UNPAID))
+
 
 class OrderItemModelTest(TestCase):
     def test_create_item(self):
@@ -99,6 +113,42 @@ class OrderItemModelTest(TestCase):
         _create_order_item(order, product_id=1)
         _create_order_item(order, product_id=2, quantity=3)
         self.assertEqual(order.items.count(), 2)
+
+
+class OrderSagaStateModelTest(TestCase):
+    def test_create_saga_state(self):
+        order = _create_order()
+        saga = OrderSagaState.objects.create(
+            order=order,
+            step=OrderSagaState.RESERVING,
+            status=OrderSagaState.PENDING,
+        )
+        self.assertEqual(str(saga), f"Saga #{order.id}: reserving=pending")
+        self.assertEqual(saga.error_message, "")
+
+    def test_saga_state_failed(self):
+        order = _create_order()
+        saga = OrderSagaState.objects.create(
+            order=order,
+            step=OrderSagaState.DEDUCTING,
+            status=OrderSagaState.FAILED,
+            error_message="Inventory service unreachable",
+        )
+        self.assertEqual(saga.error_message, "Inventory service unreachable")
+        self.assertEqual(saga.status, OrderSagaState.FAILED)
+
+    def test_saga_state_related_to_order(self):
+        order = _create_order()
+        saga1 = OrderSagaState.objects.create(order=order, step=OrderSagaState.RESERVING)
+        saga2 = OrderSagaState.objects.create(order=order, step=OrderSagaState.DEDUCTING)
+        self.assertEqual(order.saga_states.count(), 2)
+
+    def test_saga_state_ordering(self):
+        order = _create_order()
+        saga1 = OrderSagaState.objects.create(order=order, step=OrderSagaState.RESERVING)
+        saga2 = OrderSagaState.objects.create(order=order, step=OrderSagaState.DEDUCTING)
+        qs = OrderSagaState.objects.filter(order=order)
+        self.assertEqual(qs.first(), saga2)  # ordered by -created_at
 
 
 class OrderAPITest(APITestCase):
@@ -180,6 +230,26 @@ class OrderAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_create_order_multiple_items(self):
+        """Verify atomic creation with multiple items."""
+        user = _create_admin_user()
+        self.client.force_authenticate(user=user)
+        response = self.client.post(
+            "/api/orders/",
+            {
+                "channel": "online",
+                "items": [
+                    {"product_id": 1, "quantity": 1, "price": "99.99", "product_name": "Product A"},
+                    {"product_id": 2, "quantity": 3, "price": "49.99", "product_name": "Product B"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.data
+        self.assertEqual(len(data["items"]), 2)
+        self.assertAlmostEqual(float(data["total_amount"]), 99.99 + 3 * 49.99)
+
     def test_order_status_transition_valid(self):
         user = _create_admin_user()
         self.client.force_authenticate(user=user)
@@ -212,6 +282,18 @@ class OrderAPITest(APITestCase):
         response = self.client.get("/api/orders/my/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 1)
+
+    def test_health_endpoint(self):
+        response = self.client.get("/api/orders/health/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data["status"], "healthy")
+        self.assertEqual(data["service"], "order-service")
+
+    def test_order_detail_requires_auth(self):
+        order = _create_order()
+        response = self.client.get(f"/api/orders/{order.pk}/")
+        self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
 
 
 class POSAPITest(APITestCase):
@@ -252,6 +334,18 @@ class POSAPITest(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_pos_order_unauthorized(self):
+        self.client.force_authenticate(user=_create_regular_user())
+        response = self.client.post(
+            "/api/orders/pos/",
+            {
+                "warehouse_id": 1,
+                "items": [{"product_id": 1, "quantity": 1, "price": "99.99"}],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_status_transition_paid_to_delivering(self):
         """Status to delivering triggers deduct saga."""
@@ -296,4 +390,16 @@ class ReportsAPITest(APITestCase):
         user = _create_admin_user()
         self.client.force_authenticate(user=user)
         response = self.client.get("/api/reports/revenue/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_daily_sales_report_admin(self):
+        user = _create_admin_user()
+        self.client.force_authenticate(user=user)
+        response = self.client.get("/api/reports/daily-sales/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_sales_report_with_filters(self):
+        user = _create_admin_user()
+        self.client.force_authenticate(user=user)
+        response = self.client.get("/api/reports/sales/?from=2024-01-01&to=2026-12-31")
         self.assertEqual(response.status_code, status.HTTP_200_OK)

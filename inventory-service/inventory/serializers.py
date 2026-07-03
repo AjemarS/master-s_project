@@ -84,6 +84,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "type",
             "reference_type",
             "reference_id",
+            "idempotency_key",
             "notes",
             "created_by",
             "created_at",

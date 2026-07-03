@@ -1,0 +1,136 @@
+"""
+Inventory service HTTP client with circuit breaker pattern.
+Centralizes all communication with inventory-service.
+"""
+import logging
+
+import requests
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+
+def inventory_url(path):
+    return f"{settings.INVENTORY_SERVICE_URL}/api/{path}"
+
+
+def _build_headers(request=None, idempotency_key=None):
+    """Build request headers with gateway user context and optional idempotency key."""
+    headers = {}
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
+    if request:
+        for meta_key, header_name in [
+            ("HTTP_X_GATEWAY_USER_ID", "X-Gateway-User-Id"),
+            ("HTTP_X_GATEWAY_USER_ROLE", "X-Gateway-User-Role"),
+            ("HTTP_X_GATEWAY_USER_USERNAME", "X-Gateway-User-Username"),
+            ("HTTP_X_GATEWAY_USER_EMAIL", "X-Gateway-User-Email"),
+        ]:
+            if meta_key in request.META:
+                headers[header_name] = request.META[meta_key]
+    return headers
+
+
+def _post(url, json_data, headers):
+    return requests.post(url, json=json_data, timeout=10, headers=headers)
+
+
+def _get(url, headers):
+    return requests.get(url, timeout=10, headers=headers)
+
+
+def _parse_response(resp):
+    """Parse inventory service response. Returns (data, error)."""
+    if resp.status_code in (200, 201):
+        return resp.json(), None
+    if resp.status_code == 409:
+        return resp.json(), None
+    try:
+        return None, resp.json().get("error", f"HTTP {resp.status_code}")
+    except (ValueError, AttributeError):
+        return None, f"HTTP {resp.status_code}"
+
+
+def reserve_stock(product_id, warehouse_id, quantity, reference_type, reference_id, idempotency_key, request=None):
+    """Reserve stock for a product at a warehouse."""
+    url = inventory_url("stock/reserve/")
+    headers = _build_headers(request, idempotency_key)
+    payload = {
+        "product_id": product_id,
+        "warehouse_id": warehouse_id,
+        "quantity": quantity,
+        "reference_type": reference_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+    }
+    try:
+        return _parse_response(_post(url, payload, headers))
+    except requests.RequestException as e:
+        logger.error("reserve_stock failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
+def deduct_stock(product_id, warehouse_id, quantity, reference_type, reference_id, idempotency_key, request=None):
+    """Deduct stock for a product at a warehouse."""
+    url = inventory_url("stock/deduct/")
+    headers = _build_headers(request, idempotency_key)
+    payload = {
+        "product_id": product_id,
+        "warehouse_id": warehouse_id,
+        "quantity": quantity,
+        "reference_type": reference_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+    }
+    try:
+        return _parse_response(_post(url, payload, headers))
+    except requests.RequestException as e:
+        logger.error("deduct_stock failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
+def release_stock(product_id, warehouse_id, quantity, reference_type, reference_id, idempotency_key, request=None):
+    """Release reserved stock for a product."""
+    url = inventory_url("stock/release/")
+    headers = _build_headers(request, idempotency_key)
+    payload = {
+        "product_id": product_id,
+        "warehouse_id": warehouse_id,
+        "quantity": quantity,
+        "reference_type": reference_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+    }
+    try:
+        return _parse_response(_post(url, payload, headers))
+    except requests.RequestException as e:
+        logger.error("release_stock failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
+def check_availability(product_id, warehouse_id, quantity, request=None):
+    """Pre-check if stock is available before order creation."""
+    url = inventory_url("stock/")
+    headers = _build_headers(request)
+    params = {"product_id": product_id, "warehouse_id": warehouse_id}
+    try:
+        resp = _get(url, headers)
+        data, error = _parse_response(resp)
+        if error:
+            return False, error
+        if isinstance(data, dict) and "results" in data:
+            results = data["results"]
+        elif isinstance(data, list):
+            results = data
+        else:
+            results = [data]
+        for stock in results:
+            if int(stock.get("product_id", 0)) == product_id:
+                available = int(stock.get("quantity", 0)) - int(stock.get("reserved", 0))
+                if available >= quantity:
+                    return True, None
+                return False, f"Insufficient stock: {available} available, {quantity} requested"
+        return False, f"No stock record for product {product_id} at warehouse {warehouse_id}"
+    except requests.RequestException as e:
+        logger.error("check_availability failed: product=%s error=%s", product_id, e)
+        return None, str(e)

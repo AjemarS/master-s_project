@@ -13,97 +13,85 @@
 - Container: 8002 (default)
 - Docker compose: maps to 8002:8002
 
+## Architecture
+```
+orders/
+├── api/              # HTTP layer (views, urls)
+│   ├── views.py      # Thin DRF viewsets — validate input, delegate to core, format responses
+│   └── urls.py       # API route definitions
+├── core/             # Domain layer (business logic)
+│   ├── order_service.py   # Order creation, status transitions, inventory sagas
+│   └── event_builder.py   # RabbitMQ event payload construction
+├── infrastructure/   # External integrations
+│   └── inventory_client.py  # Inventory service HTTP client with circuit breaker
+├── models.py         # Django ORM models (Order, OrderItem, OrderSagaState)
+├── serializers.py    # DRF serializers (input validation, output formatting)
+├── reports.py        # Report views (sales, revenue, daily sales, inventory value)
+├── eventbus.py       # RabbitMQ event publisher (wraps shared-lib)
+├── tests.py          # Test suite
+├── urls.py           # Top-level URL config (routes to api/ and reports)
+└── views.py          # Legacy re-exports from api.views
+```
+
 ## Quick Start
 ```bash
 python manage.py runserver 0.0.0.0:8002
 python manage.py test
 ```
 
-## Apps
-
-### `orders/`
-
-#### Models
-- **Order** — core entity. Fields: `order_number` (timestamp + random suffix), `channel` (`online`/`offline`), `status` (see state machine), customer data (`customer_name`, `customer_email`, `customer_phone`, `customer_address`), `total_amount`, `created_by`, `notes`.
-- **OrderItem** — order line: product, quantity, price_at_sale, cost_price_at_sale (for margin calculation).
+## Models
+- **Order** — core entity with `order_number` (unique), `channel`, `status`, `delivery_method`, customer data, `total_amount`, `payment_status`, Stripe fields, `created_by`
+- **OrderItem** — order line: product, quantity, price_at_sale, cost_price_at_sale
+- **OrderSagaState** — distributed transaction tracking (reserve → deduct → release steps with error capture)
 
 ### Status Machine
 ```
-pending → shipped → delivered → completed
-  ↓          ↓                    ↓
-cancelled  cancelled           cancelled
+unpaid → paid → delivering → delivered → completed
+  ↓       ↓         ↓                    ↓
+cancelled cancelled cancelled          cancelled
 ```
-- `pending`: initial state (stock reserved)
-- `shipped`: stock deducted, in transit
-- `delivered`: received by customer
-- `completed`: fully processed
-- `cancelled`: from any state (triggers stock release)
-
-Transitions enforced in `OrderSerializer.validate_status()`.
-
-#### Viewsets
-- `OrderViewSet` — CRUD, my orders (`@action`), POS sales (`@action`), status updates.
-- `ReportViewSet` — sales report, revenue/margin report, inventory-value report.
+- Transitions enforced via `can_transition_to()` in the model
 
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/orders/` | Admin | Order list (filter: `?status=&channel=`) |
-| POST | `/api/orders/` | Any auth | Create order (online checkout) |
-| GET | `/api/orders/{id}/` | Any auth | Order detail |
-| PATCH | `/api/orders/{id}/` | Admin | Update order status |
-| GET | `/api/orders/my/` | Auth user | Current user's orders |
+| GET | `/api/orders/` | Authenticated | Order list (filter: `?status=&channel=`) |
+| POST | `/api/orders/` | Any | Create order (online checkout) |
+| GET | `/api/orders/{id}/` | Owner/Admin | Order detail with items |
+| PATCH | `/api/orders/{id}/status/` | Admin | Update status (with inventory side effects) |
+| GET | `/api/orders/my/` | Authenticated | Current user's orders |
 | POST | `/api/orders/pos/` | Cashier/Admin | POS sale (offline, immediate deduct) |
-| GET | `/api/orders/payments/stripe-webhook/` | No auth | Stripe payment callback |
+| POST | `/api/orders/{id}/pay/` | Authenticated | Create Stripe checkout session |
+| POST | `/api/orders/stripe_webhook/` | No auth | Stripe payment webhook |
+| GET | `/api/orders/health/` | Any | Health check |
 | GET | `/api/reports/sales/` | Admin | Sales report (filterable by date) |
 | GET | `/api/reports/revenue/` | Admin | Revenue & margin report |
-| GET | `/api/reports/inventory-value/` | Admin | Inventory valuation (queries sold items) |
-| GET | `/api/docs/` | Any | Swagger UI |
-| GET | `/api/redoc/` | Any | ReDoc |
+| GET | `/api/reports/inventory-value/` | Admin | Inventory valuation |
+| GET | `/api/reports/daily-sales/` | Admin | Last 30 days daily aggregation |
 
 ## Saga Integration (Order ↔ Inventory)
 
-### Synchronous HTTP Flow
-1. **Create order:** order-service → `POST /api/inventory/stock/reserve/` (with `product_id`, `quantity`, `warehouse_id`)
-2. **Ship order:** order-service → `POST /api/inventory/stock/deduct/` (converts reserve → deduction)
-3. **Cancel order:** order-service → `POST /api/inventory/stock/release/` (releases reserved stock)
+### Sync HTTP Flow
+1. **Create order** → `_reserve_stock()` (async via consumer or HTTP in webhook)
+2. **Pay** → Stripe webhook → `reserve_order_stock()` with partial-failure compensation
+3. **Ship** → `deduct_order_stock()` (converts reserve → deduction, reverts on failure)
+4. **Cancel** → `release_order_stock()` (releases reserved stock)
 
-### Known Gaps
-- **No compensation:** reserve failure leaves order in `pending` forever (no rollback). See CONCERN.md §2.
-- **No idempotency keys:** retry on network failure may double-reserve. See CONCERN.md §4.
-- **No stock pre-check:** orders accepted even when stock insufficient.
-
-## RabbitMQ Integration
-
-### Publisher
-- `order.created` — published after order creation (consumed by inventory-consumer, notification-service)
-- `order.cancelled` — published on cancellation (consumed by inventory-consumer)
-- `order.status_changed` — published on any status transition (consumed by notification-service)
-- **Exchange:** `techhub.events` (topic)
-
-## Reports
-- **Sales report:** aggregated sales by date range, channel, status
-- **Revenue & margin:** total revenue, cost of goods sold, margin percentage (uses `cost_price_at_sale` on OrderItem)
-- **Inventory value:** currently queries sold items, not actual inventory — see CONCERN.md
-
-## Auth & Permissions
-- `GatewayAuthentication` — base class for all Django services
-- `IsAdminUser` — for status changes, reports
-- `IsAuthenticatedOrReadOnly` — for order creation (anonymous checkout allowed)
-- `AllowAny` on retrieve (currently public — see CONCERN.md §11)
+### Improvements (July 2026)
+| # | Improvement | Layer |
+|---|-------------|-------|
+| 1 | Atomic order + items in single `transaction.atomic()` with `bulk_create` | core/order_service.py |
+| 2 | Dedicated `inventory_client.py` — centralized HTTP calls with structured error handling | infrastructure/ |
+| 3 | `OrderSagaState` model for distributed transaction observability | models.py |
+| 4 | `check_availability()` function for pre-order stock validation | infrastructure/ |
+| 5 | DB-level report aggregation (no Python `sum()` loops) | reports.py |
+| 6 | Health endpoint at `GET /api/orders/health/` | api/views.py |
+| 7 | Saga compensation — partial reserve failures trigger release of succeeded items | core/order_service.py |
+| 8 | Layered architecture — `api/` (thin) → `core/` (business logic) → `infrastructure/` | refactor |
+| 9 | Additional DB indexes (`created_at`, `warehouse_id`) | models.py |
+| 10 | Order detail requires authentication (was public) | api/views.py |
 
 ## Tests
 - **Framework:** Django `TestCase` + `APITestCase`
-- **Coverage:** models, status transitions, API (create, auth gating, status update, my orders, POS, reports)
-- **Known issue:** `EOFError` on test DB teardown (prompts for `autoclobber` input — see CONCERN.md)
 - **Run:** `python manage.py test`
-
-## Known Issues
-- Saga compensation missing (reserve failure → order stuck in pending)
-- No stock pre-check before order create
-- `inventory-value` report queries sold items, not actual inventory
-- No product validation (accepts any `product_id` without cross-reference)
-- `order_number` generation may collide under load (timestamp + random, no unique constraint)
-- No `/health` endpoint (uses GET `/api/orders/` as health check)
-- Order detail endpoint is public (any UUID can view customer data)

@@ -29,28 +29,33 @@ def _parse_date_params(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def sales_report(request):
+    """Sales report with database-level aggregation instead of Python loops."""
     date_filter = _parse_date_params(request)
     order_filter = {"status__in": ["delivered", "completed"]}
     order_filter.update(date_filter)
-
     orders_qs = Order.objects.filter(**order_filter)
+    agg = orders_qs.aggregate(
+        total_orders=Count("id"),
+        total_revenue=Sum("total_amount"),
+    )
     items_qs = OrderItem.objects.filter(order__in=orders_qs)
-
-    total_revenue = sum(item.price * item.quantity for item in items_qs)
-    total_cost = sum(item.cost_price * item.quantity for item in items_qs)
-    total_qty = sum(item.quantity for item in items_qs)
-
+    items_agg = items_qs.aggregate(
+        total_quantity=Sum("quantity"),
+        total_cost=Sum(F("cost_price") * F("quantity")),
+    )
+    total_revenue = float(agg["total_revenue"] or 0)
+    total_cost = float(items_agg["total_cost"] or 0)
+    total_qty = items_agg["total_quantity"] or 0
     by_channel = (
         orders_qs.values("channel")
         .annotate(count=Count("id"), revenue=Sum("total_amount"))
     )
-
     return Response({
-        "total_orders": orders_qs.count(),
+        "total_orders": agg["total_orders"],
         "total_quantity": total_qty,
-        "total_revenue": float(total_revenue),
-        "total_cost": float(total_cost),
-        "total_margin": float(total_revenue - total_cost),
+        "total_revenue": total_revenue,
+        "total_cost": total_cost,
+        "total_margin": total_revenue - total_cost,
         "margin_percent": round(
             float((total_revenue - total_cost) / total_revenue * 100), 2
         ) if total_revenue else 0,
@@ -61,30 +66,36 @@ def sales_report(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def revenue_report(request):
+    """Revenue and margin report with database-level aggregation."""
     date_filter = _parse_date_params(request)
     order_filter = {"status__in": ["delivered", "completed"]}
     order_filter.update(date_filter)
-
     orders_qs = Order.objects.filter(**order_filter)
+    order_agg = orders_qs.aggregate(
+        total_revenue=Sum("total_amount"),
+        order_count=Count("id"),
+    )
     items_qs = OrderItem.objects.filter(order__in=orders_qs)
-
-    total_revenue = sum(o.total_amount for o in orders_qs)
-    total_cost = sum(item.cost_price * item.quantity for item in items_qs)
-
+    items_agg = items_qs.aggregate(
+        total_cost=Sum(F("cost_price") * F("quantity")),
+    )
+    total_revenue = float(order_agg["total_revenue"] or 0)
+    total_cost = float(items_agg["total_cost"] or 0)
     return Response({
-        "total_revenue": float(total_revenue),
-        "total_cost": float(total_cost),
-        "gross_margin": float(total_revenue - total_cost),
+        "total_revenue": total_revenue,
+        "total_cost": total_cost,
+        "gross_margin": total_revenue - total_cost,
         "margin_percent": round(
             float((total_revenue - total_cost) / total_revenue * 100), 2
         ) if total_revenue else 0,
-        "order_count": orders_qs.count(),
+        "order_count": order_agg["order_count"],
     })
 
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def inventory_value_report(request):
+    """Inventory value report based on sold items' cost data."""
     items_by_product = (
         OrderItem.objects.values("product_id", "product_name")
         .annotate(
@@ -93,11 +104,9 @@ def inventory_value_report(request):
         )
         .order_by("-total_cost")
     )
-
     total_inventory_value = sum(
         item["total_cost"] for item in items_by_product
     )
-
     return Response({
         "total_value": float(total_inventory_value),
         "item_count": len(items_by_product),
@@ -116,12 +125,12 @@ def inventory_value_report(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def daily_sales_report(request):
+    """Daily sales aggregation for the last 30 days."""
     thirty_days_ago = datetime.now() - timedelta(days=30)
     orders = Order.objects.filter(
         status__in=["paid", "delivering", "delivered", "completed"],
         created_at__gte=thirty_days_ago,
     )
-
     daily = (
         orders.annotate(day=TruncDate("created_at"))
         .values("day")
@@ -131,7 +140,6 @@ def daily_sales_report(request):
         )
         .order_by("day")
     )
-
     return Response({
         "daily": [
             {
