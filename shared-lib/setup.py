@@ -8,6 +8,7 @@ setup(
         "Django>=5.0",
         "djangorestframework>=3.15",
         "pika>=1.3",
+        "requests",
     ],
     python_requires=">=3.11",
 )

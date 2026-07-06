@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from .models import Order, OrderItem
+from .inventory_client import check_availability
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +86,6 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "channel",
             "status",
             "payment_status",
-            "stripe_session_id",
-            "stripe_payment_intent_id",
             "paid_at",
             "warehouse_id",
             "delivery_method",
@@ -104,6 +103,13 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+
+class OrderDetailForAdminSerializer(OrderDetailSerializer):
+    """Serializer with payment details for admin/staff use only."""
+
+    class Meta(OrderDetailSerializer.Meta):
+        fields = OrderDetailSerializer.Meta.fields + ["stripe_session_id", "stripe_payment_intent_id"]
 
 
 class OrderCreateItemSerializer(serializers.Serializer):
@@ -134,8 +140,6 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("At least one item is required.")
         return value
 
-<<<<<<< Updated upstream
-=======
     def validate_warehouse_id(self, value):
         channel = self.initial_data.get("channel", Order.ONLINE)
         if channel == Order.OFFLINE and not value:
@@ -147,8 +151,6 @@ class OrderCreateSerializer(serializers.Serializer):
     def validate(self, data):
         _validate_stock(data)
         return data
-
->>>>>>> Stashed changes
 
 class OrderStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Order.STATUS_CHOICES)

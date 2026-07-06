@@ -124,6 +124,7 @@ class StockMovement(models.Model):
     reference_id = models.CharField(
         max_length=50, blank=True, verbose_name="ID документа"
     )
+    idempotency_key = models.CharField(max_length=255, blank=True, default="", db_index=True, verbose_name="Ключ ідемпотентності")
     notes = models.TextField(blank=True, verbose_name="Примітки")
     created_by = models.CharField(
         max_length=255, blank=True, verbose_name="Створено користувачем"
@@ -138,6 +139,7 @@ class StockMovement(models.Model):
             models.Index(fields=["product_id"]),
             models.Index(fields=["type"]),
             models.Index(fields=["created_at"]),
+            models.Index(fields=["idempotency_key"]),
         ]
 
     def __str__(self):
