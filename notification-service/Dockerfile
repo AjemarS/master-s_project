@@ -5,4 +5,4 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 EXPOSE 8003
-CMD ["tsx", "src/index.ts"]
+CMD ["npm", "start"]

@@ -18,8 +18,12 @@ def create_regular_user(username="user", email="user@test.com", password="passwo
 
 
 def create_cashier_user(username="cashier", email="cashier@test.com", password="password123"):
-    return User.objects.create_user(username, email, password, role="cashier")
+    user = User.objects.create_user(username, email, password)
+    user.gateway_role = "cashier"
+    return user
 
 
 def create_warehouse_user(username="warehouse", email="warehouse@test.com", password="password123"):
-    return User.objects.create_user(username, email, password, role="warehouse_worker")
+    user = User.objects.create_user(username, email, password)
+    user.gateway_role = "warehouse_worker"
+    return user

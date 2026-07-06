@@ -215,8 +215,8 @@ export async function startConsumer(): Promise<void> {
         await handleEvent(routingKey, event, event.event_id as string || msg.properties.messageId?.toString());
         channel!.ack(msg);
       } catch (err) {
-        logger.error("Failed processing event", { routingKey, error: (err as Error).message });
-        channel!.ack(msg);
+        logger.error("Failed processing event — sending to DLQ", { routingKey, error: (err as Error).message });
+        channel!.nack(msg, false, false);
       }
     });
   }

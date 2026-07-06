@@ -5,11 +5,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
-<<<<<<< Updated upstream
-from rest_framework import filters, status, viewsets
-=======
 from rest_framework import filters, permissions, status, views, viewsets
->>>>>>> Stashed changes
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
@@ -70,6 +66,7 @@ def _stock_action(request, serializer_cls, movement_type, check_and_update, post
             type=movement_type,
             reference_type=reference_type,
             reference_id=reference_id,
+            idempotency_key=idempotency_key,
             created_by=request.user.username if request.user.is_authenticated else "",
         )
 
@@ -161,35 +158,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def reserve(self, request):
-<<<<<<< Updated upstream
-        serializer = ReserveStockSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        product_id = serializer.validated_data["product_id"]
-        warehouse_id = serializer.validated_data["warehouse_id"]
-        quantity = serializer.validated_data["quantity"]
-        reference_type = serializer.validated_data.get("reference_type", "order")
-        reference_id = serializer.validated_data.get("reference_id", "")
-        idempotency_key = serializer.validated_data.get("idempotency_key", "")
-
-        if idempotency_key:
-            existing = StockMovement.objects.filter(
-                product_id=product_id,
-                reference_id=reference_id,
-                type=StockMovement.RESERVE,
-            ).exists()
-            if existing:
-                stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
-                return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
-
-        with transaction.atomic():
-            stock = Stock.objects.select_for_update().get(
-                product_id=product_id, warehouse_id=warehouse_id
-            )
-
-=======
         def check_and_update(stock, product_id, warehouse_id, quantity):
->>>>>>> Stashed changes
             available = stock.quantity - stock.reserved
             if available < quantity:
                 return {"error": "Insufficient available stock", "available": available, "requested": quantity}
@@ -200,35 +169,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def release(self, request):
-<<<<<<< Updated upstream
-        serializer = ReserveStockSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        product_id = serializer.validated_data["product_id"]
-        warehouse_id = serializer.validated_data["warehouse_id"]
-        quantity = serializer.validated_data["quantity"]
-        reference_type = serializer.validated_data.get("reference_type", "order")
-        reference_id = serializer.validated_data.get("reference_id", "")
-        idempotency_key = serializer.validated_data.get("idempotency_key", "")
-
-        if idempotency_key:
-            existing = StockMovement.objects.filter(
-                product_id=product_id,
-                reference_id=reference_id,
-                type=StockMovement.RELEASE,
-            ).exists()
-            if existing:
-                stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
-                return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
-
-        with transaction.atomic():
-            stock = Stock.objects.select_for_update().get(
-                product_id=product_id, warehouse_id=warehouse_id
-            )
-
-=======
         def check_and_update(stock, product_id, warehouse_id, quantity):
->>>>>>> Stashed changes
             if stock.reserved < quantity:
                 return {"error": "Cannot release more than reserved", "reserved": stock.reserved, "requested": quantity}
             Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(reserved=F("reserved") - quantity)
@@ -238,35 +179,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["post"])
     def deduct(self, request):
-<<<<<<< Updated upstream
-        serializer = DeductStockSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        product_id = serializer.validated_data["product_id"]
-        warehouse_id = serializer.validated_data["warehouse_id"]
-        quantity = serializer.validated_data["quantity"]
-        reference_type = serializer.validated_data.get("reference_type", "order")
-        reference_id = serializer.validated_data.get("reference_id", "")
-        idempotency_key = serializer.validated_data.get("idempotency_key", "")
-
-        if idempotency_key:
-            existing = StockMovement.objects.filter(
-                product_id=product_id,
-                reference_id=reference_id,
-                type=StockMovement.DEDUCT,
-            ).exists()
-            if existing:
-                stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
-                return Response(StockSerializer(stock).data, status=status.HTTP_409_CONFLICT)
-
-        with transaction.atomic():
-            stock = Stock.objects.select_for_update().get(
-                product_id=product_id, warehouse_id=warehouse_id
-            )
-
-=======
         def check_and_update(stock, product_id, warehouse_id, quantity):
->>>>>>> Stashed changes
             available = stock.quantity - stock.reserved
             if available < quantity:
                 return {"error": "Insufficient available stock", "available": available, "requested": quantity}
