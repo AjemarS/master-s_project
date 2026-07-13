@@ -104,6 +104,24 @@ services:
     networks:
       - microservices_network
 
+  audit_db:
+    image: postgres:15-alpine
+    container_name: audit_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${AUDIT_DB_USER:-audit}
+      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD:-audit123}
+      POSTGRES_DB: ${AUDIT_DB_NAME:-audit_db}
+    volumes:
+      - postgres_audit_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER:-audit} -d ${AUDIT_DB_NAME:-audit_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices_network
+
   # Django Product Service
   product-service:
     build:
@@ -121,7 +139,6 @@ services:
       DJANGO_SETTINGS_MODULE: product_service.settings
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       DEBUG: ${DEBUG}
       RABBITMQ_URL: ${RABBITMQ_URL}
     volumes:
@@ -137,7 +154,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py seed_data &&
-             python manage.py runserver 0.0.0.0:8000"
+             gunicorn product_service.wsgi:application -w 2 --reload --reload-extra-file /shared-lib --bind 0.0.0.0:8000 --log-level debug"
 
   # Auth Service (Better Auth)
   auth-service:
@@ -194,7 +211,6 @@ services:
       DJANGO_SETTINGS_MODULE: inventory_service.settings
       DJANGO_SECRET_KEY: ${INVENTORY_DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       DEBUG: ${DEBUG}
       RABBITMQ_URL: ${RABBITMQ_URL}
       PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL}
@@ -211,7 +227,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py seed_data &&
-             python manage.py runserver 0.0.0.0:8001"
+             gunicorn inventory_service.wsgi:application -w 2 --reload --reload-extra-file /shared-lib --bind 0.0.0.0:8001 --log-level debug"
 
   # Django Order Service
   order-service:
@@ -230,7 +246,6 @@ services:
       DJANGO_SETTINGS_MODULE: order_service.settings
       DJANGO_SECRET_KEY: ${ORDERS_DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       DEBUG: ${DEBUG}
       INVENTORY_SERVICE_URL: ${INVENTORY_SERVICE_URL}
       RABBITMQ_URL: ${RABBITMQ_URL}
@@ -249,71 +264,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py seed_orders &&
-             python manage.py runserver 0.0.0.0:8002"
-
-  # Product Event Consumer (RabbitMQ)
-  product-consumer:
-    build:
-      context: .
-      dockerfile: product-service/Dockerfile
-    container_name: product_consumer
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@products_db:5432/${POSTGRES_DB}
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_HOST: products_db
-      DB_PORT: "5432"
-      DJANGO_SETTINGS_MODULE: product_service.settings
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      DEBUG: ${DEBUG}
-      RABBITMQ_URL: ${RABBITMQ_URL}
-    volumes:
-      - ./product-service:/app
-      - ./shared-lib:/shared-lib
-    depends_on:
-      products_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - microservices_network
-    command: python manage.py consume_events
-
-  # Inventory Event Consumer (RabbitMQ)
-  inventory-consumer:
-    build:
-      context: .
-      dockerfile: inventory-service/Dockerfile
-    container_name: inventory_consumer
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${INVENTORY_DB_USER}:${INVENTORY_DB_PASSWORD}@inventory_db:5432/${INVENTORY_DB_NAME}
-      DB_NAME: ${INVENTORY_DB_NAME}
-      DB_USER: ${INVENTORY_DB_USER}
-      DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
-      DB_HOST: inventory_db
-      DB_PORT: "5432"
-      DJANGO_SETTINGS_MODULE: inventory_service.settings
-      DJANGO_SECRET_KEY: ${INVENTORY_DJANGO_SECRET_KEY}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      DEBUG: ${DEBUG}
-      RABBITMQ_URL: ${RABBITMQ_URL}
-    volumes:
-      - ./inventory-service:/app
-      - ./shared-lib:/shared-lib
-    depends_on:
-      inventory_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - microservices_network
-    command: python manage.py consume_events
+             gunicorn order_service.wsgi:application -w 2 --reload --reload-extra-file /shared-lib --bind 0.0.0.0:8002 --log-level debug"
 
   # Notification Service (Node.js - RabbitMQ consumer + Resend)
   notification-service:
@@ -357,23 +308,67 @@ services:
     networks:
       - microservices_network
 
-  audit_db:
-    image: postgres:15-alpine
-    container_name: audit_db
+  # Product Event Consumer (RabbitMQ)
+  product-consumer:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product_consumer
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${AUDIT_DB_USER:-audit}
-      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD:-audit123}
-      POSTGRES_DB: ${AUDIT_DB_NAME:-audit_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@products_db:5432/${POSTGRES_DB}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: products_db
+      DB_PORT: "5432"
+      DJANGO_SETTINGS_MODULE: product_service.settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      DEBUG: ${DEBUG}
+      RABBITMQ_URL: ${RABBITMQ_URL}
     volumes:
-      - postgres_audit_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER:-audit} -d ${AUDIT_DB_NAME:-audit_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ./product-service:/app
+      - ./shared-lib:/shared-lib
+    depends_on:
+      products_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - microservices_network
+    command: python manage.py consume_events
+
+  # Inventory Event Consumer (RabbitMQ)
+  inventory-consumer:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: inventory_consumer
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${INVENTORY_DB_USER}:${INVENTORY_DB_PASSWORD}@inventory_db:5432/${INVENTORY_DB_NAME}
+      DB_NAME: ${INVENTORY_DB_NAME}
+      DB_USER: ${INVENTORY_DB_USER}
+      DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+      DB_HOST: inventory_db
+      DB_PORT: "5432"
+      DJANGO_SETTINGS_MODULE: inventory_service.settings
+      DJANGO_SECRET_KEY: ${INVENTORY_DJANGO_SECRET_KEY}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      DEBUG: ${DEBUG}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+    volumes:
+      - ./inventory-service:/app
+      - ./shared-lib:/shared-lib
+    depends_on:
+      inventory_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - microservices_network
+    command: python manage.py consume_events
 
   # API Gateway (Nginx)
   gateway:
@@ -438,7 +433,7 @@ services:
     networks:
       - microservices_network
 
-  # Redis (for rate limiting)
+  # Redis
   redis:
     image: redis:7-alpine
     container_name: redis

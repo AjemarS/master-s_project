@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.text import slugify
 
 
 class Category(models.Model):
@@ -82,6 +83,7 @@ class Product(models.Model):
         verbose_name="Рейтинг",
     )
     specs = models.JSONField(default=dict, verbose_name="Специфікації")
+    slug = models.SlugField(max_length=200, unique=True, blank=True, verbose_name="URL-ідентифікатор")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
@@ -99,6 +101,16 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         # Keep in_stock in sync with stock count
         self.in_stock = self.stock > 0
+        if not self.slug:
+            base_slug = slugify(self.name_en or self.name or "")
+            if not base_slug:
+                base_slug = f"product-{self.id or 'new'}"
+            self.slug = base_slug
+            # Ensure uniqueness
+            counter = 1
+            while Product.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base_slug}-{counter}"
+                counter += 1
         super().save(*args, **kwargs)
 
 

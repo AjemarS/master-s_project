@@ -70,8 +70,8 @@ Transitions enforced in `OrderSerializer.validate_status()`.
 3. **Cancel order:** order-service → `POST /api/inventory/stock/release/` (releases reserved stock)
 
 ### Known Gaps
-- **No compensation:** reserve failure leaves order in `pending` forever (no rollback). See CONCERN.md §2.
-- **No idempotency keys:** retry on network failure may double-reserve. See CONCERN.md §4.
+- **No compensation:** reserve failure leaves order in `pending` forever (no rollback).
+- **No idempotency keys:** retry on network failure may double-reserve.
 - **No stock pre-check:** orders accepted even when stock insufficient.
 
 ## RabbitMQ Integration
@@ -85,18 +85,18 @@ Transitions enforced in `OrderSerializer.validate_status()`.
 ## Reports
 - **Sales report:** aggregated sales by date range, channel, status
 - **Revenue & margin:** total revenue, cost of goods sold, margin percentage (uses `cost_price_at_sale` on OrderItem)
-- **Inventory value:** currently queries sold items, not actual inventory — see CONCERN.md
+- **Inventory value:** currently queries sold items, not actual inventory
 
 ## Auth & Permissions
 - `GatewayAuthentication` — base class for all Django services
 - `IsAdminUser` — for status changes, reports
 - `IsAuthenticatedOrReadOnly` — for order creation (anonymous checkout allowed)
-- `AllowAny` on retrieve (currently public — see CONCERN.md §11)
+- `AllowAny` on retrieve (currently public)
 
 ## Tests
 - **Framework:** Django `TestCase` + `APITestCase`
 - **Coverage:** models, status transitions, API (create, auth gating, status update, my orders, POS, reports)
-- **Known issue:** `EOFError` on test DB teardown (prompts for `autoclobber` input — see CONCERN.md)
+- **Known issue:** `EOFError` on test DB teardown (prompts for `autoclobber` input)
 - **Run:** `python manage.py test`
 
 ## Known Issues

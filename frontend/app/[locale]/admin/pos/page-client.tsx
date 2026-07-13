@@ -178,7 +178,7 @@ export function POSClient() {
                     <CardContent className="p-4 flex items-center justify-between">
                       <div>
                         <div className="font-medium text-slate-900 dark:text-slate-100">{product.name}</div>
-                        <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        <div className="text-lg font-bold text-primary dark:text-primary">
                           {formatCurrency(product.price)}
                         </div>
                         <Badge variant={product.in_stock ? "default" : "secondary"} className="mt-1">

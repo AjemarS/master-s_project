@@ -16,6 +16,10 @@ async function globalSetup() {
   const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
 
   try {
+    // Set locale to English so sign-in page renders in English
+    await page.context().addCookies([
+      { name: "NEXT_LOCALE", value: "en", domain: new URL(baseUrl).hostname, path: "/" },
+    ]);
     await page.goto(`${baseUrl}/sign-in`, { waitUntil: "networkidle" });
     await page.fill("#email", email);
     await page.fill("#password", password);

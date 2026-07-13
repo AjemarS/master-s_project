@@ -198,7 +198,7 @@ export function WarehousesClient() {
                         </div>
                         <div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">{t("totalQty")}</div>
-                          <div className="text-xl font-bold text-blue-600">{totalQty}</div>
+                          <div className="text-xl font-bold text-primary">{totalQty}</div>
                         </div>
                         <div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">{t("reserved")}</div>

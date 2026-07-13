@@ -37,7 +37,7 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+            <h1 className=" text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
               <Warehouse className="h-10 w-10 text-orange-600" />
               {tWh("warehouse")}
             </h1>
@@ -57,7 +57,7 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+          <h1 className=" text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
             <Warehouse className="h-10 w-10 text-orange-600" />
             {tWh("warehouse")}
           </h1>
@@ -92,7 +92,7 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">{tWh("recentGrns")}</CardTitle>
-              <ClipboardList className="h-5 w-5 text-blue-600" />
+              <ClipboardList className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{recentGrns.length}</div>
@@ -145,7 +145,7 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 dark:text-slate-100 text-base">
-                  <ClipboardList className="h-5 w-5 text-blue-600" />
+                  <ClipboardList className="h-5 w-5 text-primary" />
                   {tWh("recentGrns")}
                 </CardTitle>
                 <Link href="/admin/goods-receipts">

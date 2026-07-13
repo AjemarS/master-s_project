@@ -10,7 +10,7 @@ export default function SignInError({
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold">Sign In Error</h2>
+        <h2 className=" text-2xl font-bold">Sign In Error</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
           {error.message || "Something went wrong during sign in. Please try again."}
         </p>

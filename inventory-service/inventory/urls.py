@@ -7,6 +7,7 @@ from .views import (
     StockViewSet,
     SupplierViewSet,
     WarehouseViewSet,
+    health_check,
 )
 
 router = DefaultRouter()
@@ -18,4 +19,5 @@ router.register(r"goods-receipts", GoodsReceiptNoteViewSet, basename="goods-rece
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("health/", health_check, name="health-check"),
 ]

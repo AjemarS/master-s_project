@@ -1,0 +1,250 @@
+services:
+  # Databases — Remove host port exposure
+  products_db:
+    ports: !reset []
+
+  inventory_db:
+    ports: !reset []
+
+  orders_db:
+    ports: !reset []
+
+  auth_db:
+    ports: !reset []
+
+  notifications_db:
+    ports: !reset []
+
+  audit_db:
+    ports: !reset []
+
+  # Django Product Service
+  product-service:
+    volumes: !reset []
+    ports: !reset []
+    environment:
+      DEBUG: "False"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn product_service.wsgi:application
+               -w 4
+               --bind 0.0.0.0:8000
+               --log-level info
+               --access-logfile -
+               --error-logfile -"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+        reservations:
+          cpus: "0.5"
+          memory: "256M"
+
+  # Django Inventory Service
+  inventory-service:
+    volumes: !reset []
+    ports: !reset []
+    environment:
+      DEBUG: "False"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn inventory_service.wsgi:application
+               -w 4
+               --bind 0.0.0.0:8001
+               --log-level info
+               --access-logfile -
+               --error-logfile -"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health/')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+        reservations:
+          cpus: "0.5"
+          memory: "256M"
+
+  # Django Order Service
+  order-service:
+    volumes: !reset []
+    ports: !reset []
+    environment:
+      DEBUG: "False"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn order_service.wsgi:application
+               -w 4
+               --bind 0.0.0.0:8002
+               --log-level info
+               --access-logfile -
+               --error-logfile -"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/api/health/')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+        reservations:
+          cpus: "0.5"
+          memory: "256M"
+
+  # Auth Service (Better Auth)
+  auth-service:
+    volumes: !reset []
+    ports: !reset []
+    environment:
+      NODE_ENV: "production"
+      LOG_LEVEL: "info"
+    command: sh -c "npm run build && npm run start"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.25"
+          memory: "128M"
+
+  # Next.js Frontend
+  frontend:
+    volumes: !reset []
+    ports: !reset []
+    environment:
+      NODE_ENV: "production"
+    command: sh -c "npm run build && npm run start"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "512M"
+        reservations:
+          cpus: "0.5"
+          memory: "256M"
+
+  # API Gateway (Nginx)
+  gateway:
+    ports: !reset
+      - "80:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "128M"
+        reservations:
+          cpus: "0.25"
+          memory: "64M"
+
+  # Notification Service
+  notification-service:
+    environment:
+      NODE_ENV: "production"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.25"
+          memory: "128M"
+
+  # Audit Service
+  audit-service:
+    environment:
+      NODE_ENV: "production"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: "128M"
+        reservations:
+          cpus: "0.125"
+          memory: "64M"
+
+  # Product Event Consumer
+  product-consumer:
+    volumes: !reset []
+    environment:
+      DEBUG: "False"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.25"
+          memory: "128M"
+
+  # Inventory Event Consumer
+  inventory-consumer:
+    volumes: !reset []
+    environment:
+      DEBUG: "False"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.25"
+          memory: "128M"
+
+  # RabbitMQ (event bus)
+  rabbitmq:
+    ports: !reset
+      - "5672:5672"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+        reservations:
+          cpus: "0.25"
+          memory: "128M"
+
+  # Redis
+  redis:
+    ports: !reset []
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: "128M"
+        reservations:
+          cpus: "0.125"
+          memory: "64M"
+
+networks:
+  microservices_network:
+    driver: bridge

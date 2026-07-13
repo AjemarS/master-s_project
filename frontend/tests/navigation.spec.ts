@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Navigation", () => {
   test("header logo links to home", async ({ page }) => {
     await page.goto("/products");
-    await page.locator("header").getByText("TechHub").click();
+    await page.locator("header").getByRole("link", { name: /TechHub/i }).click();
     await expect(page).toHaveURL("/");
   });
 
@@ -51,7 +51,7 @@ test.describe("Route Protection", () => {
     await page.goto("/mfa");
     await expect(page).toHaveURL(/mfa/);
     await expect(
-      page.getByRole("heading", { name: /two-factor/i })
+      page.getByRole("heading", { name: /двофакторна/i })
     ).toBeVisible();
   });
 

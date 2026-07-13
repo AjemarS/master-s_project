@@ -1,5 +1,7 @@
 import logging
 
+import stripe
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -10,6 +12,7 @@ from orders.inventory_client import release_stock as release_inventory_stock
 from orders.models import Order
 
 logger = logging.getLogger(__name__)
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 class Command(BaseCommand):
@@ -56,6 +59,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"    Stock release failed: {e}"))
 
         with transaction.atomic():
+            # Actually refund the Stripe payment
+            if order.stripe_payment_intent_id:
+                try:
+                    stripe.Refund.create(payment_intent=order.stripe_payment_intent_id)
+                    logger.info("Stripe refunded | order=%s intent=%s", order.order_number, order.stripe_payment_intent_id)
+                except stripe.error.StripeError as e:
+                    logger.error("Stripe refund failed | order=%s error=%s", order.order_number, e)
             order.status = Order.CANCELLED
             order.payment_status = Order.PAYMENT_REFUNDED
             order.save(update_fields=["status", "payment_status"])

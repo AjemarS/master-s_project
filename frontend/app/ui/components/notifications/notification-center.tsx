@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import type React from "react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { cn } from "~/lib/cn";
 import { Badge } from "~/ui/primitives/badge";
@@ -29,6 +30,8 @@ export interface Notification {
 
 type NotificationCenterProps = React.HTMLAttributes<HTMLDivElement> & {
   notifications: Notification[];
+  unreadCount?: number;
+  loading?: boolean;
   onClearAll?: () => void;
   onDismiss?: (id: string) => void;
   onMarkAllAsRead?: () => void;
@@ -38,6 +41,8 @@ type NotificationCenterProps = React.HTMLAttributes<HTMLDivElement> & {
 export function NotificationCenter({
   className,
   notifications,
+  unreadCount: unreadCountProp,
+  loading = false,
   onClearAll,
   onDismiss,
   onMarkAllAsRead,
@@ -45,37 +50,31 @@ export function NotificationCenter({
   ...props
 }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const t = useTranslations("notifications");
+  // Use prop if provided, otherwise compute from loaded notifications
+  const unreadCount = unreadCountProp ?? notifications.filter((n) => !n.read).length;
 
-  const handleMarkAsRead = useCallback(
-    (id: string) => onMarkAsRead?.(id),
-    [onMarkAsRead],
-  );
-
-  const handleMarkAllAsRead = useCallback(
-    () => onMarkAllAsRead?.(),
-    [onMarkAllAsRead],
-  );
-
-  const handleDismiss = useCallback(
-    (id: string) => onDismiss?.(id),
-    [onDismiss],
-  );
-
-  const handleClearAll = useCallback(() => onClearAll?.(), [onClearAll]);
+  const handleMarkAsRead = (id: string) => onMarkAsRead?.(id);
+  const handleMarkAllAsRead = () => onMarkAllAsRead?.();
+  const handleDismiss = (id: string) => onDismiss?.(id);
+  const handleClearAll = () => onClearAll?.();
 
   return (
     <div className={cn("relative", className)} {...props}>
       <DropdownMenu onOpenChange={setIsOpen} open={isOpen}>
         <DropdownMenuTrigger asChild>
           <Button
-            aria-label="Notification"
+            aria-label={t("title")}
             className="relative h-9 w-9 rounded-full"
             size="icon"
             variant="outline"
           >
-            <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Bell className="h-4 w-4" />
+            )}
+            {!loading && unreadCount > 0 && (
               <Badge
                 className={`
                   absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-[10px]
@@ -90,28 +89,34 @@ export function NotificationCenter({
 
         <DropdownMenuContent align="end" className="w-80">
           <DropdownMenuLabel className="flex items-center justify-between">
-            <span>Notifications</span>
+            <span>{t("title")}</span>
             {unreadCount > 0 && (
               <Button
-                className="h-auto p-0 text-xs font-normal text-primary"
+                className="h-auto p-0 text-xs font-normal text-accent-electric"
                 onClick={handleMarkAllAsRead}
                 size="sm"
                 variant="ghost"
               >
-                Mark all as read
+                {t("markAllAsRead")}
               </Button>
             )}
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
 
-          <Notifications
-            notifications={notifications}
-            onDismiss={handleDismiss}
-            onMarkAsRead={handleMarkAsRead}
-          />
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Notifications
+              notifications={notifications}
+              onDismiss={handleDismiss}
+              onMarkAsRead={handleMarkAsRead}
+            />
+          )}
 
-          {notifications.length > 0 && (
+          {!loading && notifications.length > 0 && (
             <>
               <DropdownMenuSeparator />
               <CardFooter className="p-2">
@@ -121,7 +126,7 @@ export function NotificationCenter({
                   size="sm"
                   variant="outline"
                 >
-                  Clear all notifications
+                  {t("clearAll")}
                 </Button>
               </CardFooter>
             </>

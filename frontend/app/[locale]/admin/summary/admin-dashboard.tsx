@@ -43,7 +43,7 @@ interface AdminDashboardProps {
 
 const NAV_ITEMS = [
   { key: "products", href: "/admin/products", icon: Package, color: "text-purple-600" },
-  { key: "orders", href: "/admin/orders", icon: ShoppingCart, color: "text-blue-600" },
+  { key: "orders", href: "/admin/orders", icon: ShoppingCart, color: "text-primary" },
   { key: "pos", href: "/admin/pos", icon: CreditCard, color: "text-emerald-600" },
   { key: "warehouses", href: "/admin/warehouses", icon: Warehouse, color: "text-orange-600" },
   { key: "suppliers", href: "/admin/suppliers", icon: Truck, color: "text-sky-600" },
@@ -69,7 +69,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
     productsValue: initialProducts.reduce((sum, p) => sum + p.price * p.stock, 0),
   });
   const [statsLoading, setStatsLoading] = useState(true);
-  const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#3b82f6"];
+  const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#22c55e"];
 
   interface ServiceHealth {
     status: "healthy" | "unhealthy" | "loading";
@@ -189,7 +189,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+            <h1 className=" text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
               <LayoutDashboard className="h-10 w-10 text-purple-600" />
               {tSum("title")}
             </h1>
@@ -209,7 +209,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
+          <h1 className=" text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
             <LayoutDashboard className="h-10 w-10 text-purple-600" />
             {tSum("title")}
           </h1>
@@ -236,7 +236,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
           <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">{tSum("users")}</CardTitle>
-              <Users className="h-5 w-5 text-blue-600" />
+              <Users className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{stats.totalUsers}</div>
@@ -302,7 +302,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
           </Card>
         </div>
 
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">{tSum("sections")}</h2>
+        <h2 className=" text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">{tSum("sections")}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {NAV_ITEMS.map((item) => (
             <Link key={item.href} href={item.href}>
@@ -325,7 +325,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
           <Card className="dark:bg-slate-800/80 dark:border-slate-700">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 dark:text-slate-100 text-base">
-                <ShoppingCart className="h-5 w-5 text-blue-600" />
+                <ShoppingCart className="h-5 w-5 text-primary" />
                 {tSum("recentOrders")}
               </CardTitle>
             </CardHeader>

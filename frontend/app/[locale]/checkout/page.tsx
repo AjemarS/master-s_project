@@ -89,7 +89,7 @@ function CheckoutContent() {
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <ShoppingBag className="h-12 w-12 mx-auto mb-2 text-purple-600" />
+            <ShoppingBag className="h-12 w-12 mx-auto mb-2 text-primary" />
             <CardTitle>{tChk("returningToOrder")}</CardTitle>
             <CardDescription>{tChk("continueOrder", { id: orderId })}</CardDescription>
           </CardHeader>

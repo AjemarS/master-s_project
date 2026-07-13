@@ -10,7 +10,7 @@ export default function DashboardError({
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="text-center space-y-4">
-        <h2 className="text-2xl font-bold">Dashboard Error</h2>
+        <h2 className=" text-2xl font-bold">Dashboard Error</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
           {error.message || "We couldn't load your dashboard. Please try again."}
         </p>

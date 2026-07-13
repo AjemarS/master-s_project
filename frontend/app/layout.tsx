@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./lib/css/globals.css";
 
 import { CartProvider } from "~/lib/hooks/use-cart";
+import { BreadcrumbProvider } from "~/ui/components/breadcrumbs/breadcrumbs-context";
 import { ThemeProvider } from "~/ui/components/theme-provider";
 import { Toaster } from "~/ui/primitives/sonner";
 
@@ -28,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ua" suppressHydrationWarning>
+    <html suppressHydrationWarning>
       <body
         className={`
           ${geistSans.variable}
@@ -46,7 +47,9 @@ export default function RootLayout({
           enableSystem
         >
           <CartProvider>
-            {children}
+            <BreadcrumbProvider>
+              {children}
+            </BreadcrumbProvider>
             <Toaster />
           </CartProvider>
         </ThemeProvider>

@@ -60,8 +60,8 @@ export default function ProductsPageContent() {
           setProducts(mapped);
           setTotalCount(response.data.count);
         }
-      } catch (error) {
-        console.error(error);
+      } catch {
+        // Error fetching products — handled by empty state
       } finally {
         setIsLoading(false);
       }
@@ -95,6 +95,7 @@ export default function ProductsPageContent() {
           {
             category: product.category_name,
             id: String(product.id),
+            slug: product.slug,
             image: getImageUrl(product.image_url),
             name: product.name,
             price: product.price,
@@ -136,7 +137,7 @@ export default function ProductsPageContent() {
       <main className="flex-1 py-10">
         <div className="container px-4 md:px-6">
           <div className="mb-4">
-            <h1 className="text-3xl font-bold tracking-tight">{t("catalog")}</h1>
+            <h1 className=" text-3xl font-bold tracking-tight">{t("catalog")}</h1>
             <p className="mt-1 text-lg text-muted-foreground">
               {t("browseProducts")}
             </p>
@@ -211,7 +212,7 @@ export default function ProductsPageContent() {
 
           {isLoading && (
             <div className="mt-8 text-center">
-              <p className="text-transparent bg-clip-text bg-linear-120 from-white to-black">{tCommon("loading")}</p>
+              <p className="text-muted-foreground animate-pulse">{tCommon("loading")}</p>
             </div>
           )}
 

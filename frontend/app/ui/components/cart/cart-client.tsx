@@ -5,6 +5,7 @@ import { Minus, Plus, ShoppingCart, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "~/i18n/navigation";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 
 import { cn } from "~/lib/cn";
@@ -48,6 +49,7 @@ export function CartClient({ className }: CartProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = React.useState(false);
   const isMounted = useMounted();
+  const t = useTranslations("cart");
 
   const isDesktop = React.useSyncExternalStore(
     (onStoreChange) => {
@@ -58,11 +60,6 @@ export function CartClient({ className }: CartProps) {
     () => window.matchMedia("(min-width: 768px)").matches,
     () => false
   );
-
-  const cartDescription = React.useMemo(() => {
-    if (totalItems === 0) return "Your cart is empty";
-    return `You have ${totalItems} item${totalItems !== 1 ? "s" : ""} in your cart`;
-  }, [totalItems]);
 
   const formattedSubtotal = React.useMemo(() => formatCurrency(subtotal), [subtotal]);
 
@@ -81,7 +78,7 @@ export function CartClient({ className }: CartProps) {
 
   const CartTrigger = (
     <Button
-      aria-label="Open cart"
+      aria-label={t("shoppingCart")}
       className="relative h-9 w-9 rounded-full"
       size="icon"
       variant="outline"
@@ -103,22 +100,6 @@ export function CartClient({ className }: CartProps) {
   const CartContent = (
     <>
       <div className="flex flex-col">
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <div>
-            <div className="text-xl font-semibold">Your Cart</div>
-            <div className="text-sm text-muted-foreground">
-              {cartDescription}
-            </div>
-          </div>
-          {isDesktop && (
-            <SheetClose asChild>
-              <Button size="icon" variant="ghost">
-                <X className="h-5 w-5" />
-              </Button>
-            </SheetClose>
-          )}
-        </div>
-
         <div className="flex-1 overflow-y-auto px-6">
           <AnimatePresence>
             {cartItems.length === 0 ? (
@@ -136,20 +117,19 @@ export function CartClient({ className }: CartProps) {
                 >
                   <ShoppingCart className="h-10 w-10 text-muted-foreground" />
                 </div>
-                <h3 className="mb-2 text-lg font-medium">Your cart is empty</h3>
                 <p className="mb-6 text-center text-sm text-muted-foreground">
-                  Looks like you haven`&#39`t added anything to your cart yet.
+                  {t("emptyDesc")}
                 </p>
                 {isDesktop ? (
                   <SheetClose asChild>
                     <Link href="/products">
-                      <Button>Browse Products</Button>
+                      <Button>{t("browseProducts")}</Button>
                     </Link>
                   </SheetClose>
                 ) : (
                   <DrawerClose asChild>
                     <Link href="/products">
-                      <Button>Browse Products</Button>
+                      <Button>{t("browseProducts")}</Button>
                     </Link>
                   </DrawerClose>
                 )}
@@ -184,9 +164,9 @@ export function CartClient({ className }: CartProps) {
                           <Link
                             className={`
                               line-clamp-2 text-sm font-medium
-                              group-hover:text-primary
+                              group-hover:text-accent-electric
                             `}
-                            href={`/products/${item.id}`}
+                            href={`/products/${item.slug || item.id}`}
                             onClick={() => setIsOpen(false)}
                           >
                             {item.name}
@@ -266,31 +246,31 @@ export function CartClient({ className }: CartProps) {
           <div className="border-t px-6 py-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">{t("subtotal")}</span>
                 <span className="font-medium">{formattedSubtotal}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Shipping</span>
-                <span className="font-medium">Calculated at checkout</span>
+                <span className="text-muted-foreground">{t("shipping")}</span>
+                <span className="font-medium">{t("shippingCalc")}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between">
-                <span className="text-base font-semibold">Total</span>
+                <span className="text-base font-semibold">{t("total")}</span>
                 <span className="text-base font-semibold">
                   {formattedSubtotal}
                 </span>
               </div>
                <Button className="w-full" size="lg" onClick={() => { setIsOpen(false); router.push("/checkout"); }}>
-                Checkout
+                {t("checkout")}
               </Button>
               <div className="flex items-center justify-between">
                 {isDesktop ? (
                   <SheetClose asChild>
-                    <Button variant="outline">Continue Shopping</Button>
+                    <Button variant="outline">{t("continueShopping")}</Button>
                   </SheetClose>
                 ) : (
                   <DrawerClose asChild>
-                    <Button variant="outline">Continue Shopping</Button>
+                    <Button variant="outline">{t("continueShopping")}</Button>
                   </DrawerClose>
                 )}
                 <Button
@@ -298,7 +278,7 @@ export function CartClient({ className }: CartProps) {
                   onClick={handleClearCart}
                   variant="outline"
                 >
-                  Clear Cart
+                  {t("clearCart")}
                 </Button>
               </div>
             </div>
@@ -312,7 +292,7 @@ export function CartClient({ className }: CartProps) {
     return (
       <div className={cn("relative", className)}>
         <Button
-          aria-label="Open cart"
+          aria-label={t("shoppingCart")}
           className="relative h-9 w-9 rounded-full"
           size="icon"
           variant="outline"
@@ -340,7 +320,7 @@ export function CartClient({ className }: CartProps) {
           <SheetTrigger asChild>{CartTrigger}</SheetTrigger>
           <SheetContent className="flex w-[400px] flex-col p-0">
             <SheetHeader>
-              <SheetTitle>Shopping Cart</SheetTitle>
+              <SheetTitle>{t("shoppingCart")}</SheetTitle>
             </SheetHeader>
             {CartContent}
           </SheetContent>

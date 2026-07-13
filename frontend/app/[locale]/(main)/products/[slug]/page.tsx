@@ -4,9 +4,9 @@ import { ProductDetail } from "~/lib/types";
 
 const API_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 
-async function getProduct(id: string): Promise<ProductDetail | null> {
+async function getProduct(slug: string): Promise<ProductDetail | null> {
   try {
-    const response = await fetch(`${API_URL}/products/${id}/`, {
+    const response = await fetch(`${API_URL}/products/${slug}/`, {
       next: { revalidate: 30 },
     });
     if (!response.ok) return null;
@@ -26,16 +26,16 @@ async function getProduct(id: string): Promise<ProductDetail | null> {
   }
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const product = await getProduct(id);
+export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const product = await getProduct(slug);
 
   if (!product) {
     return (
       <div className="flex min-h-screen flex-col">
         <main className="flex-1 py-10">
           <div className="container px-4 md:px-6">
-            <h1 className="text-3xl font-bold">Product Not Found</h1>
+            <h1 className=" text-3xl font-bold">Product Not Found</h1>
             <p className="mt-4">The product you&apos;re looking for doesn&apos;t exist.</p>
           </div>
         </main>

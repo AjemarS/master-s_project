@@ -19,19 +19,61 @@ class CartViewSet(viewsets.ViewSet):
     MAX_QUANTITY = 999
 
     def _get_or_create_cart(self, request):
+        from django.db import IntegrityError
         user_id = request.META.get("HTTP_X_GATEWAY_USER_ID")
         session_id = request.META.get("HTTP_X_SESSION_ID")
 
         if user_id:
-            cart, _ = Cart.objects.prefetch_related("items__product").get_or_create(user_id=user_id)
-            if cart.session_id:
-                cart.session_id = None
-                cart.save(update_fields=["session_id"])
-            return cart
+            with transaction.atomic():
+                try:
+                    cart = Cart.objects.select_for_update().get(user_id=user_id)
+                except Cart.MultipleObjectsReturned:
+                    # Race-condition duplicates — merge into first, delete rest
+                    carts = list(Cart.objects.filter(user_id=user_id).select_for_update())
+                    cart = carts[0]
+                    for dup in carts[1:]:
+                        for item in dup.items.all():
+                            existing_item = CartItem.objects.filter(cart=cart, product=item.product).first()
+                            if existing_item:
+                                existing_item.quantity += item.quantity
+                                existing_item.save()
+                            else:
+                                item.cart = cart
+                                item.save()
+                        dup.delete()
+                except Cart.DoesNotExist:
+                    try:
+                        cart = Cart.objects.create(user_id=user_id)
+                    except IntegrityError:
+                        cart = Cart.objects.select_for_update().get(user_id=user_id)
+                if cart.session_id:
+                    cart.session_id = None
+                    cart.save(update_fields=["session_id"])
+                return Cart.objects.prefetch_related("items__product").get(pk=cart.pk)
 
         if session_id:
-            cart, _ = Cart.objects.prefetch_related("items__product").get_or_create(session_id=session_id)
-            return cart
+            with transaction.atomic():
+                try:
+                    cart = Cart.objects.select_for_update().get(session_id=session_id)
+                except Cart.MultipleObjectsReturned:
+                    carts = list(Cart.objects.filter(session_id=session_id).select_for_update())
+                    cart = carts[0]
+                    for dup in carts[1:]:
+                        for item in dup.items.all():
+                            existing_item = CartItem.objects.filter(cart=cart, product=item.product).first()
+                            if existing_item:
+                                existing_item.quantity += item.quantity
+                                existing_item.save()
+                            else:
+                                item.cart = cart
+                                item.save()
+                        dup.delete()
+                except Cart.DoesNotExist:
+                    try:
+                        cart = Cart.objects.create(session_id=session_id)
+                    except IntegrityError:
+                        cart = Cart.objects.select_for_update().get(session_id=session_id)
+                return Cart.objects.prefetch_related("items__product").get(pk=cart.pk)
 
         return None
 
@@ -136,12 +178,13 @@ class CartViewSet(viewsets.ViewSet):
             return Response({"error": "Both session and authenticated user required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            session_cart = Cart.objects.prefetch_related("items").get(session_id=session_id)
+            with transaction.atomic():
+                session_cart = Cart.objects.select_for_update().get(session_id=session_id)
         except Cart.DoesNotExist:
-            user_cart, _ = Cart.objects.prefetch_related("items__product").get_or_create(user_id=user_id)
+            user_cart = self._get_or_create_cart(request)
             return Response(CartSerializer(user_cart).data)
 
-        user_cart, _ = Cart.objects.prefetch_related("items").get_or_create(user_id=user_id)
+        user_cart = self._get_or_create_cart(request)
 
         with transaction.atomic():
             for session_item in session_cart.items.all():

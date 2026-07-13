@@ -1,7 +1,6 @@
 import React from "react";
 
 import type { Notification } from "./notification-center";
-
 import { NotificationCenter } from "./notification-center";
 import { useCurrentUser } from "~/lib/auth-client";
 import { notificationsApi, createNotificationSSE } from "~/lib/api/notifications";
@@ -9,15 +8,19 @@ import { notificationsApi, createNotificationSSE } from "~/lib/api/notifications
 export function NotificationsWidget() {
   const { user } = useCurrentUser();
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [loading, setLoading] = React.useState(true);
+  const cleanupRef = React.useRef<(() => void) | null>(null);
   const userId = user?.id;
 
   React.useEffect(() => {
     if (!userId) return;
 
-    let cleanup: (() => void) | null = null;
+    cleanupRef.current = null;
 
     const init = async () => {
-      const [listRes] = await Promise.all([
+      setLoading(true);
+      const [listRes, unreadRes] = await Promise.all([
         notificationsApi.list(userId, 1, 50),
         notificationsApi.unreadCount(userId),
       ]);
@@ -34,7 +37,13 @@ export function NotificationsWidget() {
         setNotifications(mapped);
       }
 
-      cleanup = createNotificationSSE(userId, (newNotif) => {
+      if (unreadRes.data?.count !== undefined) {
+        setUnreadCount(unreadRes.data.count);
+      }
+
+      setLoading(false);
+
+      cleanupRef.current = createNotificationSSE(userId, (newNotif) => {
         setNotifications((prev) => {
           const exists = prev.some((n) => n.id === newNotif.id);
           if (exists) return prev;
@@ -47,13 +56,17 @@ export function NotificationsWidget() {
             timestamp: new Date(newNotif.created_at),
           }, ...prev];
         });
+        setUnreadCount((prev) => prev + 1);
       });
     };
 
     init();
 
     return () => {
-      if (cleanup) cleanup();
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
     };
   }, [userId]);
 
@@ -63,6 +76,7 @@ export function NotificationsWidget() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     }
   };
 
@@ -71,6 +85,7 @@ export function NotificationsWidget() {
     const res = await notificationsApi.markAllRead(userId);
     if (res.data) {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnreadCount(0);
     }
   };
 
@@ -86,12 +101,15 @@ export function NotificationsWidget() {
     const res = await notificationsApi.clearAll(userId);
     if (res.data) {
       setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
   return (
     <NotificationCenter
       notifications={notifications}
+      unreadCount={unreadCount}
+      loading={loading}
       onClearAll={handleClearAll}
       onDismiss={handleDismiss}
       onMarkAllAsRead={handleMarkAllAsRead}

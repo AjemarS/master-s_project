@@ -1,7 +1,6 @@
 "use client";
 
 import { Minus, Plus, ShoppingCart, Star } from "lucide-react";
-import { useRouter } from "~/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
@@ -15,6 +14,7 @@ import { Separator } from "~/ui/primitives/separator";
 import { ProductCard } from "~/ui/components/product-card";
 import { ProductImage } from "~/ui/components/product-image";
 import { productApi } from "~/lib/api/admin-api";
+import { useBreadcrumbSegments } from "~/ui/components/breadcrumbs";
 
 const slugify = (str: string) =>
   str
@@ -26,9 +26,11 @@ const range = (length: number) => Array.from({ length }, (_, i) => i);
 
 export default function ProductDetailClient({ product }: { product: ProductDetail }) {
   const t = useTranslations("products");
+  const tNav = useTranslations("nav");
+  const tCommon = useTranslations();
   const locale = useLocale();
-  const router = useRouter();
   const { addItem } = useCart();
+  const { setSegments } = useBreadcrumbSegments();
   const [similar, setSimilar] = React.useState<Product[]>([]);
   const priceInfo = React.useMemo(() => formatPrice(product, locale), [product, locale]);
 
@@ -37,8 +39,17 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       if (res.data) {
         setSimilar(res.data.filter((p) => p.id !== product.id).slice(0, 4));
       }
-    }).catch(() => {});
+    }).catch((err) => console.error("Failed to fetch similar products:", err));
   }, [product.id]);
+
+  React.useEffect(() => {
+    setSegments([
+      { label: tCommon("nav.home"), href: "/" },
+      { label: tNav("products"), href: "/products" },
+      { label: product.name },
+    ]);
+    return () => setSegments(null);
+  }, [product.name, tCommon, tNav, setSegments]);
 
   const [quantity, setQuantity] = React.useState(1);
   const [isAdding, setIsAdding] = React.useState(false);
@@ -60,6 +71,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       {
         category: product.category.name,
         id: String(product.id),
+        slug: product.slug,
         image: getImageUrl(product.image_url),
         name: product.name,
         price: product.price,
@@ -67,26 +79,17 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       quantity
     );
     setQuantity(1);
-    toast.success(`${product.name} added to cart`);
+    toast.success(t("addedToCart", { name: product.name }));
     await new Promise((r) => setTimeout(r, 400));
     setIsAdding(false);
-  }, [addItem, product, quantity]);
+  }, [addItem, product, quantity, t]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-col">
       <main className="flex-1 py-10">
         <div className="container px-4 md:px-6">
-          <Button
-            aria-label="Back to products"
-            className="mb-6"
-            onClick={() => router.push("/products")}
-            variant="ghost"
-          >
-            ← Back to Products
-          </Button>
-
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div className="relative aspect-square overflow-hidden rounded-lg">
+            <div className="relative aspect-square overflow-hidden rounded-xl shadow-md bg-muted/30">
               <ProductImage
                 className="object-cover"
                 fill
@@ -96,7 +99,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                 priority
               />
               {discountPercentage > 0 && (
-                <div className="absolute top-2 left-2 rounded-full bg-red-500 px-2 py-1 text-xs font-bold text-white">
+                <div className="absolute top-2 left-2 rounded-full bg-destructive px-2 py-1 text-xs font-bold text-white">
                   -{discountPercentage}%
                 </div>
               )}
@@ -127,9 +130,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               </div>
 
               <div className="mb-6">
-                <p className="text-lg font-medium text-muted-foreground">{product.category.name}</p>
+                <span className="inline-block rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{product.category.name}</span>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-3xl font-bold">{priceInfo.price}</span>
+                  <span className="text-3xl font-bold text-primary">{priceInfo.price}</span>
                   {priceInfo.originalPrice && (
                     <span className="text-xl text-muted-foreground line-through">{priceInfo.originalPrice}</span>
                   )}
@@ -140,9 +143,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
 
               <div aria-atomic="true" aria-live="polite" className="mb-6">
                 {product.in_stock ? (
-                  <p className="text-sm font-medium text-green-600">{t("inStock")}</p>
+                  <p className="text-sm font-medium text-primary">{t("inStock")}</p>
                 ) : (
-                  <p className="text-sm font-medium text-red-500">{t("outOfStock")}</p>
+                  <p className="text-sm font-medium text-destructive">{t("outOfStock")}</p>
                 )}
               </div>
 
@@ -168,7 +171,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   </Button>
                 </div>
                 <Button
-                  className="flex-1"
+                  className="flex-1 shadow-sm"
                   disabled={!product.in_stock || isAdding}
                   onClick={handleAddToCart}
                 >
@@ -187,7 +190,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               <ul className="space-y-2">
                 {product.features.map((feature) => (
                   <li className="flex items-start" key={`feature-${product.id}-${slugify(feature)}`}>
-                    <span className="mt-2.5 mr-2 h-2 w-2 rounded-full bg-primary" />
+                    <span className="mt-2.5 mr-2 h-2 w-2 rounded-full bg-accent-electric" />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -195,9 +198,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
             </section>
             <section>
               <h2 className="mb-4 text-2xl font-bold">{t("specs")}</h2>
-              <div className="space-y-2">
-                {Object.entries(product.specs).map(([key, value]) => (
-                  <div className="flex justify-between border-b pb-2 text-sm" key={key}>
+              <div className="space-y-1">
+                {Object.entries(product.specs).map(([key, value], idx) => (
+                  <div className={`flex justify-between rounded-sm px-2 py-2 text-sm ${idx % 2 === 0 ? 'bg-muted/30' : ''}`} key={key}>
                     <span className="font-medium capitalize">
                       {key.replace(/([A-Z])/g, " $1").trim()}
                     </span>
@@ -222,7 +225,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                       rating: Number(p.rating),
                     }}
                     onAddToCart={(id) => {
-                      addItem({ id: String(id), name: p.name, price: p.price, image: getImageUrl(p.image_url), category: p.category_name }, 1);
+                      addItem({ id: String(id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1);
                     }}
                   />
                 ))}

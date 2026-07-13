@@ -156,7 +156,7 @@ export function UserTable({
       header: "User",
       cell: (user) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
+          <div className="h-10 w-10 rounded-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold">
             {user.name?.charAt(0).toUpperCase() || "U"}
           </div>
           <div>
@@ -319,12 +319,12 @@ export function UserTable({
           />
 
           {/* Better-Auth Admin Features Info */}
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="mt-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
             <div className="flex items-start gap-3">
-              <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <Shield className="h-5 w-5 text-primary dark:text-primary mt-0.5" />
               <div>
-                <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-1">Better-Auth Admin Features</h4>
-                <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+                <h4 className="font-semibold text-green-900 dark:text-green-200 mb-1">Better-Auth Admin Features</h4>
+                <ul className="text-sm text-green-800 dark:text-green-300 space-y-1">
                   <li>{"\u2022"} List all users with detailed information</li>
                   <li>{"\u2022"} Ban/Unban users with optional reason and expiry</li>
                   <li>{"\u2022"} Set user roles (admin, user, etc.)</li>

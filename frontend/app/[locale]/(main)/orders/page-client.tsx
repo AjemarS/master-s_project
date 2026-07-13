@@ -18,7 +18,7 @@ const ACTIVE_STATUSES = ["unpaid", "paid", "delivering", "delivered"];
 
 const STATUS_CFG: Record<string, { label: string; color: string }> = {
   unpaid: { label: "Не сплачено", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30" },
-  paid: { label: "Сплачено", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30" },
+  paid: { label: "Сплачено", color: "bg-green-50 text-green-700 dark:bg-green-950/30" },
   delivering: { label: "В дорозі", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30" },
   delivered: { label: "Доставлено", color: "bg-green-100 text-green-800 dark:bg-green-900/30" },
   completed: { label: "Виконано", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30" },
@@ -120,7 +120,7 @@ export function MyOrdersClient() {
             return (
               <tr key={order.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
-                  <Link href={`/order/${order.id}`} className="hover:text-purple-600">{order.order_number}</Link>
+                  <Link href={`/order/${order.id}`} className="hover:text-primary">{order.order_number}</Link>
                 </td>
                 {showStatus && (
                   <td className="p-4">

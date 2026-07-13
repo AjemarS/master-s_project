@@ -21,8 +21,10 @@ export const authClient = createAuthClient({
     adminClient(),
     twoFactorClient({
       onTwoFactorRedirect: () => {
-        // Redirect to 2FA page
-        window.location.href = "/mfa";
+        // Extract current locale from URL pathname and preserve it
+        const match = window.location.pathname.match(/^\/([a-z]{2})\//);
+        const locale = match ? match[1] : "ua";
+        window.location.href = `/${locale}/mfa`;
       },
     }),
   ],

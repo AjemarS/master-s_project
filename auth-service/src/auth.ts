@@ -19,6 +19,28 @@ export const auth = betterAuth({
     return fe ? [fe, fe.replace(/:\d+$/, "")] : ["http://localhost", "http://localhost:3000", "http://localhost:3001"];
   })(),
   appName: "TechHub",
+
+  // Email verification enumeration protection
+  // When admin plugin is active, the default synthetic user lacks admin fields
+  // This makes a "user exists" response distinguishable from a "new sign-up" response
+  customSyntheticUser: ({
+    coreFields,
+    additionalFields,
+    id,
+  }: {
+    coreFields: { name: string; email: string; emailVerified: boolean; image: string | null; createdAt: Date; updatedAt: Date };
+    additionalFields: Record<string, unknown>;
+    id: string;
+  }) => ({
+    ...coreFields,
+    role: "user",
+    banned: false,
+    banReason: null,
+    banExpires: null,
+    ...additionalFields,
+    id,
+  }),
+
   plugins: [
     admin({
       adminUserIds: [],
@@ -30,17 +52,24 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: !!process.env.RESEND_API_KEY,
     minPasswordLength: 8,
+    revokeSessionsOnPasswordReset: true,
     sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
-      await sendVerificationEmail(user.email, url);
+      // Do NOT await — prevents timing-based email enumeration
+      void sendVerificationEmail(user.email, url);
     },
     sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
-      await sendResetPasswordEmail(user.email, url);
+      // Do NOT await — prevents timing-based email enumeration
+      void sendResetPasswordEmail(user.email, url);
     },
   },
 
   session: {
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes cache
+    },
   },
 
   advanced: {
@@ -74,12 +103,13 @@ export const auth = betterAuth({
 
   user: {
     additionalFields: {
-      status: {
-        type: "string",
-        defaultValue: "active",
-        input: false,
-        required: false,
-      },
+      status: { type: "string", defaultValue: "active", input: false, required: false },
+      address_line1: { type: "string", input: true, required: false },
+      address_line2: { type: "string", input: true, required: false },
+      city: { type: "string", input: true, required: false },
+      state: { type: "string", input: true, required: false },
+      postal_code: { type: "string", input: true, required: false },
+      country: { type: "string", input: true, required: false },
     },
   },
 

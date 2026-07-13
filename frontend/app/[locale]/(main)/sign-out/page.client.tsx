@@ -1,6 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "~/i18n/navigation";
+import { toast } from "sonner";
 
 import { signOut } from "~/lib/auth-client";
 import { cn } from "~/lib/cn";
@@ -9,6 +11,7 @@ import { Button, buttonVariants } from "~/ui/primitives/button";
 import { Skeleton } from "~/ui/primitives/skeleton";
 
 export function SignOutPageClient() {
+  const t = useTranslations("signOut");
   const router = useRouter();
   const mounted = useMounted();
 
@@ -17,13 +20,17 @@ export function SignOutPageClient() {
   };
 
   const handleSignOut = async () => {
-    await signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push("/");
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            router.push("/");
+          },
         },
-      },
-    });
+      });
+    } catch {
+      toast.error(t("errorGeneric"));
+    }
   };
 
   return (
@@ -34,12 +41,12 @@ export function SignOutPageClient() {
       `}
     >
       <Button onClick={handlePageBack} size="default" variant="outline">
-        Go back
+        {t("goBack")}
         <span className="sr-only">Previous page</span>
       </Button>
       {mounted ? (
         <Button onClick={handleSignOut} size="default" variant="secondary">
-          Log out
+          {t("logOut")}
           <span className="sr-only">This action will log you out of your account.</span>
         </Button>
       ) : (
@@ -49,7 +56,7 @@ export function SignOutPageClient() {
             "bg-muted text-muted-foreground"
           )}
         >
-          Log out
+          {t("logOut")}
         </Skeleton>
       )}
     </div>

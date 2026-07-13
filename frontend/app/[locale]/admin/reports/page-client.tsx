@@ -59,7 +59,7 @@ export function ReportsClient() {
 
   const dailySalesData = dailySales?.daily ?? [];
 
-  const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#3b82f6"];
+  const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#22c55e"];
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -105,7 +105,7 @@ export function ReportsClient() {
               <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-blue-500">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <ShoppingCart className="h-4 w-4 text-blue-600" />
+                    <ShoppingCart className="h-4 w-4 text-primary" />
                     {t("totalOrders")}
                   </CardTitle>
                 </CardHeader>

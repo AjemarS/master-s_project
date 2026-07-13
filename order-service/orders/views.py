@@ -16,7 +16,7 @@ from rest_framework.response import Response
 
 from orders.models import Order
 from orders import order_service as svc
-from orders.inventory_client import release_stock
+from orders.inventory_client import check_availability, release_stock
 from orders.serializers import (
     OrderCreateSerializer,
     OrderDetailForAdminSerializer,
@@ -76,6 +76,13 @@ def _handle_webhook_completed(order, session, request):
                     request=request,
                 )
             order.status = Order.CANCELLED
+            # Actually refund the Stripe payment
+            if order.stripe_payment_intent_id:
+                try:
+                    stripe.Refund.create(payment_intent=order.stripe_payment_intent_id)
+                    logger.info("Stripe refunded | order=%s intent=%s", order.order_number, order.stripe_payment_intent_id)
+                except stripe.error.StripeError as e:
+                    logger.error("Stripe refund failed | order=%s error=%s", order.order_number, e)
             order.payment_status = Order.PAYMENT_REFUNDED
             order.save(update_fields=["status", "payment_status"])
             logger.error("Order cancelled after payment — reserve failure | number=%s", order.order_number)
@@ -143,6 +150,28 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         items_data = data.pop("items")
+
+        # Stock pre-check before order creation
+        warehouse_id = data.get("warehouse_id")
+        if warehouse_id:
+            for item in items_data:
+                available, error = check_availability(
+                    product_id=item["product_id"],
+                    warehouse_id=warehouse_id,
+                    quantity=item["quantity"],
+                    request=request,
+                )
+                if not available:
+                    product_name = item.get("product_name", f"Product #{item['product_id']}")
+                    return Response(
+                        {
+                            "error": f" товару '{product_name}' недостатньо на складі",
+                            "detail": error or "Немає в наявності",
+                            "product_id": item["product_id"],
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
         user_id = request.user.username if request.user.is_authenticated else ""
 
         order = svc.create_order(

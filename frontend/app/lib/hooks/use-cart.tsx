@@ -9,6 +9,7 @@ import type { CartResponse } from "../types";
 export interface CartItem {
   category: string;
   id: string;
+  slug?: string;
   image: string;
   name: string;
   price: number;

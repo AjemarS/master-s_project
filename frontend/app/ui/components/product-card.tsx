@@ -3,6 +3,7 @@
 import { ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import { useTranslations } from "next-intl";
 
 import { cn } from "~/lib/cn";
 import { Product } from "~/lib/types";
@@ -26,6 +27,7 @@ export const ProductCard = React.memo(function ProductCard({
   variant = "default",
   ...props
 }: ProductCardProps) {
+  const t = useTranslations("products");
   const [isHovered, setIsHovered] = React.useState(false);
   const [isAddingToCart, setIsAddingToCart] = React.useState(false);
 
@@ -81,10 +83,10 @@ export const ProductCard = React.memo(function ProductCard({
 
   return (
     <div className={cn("group", className)} {...props}>
-      <Link href={`/products/${product.id}`}>
+      <Link href={`/products/${product.slug || product.id}`}>
         <Card
           className={cn(
-            "relative h-full overflow-hidden rounded-lg py-0 transition-all duration-200 ease-in-out hover:shadow-md",
+            "relative flex h-full flex-col overflow-hidden rounded-lg py-0 transition-all duration-200 ease-in-out hover:shadow-md",
             isHovered && "ring-1 ring-primary/20"
           )}
           onMouseEnter={() => setIsHovered(true)}
@@ -109,13 +111,13 @@ export const ProductCard = React.memo(function ProductCard({
 
             {discount > 0 && (
               <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
-                {discount}% OFF
+                {t("off", { discount })}
               </Badge>
             )}
           </div>
 
-          <CardContent className="p-4 pt-4">
-            <h3 className="line-clamp-2 text-base font-medium transition-colors group-hover:text-primary">
+          <CardContent className="flex-1 p-4 pt-4">
+            <h3 className="line-clamp-2 text-base font-medium transition-colors group-hover:text-accent-electric">
               {product.name}
             </h3>
 
@@ -146,7 +148,7 @@ export const ProductCard = React.memo(function ProductCard({
                 ) : (
                   <ShoppingCart className="h-4 w-4" />
                 )}
-                Add to Cart
+                {t("addToCart")}
               </Button>
             </CardFooter>
           )}
@@ -174,7 +176,7 @@ export const ProductCard = React.memo(function ProductCard({
                   ) : (
                     <ShoppingCart className="h-4 w-4" />
                   )}
-                  <span className="sr-only">Add to cart</span>
+                  <span className="sr-only">{t("addToCartSr")}</span>
                 </Button>
               </div>
             </CardFooter>
@@ -183,7 +185,7 @@ export const ProductCard = React.memo(function ProductCard({
           {!product.in_stock && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
               <Badge className="px-3 py-1 text-sm" variant="destructive">
-                Out of Stock
+                {t("outOfStock")}
               </Badge>
             </div>
           )}

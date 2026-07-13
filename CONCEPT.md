@@ -475,7 +475,7 @@ Network: microservices_network (bridge)
 | Backend tests assertion count | Some tests pass system check but may have 0 assertions |
 | Testimonials mock data | Hardcoded in Ukrainian (not yet extracted to translations) |
 | Frontend `/products` i18n | Recently added — verify coverage |
-| Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction (see CONCERN.md #5) |
+| Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction |
 
 ---
 

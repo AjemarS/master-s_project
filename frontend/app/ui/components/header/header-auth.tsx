@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "~/ui/primitives/button";
 import { HeaderUserDropdown } from "./header-user";
@@ -10,6 +11,8 @@ interface AuthSectionProps {
 }
 
 export function AuthSection({ user, whereAmI }: AuthSectionProps) {
+  const t = useTranslations("common");
+
   if (user) {
     return (
       <div className="hidden md:block">
@@ -28,11 +31,11 @@ export function AuthSection({ user, whereAmI }: AuthSectionProps) {
     <div className="hidden md:flex items-center gap-2">
       <Link href="/sign-in">
         <Button size="sm" variant="ghost">
-          Log in
+          {t("signIn")}
         </Button>
       </Link>
       <Link href="/sign-up">
-        <Button size="sm">Sign up</Button>
+        <Button size="sm">{t("signUp")}</Button>
       </Link>
     </div>
   );

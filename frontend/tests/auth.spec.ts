@@ -10,7 +10,7 @@ test.describe("Auth Pages", () => {
       page,
     }) => {
       await expect(
-        page.getByRole("heading", { name: /sign in|log in/i })
+        page.getByRole("heading", { name: /вхід|увійти/i })
       ).toBeVisible();
 
       const email = page.locator("#email");
@@ -36,13 +36,13 @@ test.describe("Auth Pages", () => {
 
     test("has a link to sign up page", async ({ page }) => {
       const formLink = page
-        .getByText("Don't have an account?")
-        .getByRole("link", { name: /sign up/i });
+        .getByText("Немає облікового запису?")
+        .getByRole("link", { name: /зареєструватися/i });
       await expect(formLink).toBeVisible();
     });
 
     test("sign up link navigates to /sign-up", async ({ page }) => {
-      await page.getByRole("link", { name: /sign up/i }).first().click();
+      await page.getByRole("link", { name: /зареєструватися/i }).first().click();
       await page.waitForURL(/sign-up/, { timeout: 10000 });
       await expect(page.locator("#name")).toBeVisible();
     });
@@ -63,7 +63,7 @@ test.describe("Auth Pages", () => {
       page,
     }) => {
       await expect(
-        page.getByRole("heading", { name: /sign up|create account/i })
+        page.getByRole("heading", { name: /реєстрація|створити/i })
       ).toBeVisible();
 
       await expect(page.locator("#name")).toBeVisible();
@@ -75,9 +75,9 @@ test.describe("Auth Pages", () => {
         "password"
       );
 
-      await expect(
-        page.getByRole("button", { name: /create account/i })
-      ).toBeVisible();
+      // Find the submit button inside the form (not header)
+      const submitBtn = page.getByRole("button", { name: /зареєструватися/i }).first();
+      await expect(submitBtn).toBeVisible();
     });
 
     test("shows OAuth sign-up buttons", async ({ page }) => {
@@ -91,14 +91,14 @@ test.describe("Auth Pages", () => {
 
     test("has a link to sign in page", async ({ page }) => {
       await expect(
-        page.getByRole("link", { name: /sign in/i })
+        page.getByRole("link", { name: /увійти/i }).first()
       ).toBeVisible();
     });
 
     test("sign in link points to sign-in with correct path", async ({
       page,
     }) => {
-      const link = page.getByRole("link", { name: /sign in/i }).first();
+      const link = page.getByRole("link", { name: /увійти/i }).first();
       const href = await link.getAttribute("href");
       expect(href).toMatch(/sign-in/);
     });
@@ -108,13 +108,13 @@ test.describe("Auth Pages", () => {
     test("renders sign out confirmation with buttons", async ({ page }) => {
       await page.goto("/sign-out");
       await expect(
-        page.getByRole("heading", { name: /sign out/i })
+        page.getByRole("heading", { name: /вихід/i })
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Go back" })
+        page.getByRole("button", { name: "Назад" })
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Log out" })
+        page.getByRole("button", { name: "Вийти" })
       ).toBeVisible();
     });
   });
@@ -123,11 +123,11 @@ test.describe("Auth Pages", () => {
     test("renders two-factor authentication form", async ({ page }) => {
       await page.goto("/mfa");
       await expect(
-        page.getByRole("heading", { name: /two-factor/i })
+        page.getByRole("heading", { name: /двофакторна/i })
       ).toBeVisible();
       await expect(page.locator("#code")).toBeVisible();
       await expect(
-        page.getByRole("button", { name: /verify/i })
+        page.getByRole("button", { name: /підтвердити/i })
       ).toBeVisible();
     });
   });
