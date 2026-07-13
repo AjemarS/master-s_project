@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import logger from "./logger";
 import router from "./routes";
 import { startConsumer, stopConsumer, handleEvent } from "./consumer";
@@ -12,7 +11,6 @@ import { closeAll } from "./db";
 const PORT = process.env.PORT || 8003;
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 app.use(router);
 

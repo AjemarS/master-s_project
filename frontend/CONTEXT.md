@@ -80,7 +80,7 @@ app/
   - `/admin/*` — requires `admin` role (redirects to `/` if not admin)
   - `/checkout/*` — requires authenticated user
   - `/order/*` — requires authenticated user
-- **Current gap:** `/pos/*` and `/warehouse/*` not gated for cashier/warehouse_worker roles (see CONCERN.md §1)
+- **Current gap:** `/pos/*` and `/warehouse/*` not gated for cashier/warehouse_worker roles
 
 ## API Client (`app/lib/api.ts`)
 - Base URL: `/api` (proxied through gateway)
@@ -97,7 +97,7 @@ app/
 - **Framework:** Playwright (E2E)
 - **Run:** `npx playwright test`
 - **Location:** `frontend/tests/`
-- **Status:** Coverage and pass rate undocumented (see CONCERN.md §12)
+- **Status:** Coverage and pass rate undocumented
 
 ## Known Issues
 - Inventory pages (warehouses, suppliers, GRN, stock movements) are read-only — no mutation UIs for create/edit

@@ -72,9 +72,9 @@ export function AdminSidebar() {
   const tNav = useTranslations("nav");
   const { user } = useCurrentUser();
 
-  const userRole = user?.role || "admin";
+  const userRole = user?.role;
   const groups = navigationGroups.filter((g) =>
-    g.roles.includes(userRole) || userRole === "admin"
+    userRole === "admin" || g.roles.includes(userRole || "")
   );
 
   const [pinned, setPinned] = useState(false);

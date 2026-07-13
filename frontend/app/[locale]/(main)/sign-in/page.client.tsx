@@ -1,12 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useRouter } from "~/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-import { signIn } from "~/lib/auth-client";
+import { authClient, signIn } from "~/lib/auth-client";
 import { GitHubIcon } from "~/ui/components/icons/github";
 import { GoogleIcon } from "~/ui/components/icons/google";
 import { Button } from "~/ui/primitives/button";
@@ -23,10 +26,14 @@ export function SignInPageClient() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isEmailUnverified, setIsEmailUnverified] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const t = useTranslations("signIn");
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsEmailUnverified(false);
     setLoading(true);
 
     try {
@@ -35,12 +42,17 @@ export function SignInPageClient() {
         password,
       });
       if (result?.error) {
-        setError(result.error.message || "Invalid email or password");
+        if (result.error.status === 403) {
+          setIsEmailUnverified(true);
+          setError(t("errorEmailNotVerified"));
+        } else {
+          setError(result.error.message || t("errorInvalidCredentials"));
+        }
         return;
       }
-      router.push("/dashboard/profile");
+      router.push("/my/overview");
     } catch (err) {
-      setError("An unexpected error occurred");
+      setError(t("errorGeneric"));
       console.error(err);
     } finally {
       setLoading(false);
@@ -53,11 +65,11 @@ export function SignInPageClient() {
     try {
       const result = await signIn.social({ provider: "github" });
       if (result?.error) {
-        setError(result.error.message || "Failed to sign in with GitHub");
+        setError(result.error.message || t("errorGeneric"));
       }
       // On success the page will redirect via OAuth
     } catch (err) {
-      setError("Failed to sign in with GitHub");
+      setError(t("errorGeneric"));
       console.error(err);
     } finally {
       setLoading(false);
@@ -70,14 +82,30 @@ export function SignInPageClient() {
     try {
       const result = await signIn.social({ provider: "google" });
       if (result?.error) {
-        setError(result.error.message || "Failed to sign in with Google");
+        setError(result.error.message || t("errorGeneric"));
       }
       // On success the page will redirect via OAuth
     } catch (err) {
-      setError("Failed to sign in with Google");
+      setError(t("errorGeneric"));
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    if (!email) return;
+    try {
+      await authClient.sendVerificationEmail({
+        email,
+        callbackURL: "/sign-in",
+      });
+      toast.success(t("verificationSent"));
+    } catch {
+      toast.error(t("errorGeneric"));
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -109,8 +137,8 @@ export function SignInPageClient() {
           `}
         />
         <div className="absolute bottom-8 left-8 z-10 text-white">
-          <h1 className="text-3xl font-bold">Store</h1>
-          <p className="mt-2 max-w-md text-sm text-white/80">Good slogan</p>
+          <h1 aria-hidden="true" className=" text-3xl font-bold">{t("pageTitle")}</h1>
+          <p className="mt-2 max-w-md text-sm text-white/80">{t("pageSubtitle")}</p>
         </div>
       </div>
 
@@ -128,15 +156,15 @@ export function SignInPageClient() {
               md:text-left
             `}
           >
-            <h2 className="text-3xl font-bold">Sign In</h2>
+            <h2 className=" text-3xl font-bold">{t("pageTitle")}</h2>
             <p className="text-sm text-muted-foreground">
-              Enter your credentials to access your account
+              {t("pageSubtitle")}
             </p>
           </div>
 
           {justRegistered && (
             <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              Registration successful! Please check your email to verify your account before signing in.
+              {t("successRegistered")}
             </div>
           )}
 
@@ -150,13 +178,13 @@ export function SignInPageClient() {
                 }}
               >
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("emailLabel")}</Label>
                   <Input
                     id="email"
                     onChange={(e) => {
                       setEmail(e.target.value);
                     }}
-                    placeholder="name@example.com"
+                    placeholder={t("emailPlaceholder")}
                     required
                     type="email"
                     value={email}
@@ -164,7 +192,7 @@ export function SignInPageClient() {
                 </div>
                 <div className="grid gap-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">{t("passwordLabel")}</Label>
                     <Link
                       className={`
                         text-sm text-muted-foreground
@@ -172,7 +200,7 @@ export function SignInPageClient() {
                       `}
                       href="/forgot-password"
                     >
-                      Forgot password?
+                      {t("forgotPassword")}
                     </Link>
                   </div>
                   <Input
@@ -180,14 +208,29 @@ export function SignInPageClient() {
                     onChange={(e) => {
                       setPassword(e.target.value);
                     }}
+                    placeholder={t("passwordPlaceholder")}
                     required
                     type="password"
                     value={password}
                   />
                 </div>
                 {error && <div className="text-sm font-medium text-destructive">{error}</div>}
-                <Button className="w-full" disabled={loading} type="submit">
-                  {loading ? "Signing in..." : "Sign in"}
+                {isEmailUnverified && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    disabled={resendingVerification}
+                    onClick={handleResendVerification}
+                  >
+                    {resendingVerification ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : null}
+                    {t("resendVerification")}
+                  </Button>
+                )}
+                <Button className="w-full" disabled={loading} type="submit" aria-label="Sign in">
+                  {loading ? t("signingIn") : t("signInButton")}
                 </Button>
               </form>
               <div className="relative mt-6">
@@ -195,7 +238,7 @@ export function SignInPageClient() {
                   <Separator className="w-full" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-background px-2 text-muted-foreground">{t("orContinueWith")}</span>
                 </div>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
@@ -206,7 +249,7 @@ export function SignInPageClient() {
                   variant="outline"
                 >
                   <GitHubIcon className="h-5 w-5" />
-                  GitHub
+                  {t("github")}
                 </Button>
                 <Button
                   className="flex items-center gap-2"
@@ -215,11 +258,11 @@ export function SignInPageClient() {
                   variant="outline"
                 >
                   <GoogleIcon className="h-5 w-5" />
-                  Google
+                  {t("google")}
                 </Button>
               </div>
               <div className="mt-6 text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
+                {t("noAccount")}{" "}
                 <Link
                   className={`
                     text-primary underline-offset-4
@@ -227,7 +270,7 @@ export function SignInPageClient() {
                   `}
                   href="/sign-up"
                 >
-                  Sign up
+                  {t("signUpLink")}
                 </Link>
               </div>
             </CardContent>

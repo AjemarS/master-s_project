@@ -115,7 +115,7 @@ export function TestimonialsSection({
         >
           <h2
             className={`
-              max-w-[720px] text-3xl leading-tight font-semibold
+               max-w-[720px] text-3xl leading-tight font-semibold
               sm:text-5xl sm:leading-tight
             `}
           >

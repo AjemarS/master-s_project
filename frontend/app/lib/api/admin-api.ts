@@ -30,8 +30,6 @@ export const productApi = {
     if (params?.ordering) queryParams.append("ordering", params.ordering);
     if (params?.createdAfter) queryParams.append("created_after", params.createdAfter);
     if (params?.createdBefore) queryParams.append("created_before", params.createdBefore);
-    if (params?.createdAfter) queryParams.append("created_after", params.createdAfter);
-    if (params?.createdBefore) queryParams.append("created_before", params.createdBefore);
     const url = `${API_URL}/products/${queryParams.toString() ? `?${queryParams}` : ""}`;
     return apiCall(url);
   },

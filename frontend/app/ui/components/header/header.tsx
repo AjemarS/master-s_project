@@ -1,18 +1,26 @@
 "use client";
 
-import { useTranslations, useLocale } from "next-intl";
-import Link from "next/link";
+import { useLocale } from "next-intl";
 import { memo, useState } from "react";
+import { Globe, Search, X } from "lucide-react";
 
 import { Cart } from "~/ui/components/cart/cart";
 
 import { NotificationsWidget } from "../notifications/notifications-widget";
 import { ThemeToggle } from "../theme-toggle";
 import { useCurrentUser } from "~/lib/auth-client";
-import { DesktopNavigation } from "./header-desktop-nav";
+import { Button } from "~/ui/primitives/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/ui/primitives/dropdown-menu";
+
 import { AuthSection } from "./header-auth";
 import { MobileMenu, MobileMenuButton } from "./header-mobile-menu";
-import { usePathname } from "~/i18n/navigation";
+import { SearchBar } from "./search-overlay";
+import { Link, usePathname } from "~/i18n/navigation";
 
 interface HeaderProps {
   children?: React.ReactNode;
@@ -22,22 +30,24 @@ interface HeaderProps {
 export type NavigationSection = "main" | "dashboard" | "admin";
 export type NavItem = { href: string; name: string };
 
-const dashboardNavigation: NavItem[] = [
-  { href: "/dashboard/stats", name: "Stats" },
-  { href: "/dashboard/profile", name: "Profile" },
-  { href: "/dashboard/settings", name: "Settings" },
-  { href: "/orders", name: "My Orders" },
-];
-
+// These arrays are used only for prefix matching via the `rules` array below
+// to determine `whereAmI` (main / dashboard / admin). They are NOT rendered
+// as navigation links — DesktopNavigation component is unused.
 const adminNavigation: NavItem[] = [
   { href: "/admin/summary", name: "Summary" },
   { href: "/admin/users", name: "Users" },
   { href: "/admin/products", name: "Products" },
 ];
 
+const userNavigation: NavItem[] = [
+  { href: "/my/overview", name: "Overview" },
+  { href: "/my/orders", name: "My Orders" },
+  { href: "/my/settings", name: "Settings" },
+];
+
 const rules = [
-  { prefix: "/dashboard/", nav: dashboardNavigation, where: "dashboard" as const },
   { prefix: "/admin/", nav: adminNavigation, where: "admin" as const },
+  { prefix: "/my/", nav: userNavigation, where: "dashboard" as const },
 ];
 
 export const isInDashboardOrAdmin = (section: NavigationSection) =>
@@ -56,27 +66,11 @@ const Logo = memo(function Logo() {
   );
 });
 
-const HeaderLeft = memo(function HeaderLeft({
-  navigation,
-  pathname,
-}: {
-  navigation: NavItem[];
-  pathname: string;
-}) {
-  return (
-    <div className="flex items-center gap-6">
-      <Logo />
-      <DesktopNavigation navigation={navigation} pathname={pathname} />
-    </div>
-  );
-});
-
 export function Header({ showAuth = true }: HeaderProps) {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const t = useTranslations("nav");
-
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const matchedRule = rules.find((r) => pathname.startsWith(r.prefix));
 
   let whereAmI: NavigationSection = "main";
@@ -88,22 +82,10 @@ export function Header({ showAuth = true }: HeaderProps) {
     }
   }
 
-  const mainNavigation: NavItem[] = [
-    { href: "/", name: t("home") },
-    { href: "/products", name: t("products") },
-    { href: "/orders", name: t("orders") },
-  ];
-
-  const navigation =
-    whereAmI === "main"
-      ? mainNavigation
-      : whereAmI === "dashboard"
-        ? dashboardNavigation
-        : adminNavigation;
-
   const currentLocale = useLocale();
 
   return (
+    <>
     <header
       className={`
         sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur
@@ -117,34 +99,53 @@ export function Header({ showAuth = true }: HeaderProps) {
           lg:px-8
         `}
       >
-        <div className="flex h-16 items-center justify-between">
-          <HeaderLeft navigation={navigation} pathname={pathname} />
+        <div className="grid h-16 grid-cols-[33fr_34fr_33fr] items-center gap-4">
+          {/* Left */}
+          <div className="flex items-center">
+            <Logo />
+          </div>
 
-          <div className="flex items-center gap-4">
+          {/* Center: Desktop search */}
+          <div className="hidden md:flex justify-center">
+            <SearchBar />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 sm:gap-4">
+            {/* Mobile search toggle */}
+            <button
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              className="md:hidden flex items-center justify-center text-muted-foreground hover:text-foreground"
+              aria-label="Search"
+              type="button"
+            >
+              {mobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+            </button>
+
             {whereAmI !== "admin" && <Cart />}
 
             <NotificationsWidget />
 
-            <div className="flex items-center gap-1">
-              {[
-                { code: "ua", label: "UA" },
-                { code: "en", label: "EN" },
-              ].map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => {
-                    window.location.href = `/${lang.code}${pathname}`;
-                  }}
-                  className={`px-2 py-0.5 text-xs rounded font-medium transition-colors ${
-                    lang.code === currentLocale
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <Globe className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => { window.location.href = `/ua${pathname}`; }}
+                  className={currentLocale === "ua" ? "font-semibold text-accent-electric" : ""}
                 >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
+                  UA
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => { window.location.href = `/en${pathname}`; }}
+                  className={currentLocale === "en" ? "font-semibold text-accent-electric" : ""}
+                >
+                  EN
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {showAuth && <AuthSection user={user} whereAmI={whereAmI} />}
 
@@ -158,15 +159,21 @@ export function Header({ showAuth = true }: HeaderProps) {
         </div>
       </div>
 
+      {/* Mobile search bar */}
+      {mobileSearchOpen && (
+        <div className="md:hidden border-t px-4 py-3">
+          <SearchBar />
+        </div>
+      )}
+
       {mobileMenuOpen && (
         <MobileMenu
-          navigation={navigation}
-          pathname={pathname}
           showAuth={showAuth}
           user={user}
           onClose={() => setMobileMenuOpen(false)}
         />
       )}
     </header>
+    </>
   );
 }

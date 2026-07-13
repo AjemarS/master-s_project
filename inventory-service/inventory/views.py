@@ -2,12 +2,14 @@ import logging
 from uuid import uuid4
 
 from django.conf import settings
+from django.db import connection
 from django.db import transaction
 from django.db.models import F
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, views, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from .eventbus import publish_event, _check_and_publish_low_stock
@@ -445,3 +447,68 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
                 )
             )
         logger.info("GRN created | id=%s supplier=%s", instance.pk, instance.supplier.name)
+
+    def perform_destroy(self, instance):
+        """Reverse stock changes when GRN is deleted."""
+        with transaction.atomic():
+            for item in instance.items.all():
+                stock = Stock.objects.select_for_update().get(
+                    product_id=item.product_id,
+                    warehouse=instance.warehouse,
+                )
+                new_qty = stock.quantity - item.quantity
+                if new_qty < 0:
+                    raise ValidationError(
+                        "Cannot delete GRN: negative stock for product "
+                        f"{item.product_id} "
+                        f"(current: {stock.quantity}, remove: {item.quantity})"
+                    )
+                Stock.objects.filter(
+                    product_id=item.product_id, warehouse=instance.warehouse
+                ).update(quantity=F("quantity") - item.quantity)
+
+                StockMovement.objects.create(
+                    product_id=item.product_id,
+                    from_warehouse=instance.warehouse,
+                    quantity=item.quantity,
+                    type=StockMovement.ADJUSTMENT,
+                    reference_type="grn_delete",
+                    reference_id=str(instance.pk),
+                    notes=(
+                        f"GRN #{instance.pk} deleted: "
+                        f"reversed {item.quantity} units @ {item.cost_price}"
+                    ),
+                    created_by=instance.created_by or "system",
+                )
+
+                logger.info(
+                    "GRN reversal | product=%s warehouse=%s qty=%d grn=%s",
+                    item.product_id, instance.warehouse.name, item.quantity, instance.pk,
+                )
+
+            instance.delete()
+
+        logger.info("GRN deleted | id=%s", instance.pk)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Health check with database connectivity probe."""
+    try:
+        connection.ensure_connection()
+        return Response({
+            "status": "healthy",
+            "service": "inventory-service",
+            "checks": {"database": "connected"},
+        })
+    except Exception:
+        logger.exception("Health check failed")
+        return Response(
+            {
+                "status": "unhealthy",
+                "service": "inventory-service",
+                "checks": {"database": "disconnected"},
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )

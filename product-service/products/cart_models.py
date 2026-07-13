@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 
 class Cart(models.Model):
@@ -10,6 +11,10 @@ class Cart(models.Model):
     class Meta:
         verbose_name = "Кошик"
         verbose_name_plural = "Кошики"
+        constraints = [
+            models.UniqueConstraint(fields=["user_id"], condition=Q(user_id__isnull=False), name="unique_user_cart"),
+            models.UniqueConstraint(fields=["session_id"], condition=Q(session_id__isnull=False), name="unique_session_cart"),
+        ]
 
     def __str__(self):
         if self.user_id:

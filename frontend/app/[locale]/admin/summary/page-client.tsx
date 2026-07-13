@@ -12,14 +12,17 @@ interface SummaryPageClientProps {
 
 export default function SummaryPageClient({ initialProducts }: SummaryPageClientProps) {
   const { user } = useCurrentUser();
-  const role = user?.role || "user";
+  const role = user?.role;
 
   switch (role) {
     case "cashier":
       return <CashierDashboard />;
     case "warehouse_worker":
       return <WarehouseDashboard initialProducts={initialProducts} />;
-    default:
+    case "admin":
       return <AdminDashboard initialProducts={initialProducts} />;
+    default:
+      // Should not reach here (nginx returns 404 for non-admin), but safe fallback
+      return null;
   }
 }

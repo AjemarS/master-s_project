@@ -56,7 +56,7 @@ docker run --rm nginx-test nginx -t
 | Reports | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ### `proxy_intercept_errors on` (Auth-Check)
-`/auth-check` returns HTTP 200 even when auth-service is unreachable (empty headers → anonymous). This silences auth-service outages. See CONCERN.md §8.
+`/auth-check` returns HTTP 200 even when auth-service is unreachable (empty headers → anonymous). This silences auth-service outages.
 
 ## CORS (nginx/cors.js)
 - `checkOrigin(r)` — validates `Origin` against allowed list (localhost:3000, FRONTEND_URL, auth-service dev ports)
@@ -85,5 +85,5 @@ docker run --rm nginx-test nginx -t
 - WebSocket: `$connection_upgrade` map, only used for frontend proxy
 
 ## Known Issues
-- See CONCERN.md §1 (gateway blocks non-admin writes — RBAC logic in njs may still gate to admin-only)
+- Gateway blocks non-admin writes — RBAC logic in njs may still gate to admin-only
 - `nginx -t` fails outside Docker — hostnames resolve only inside compose network. Expected.

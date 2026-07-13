@@ -48,7 +48,7 @@ describe("POST /auth/two-factor/enable", () => {
 
     const res = await request(app).post("/auth/two-factor/enable").send({ password: "mypassword" });
     expect(res.status).toBe(200);
-    expect(res.body.message).toBe("Two-factor authentication enabled.");
+    expect(res.body).toEqual({});
     expect(mockEnableTwoFactor).toHaveBeenCalledWith(
       expect.objectContaining({ body: expect.objectContaining({ password: "mypassword" }) }),
     );
@@ -98,7 +98,7 @@ describe("POST /auth/two-factor/disable", () => {
 
     const res = await request(app).post("/auth/two-factor/disable").send({ password: "mypassword" });
     expect(res.status).toBe(200);
-    expect(res.body.message).toBe("Two-factor authentication disabled.");
+    expect(res.body).toEqual({});
   });
 
   it("returns 400 with missing password", async () => {

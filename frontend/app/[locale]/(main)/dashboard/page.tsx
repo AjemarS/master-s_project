@@ -1,7 +1,13 @@
-import { getLocale } from "next-intl/server";
-import { redirect } from "~/i18n/navigation";
+"use client";
 
-export default async function DashboardPage() {
-  const locale = await getLocale();
-  redirect({ href: "/dashboard/profile", locale });
+import { useEffect } from "react";
+import { useRouter } from "~/i18n/navigation";
+
+export default function DashboardRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    const timer = setTimeout(() => router.replace("/my/overview"), 80);
+    return () => clearTimeout(timer);
+  }, [router]);
+  return null;
 }

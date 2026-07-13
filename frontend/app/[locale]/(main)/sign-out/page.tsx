@@ -1,25 +1,31 @@
-import type { Metadata } from "next";
-
-
-// import { getCurrentUserOrRedirect } from "~/lib/auth-client";
+import { getTranslations } from "next-intl/server";
 import { PageHeader, PageHeaderDescription, PageHeaderHeading } from "~/ui/components/page-header";
 import { Shell } from "~/ui/primitives/shell";
 import { SignOutPageClient } from "./page.client";
 
-export const metadata: Metadata = {
-  description: "Sign out of your account",
-  metadataBase: new URL(process.env.NEXT_SERVER_APP_URL || "http://localhost:3000"),
-  title: "Sign out",
+type Props = {
+  params: Promise<{ locale: string }>;
 };
 
-export default async function SignOutPage() {
-  // await getCurrentUserOrRedirect();
+export async function generateMetadata({ params }: Props) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "signOut" });
+  return {
+    title: t("pageTitle"),
+    description: t("confirmMessage"),
+    metadataBase: new URL(process.env.NEXT_SERVER_APP_URL || "http://localhost:3000"),
+  };
+}
+
+export default async function SignOutPage({ params }: Props) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "signOut" });
 
   return (
     <Shell>
       <PageHeader>
-        <PageHeaderHeading>Sign out</PageHeaderHeading>
-        <PageHeaderDescription>Are you sure you want to sign out?</PageHeaderDescription>
+        <PageHeaderHeading>{t("pageTitle")}</PageHeaderHeading>
+        <PageHeaderDescription>{t("confirmMessage")}</PageHeaderDescription>
       </PageHeader>
       <SignOutPageClient />
     </Shell>

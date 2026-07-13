@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { authClient } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/
 import { ArrowLeft, CheckCircle } from "lucide-react";
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations("forgotPassword");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -20,17 +22,14 @@ export default function ForgotPasswordPage() {
     setError("");
     setLoading(true);
     try {
-      type AuthClientWithForgotPassword = typeof authClient & {
-        forgetPassword: (params: { email: string }) => Promise<{ error?: { message: string } | null }>;
-      };
-      const result = await (authClient as AuthClientWithForgotPassword).forgetPassword({ email });
+      const result = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
       if (result?.error) {
-        setError(result.error.message || "Failed to send reset email");
+        setError(result.error.message || t("errorSend"));
       } else {
         setSent(true);
       }
     } catch {
-      setError("An unexpected error occurred");
+      setError(t("errorGeneric"));
     } finally {
       setLoading(false);
     }
@@ -42,12 +41,12 @@ export default function ForgotPasswordPage() {
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
-            <CardTitle>Check your email</CardTitle>
-            <CardDescription>If an account exists, you will receive a password reset link.</CardDescription>
+            <CardTitle>{t("successTitle")}</CardTitle>
+            <CardDescription>{t("successMessage")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline" className="w-full" asChild>
-              <Link href="/sign-in">Back to sign in</Link>
+              <Link href="/sign-in">{t("backToSignIn")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -59,21 +58,21 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Forgot password</CardTitle>
-          <CardDescription>Enter your email to receive a reset link.</CardDescription>
+          <CardTitle>{t("pageTitle")}</CardTitle>
+          <CardDescription>{t("pageSubtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="fp-email">Email</Label>
-              <Input id="fp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="fp-email">{t("emailLabel")}</Label>
+              <Input id="fp-email" type="email" placeholder={t("emailPlaceholder")} value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading || !email}>
-              {loading ? "Sending..." : "Send reset link"}
+              {loading ? t("sending") : t("sendButton")}
             </Button>
             <Button variant="link" className="w-full" asChild>
-              <Link href="/sign-in"><ArrowLeft className="h-4 w-4 mr-1" /> Back to sign in</Link>
+              <Link href="/sign-in"><ArrowLeft className="h-4 w-4 mr-1" /> {t("backToSignIn")}</Link>
             </Button>
           </form>
         </CardContent>

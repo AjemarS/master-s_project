@@ -24,4 +24,4 @@
   - order-service: `docker compose exec order-service python manage.py test`
   - auth-service: `docker compose exec auth-service npm run test`
   - frontend: `docker compose exec frontend npx playwright test`
-  - See CONCERN.md for known design issues and priorities.
+

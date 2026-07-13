@@ -113,7 +113,7 @@ export function SuppliersClient() {
                           <TableCell className="font-medium">{s.name}</TableCell>
                           <TableCell className="text-muted-foreground">{s.contact_person}</TableCell>
                           <TableCell className="text-muted-foreground">{s.phone}</TableCell>
-                          <TableCell className="text-blue-600 dark:text-blue-400">{s.email}</TableCell>
+                          <TableCell className="text-primary dark:text-primary">{s.email}</TableCell>
                           <TableCell>
                             <Badge variant={s.is_active ? "default" : "secondary"}>
                               {s.is_active ? tc("yes") : tc("no")}

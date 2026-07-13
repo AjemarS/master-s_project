@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { useRouter } from "~/i18n/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { signIn, signUp } from "~/lib/auth-client";
 import { GitHubIcon } from "~/ui/components/icons/github";
@@ -16,6 +16,7 @@ import { Label } from "~/ui/primitives/label";
 import { Separator } from "~/ui/primitives/separator";
 
 export function SignUpPageClient() {
+  const t = useTranslations("signUp");
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
@@ -33,49 +34,50 @@ export function SignUpPageClient() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    void signUp
-      .email({
-        email: formData.email,
-        name: formData.name,
-        password: formData.password,
-      })
-      .then(() => {
-        router.push("/sign-in?registered=true");
-        toast.success("Registration successful! Please sign in.");
-      })
-      .catch((err: unknown) => {
-        setError("Registration failed. Please try again.");
-        console.error(err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
-
-  const handleGitHubSignUp = () => {
-    setLoading(true);
     try {
-      void signIn.social({ provider: "github" });
+      const { error: signUpError } = await signUp.email({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      if (signUpError) {
+        setError(t("errorGeneric"));
+        return;
+      }
+      router.push("/sign-in?registered=true");
     } catch (err) {
-      setError("Failed to sign up with GitHub");
+      setError(t("errorGeneric"));
       console.error(err);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignUp = () => {
-    setLoading(true);
+  const handleGitHubSignUp = async () => {
+    setError("");
     try {
-      void signIn.social({ provider: "google" });
-    } catch (err) {
-      setError("Failed to sign up with Google");
-      console.error(err);
-      setLoading(false);
+      const result = await signIn.social({ provider: "github", callbackURL: "/sign-in?registered=true" });
+      if (result?.error) {
+        setError(t("errorGeneric"));
+      }
+    } catch {
+      setError(t("errorGeneric"));
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setError("");
+    try {
+      const result = await signIn.social({ provider: "google", callbackURL: "/sign-in?registered=true" });
+      if (result?.error) {
+        setError(t("errorGeneric"));
+      }
+    } catch {
+      setError(t("errorGeneric"));
     }
   };
 
@@ -107,8 +109,8 @@ export function SignUpPageClient() {
           `}
         />
         <div className="absolute bottom-8 left-8 z-10 text-white">
-          <h1 className="text-3xl font-bold">Store</h1>
-          <p className="mt-2 max-w-md text-sm text-white/80">Good slogan</p>
+          <h1 aria-hidden="true" className=" text-3xl font-bold">{t("pageTitle")}</h1>
+          <p className="mt-2 max-w-md text-sm text-white/80">{t("pageSubtitle")}</p>
         </div>
       </div>
 
@@ -126,9 +128,9 @@ export function SignUpPageClient() {
               md:text-left
             `}
           >
-            <h2 className="text-3xl font-bold">Create Account</h2>
+            <h2 className=" text-3xl font-bold">{t("pageTitle")}</h2>
             <p className="text-sm text-muted-foreground">
-              Enter your details to create your account
+              {t("pageSubtitle")}
             </p>
           </div>
 
@@ -136,35 +138,36 @@ export function SignUpPageClient() {
             <CardContent className="pt-2">
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">{t("nameLabel")}</Label>
                   <Input
                     id="name"
                     name="name"
                     onChange={handleChange}
-                    placeholder="John Doe"
+                    placeholder={t("namePlaceholder")}
                     required
                     type="text"
                     value={formData.name}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("emailLabel")}</Label>
                   <Input
                     id="email"
                     name="email"
                     onChange={handleChange}
-                    placeholder="name@example.com"
+                    placeholder={t("emailPlaceholder")}
                     required
                     type="email"
                     value={formData.email}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t("passwordLabel")}</Label>
                   <Input
                     id="password"
                     name="password"
                     onChange={handleChange}
+                    placeholder={t("passwordPlaceholder")}
                     required
                     type="password"
                     value={formData.password}
@@ -172,7 +175,7 @@ export function SignUpPageClient() {
                 </div>
                 {error && <div className="text-sm font-medium text-destructive">{error}</div>}
                 <Button className="w-full" disabled={loading} type="submit">
-                  {loading ? "Creating account..." : "Create account"}
+                  {loading ? t("signingUp") : t("signUpButton")}
                 </Button>
               </form>
               <div className="relative mt-6">
@@ -180,7 +183,7 @@ export function SignUpPageClient() {
                   <Separator className="w-full" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-background px-2 text-muted-foreground">{t("orContinueWith")}</span>
                 </div>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
@@ -191,7 +194,7 @@ export function SignUpPageClient() {
                   variant="outline"
                 >
                   <GitHubIcon className="h-5 w-5" />
-                  GitHub
+                  {t("github")}
                 </Button>
                 <Button
                   className="flex items-center gap-2"
@@ -200,11 +203,11 @@ export function SignUpPageClient() {
                   variant="outline"
                 >
                   <GoogleIcon className="h-5 w-5" />
-                  Google
+                  {t("google")}
                 </Button>
               </div>
               <div className="mt-6 text-center text-sm text-muted-foreground">
-                Already have an account?{" "}
+                {t("hasAccount")}{" "}
                 <Link
                   className={`
                     text-primary underline-offset-4
@@ -212,7 +215,7 @@ export function SignUpPageClient() {
                   `}
                   href="/sign-in"
                 >
-                  Sign in
+                  {t("signInLink")}
                 </Link>
               </div>
             </CardContent>

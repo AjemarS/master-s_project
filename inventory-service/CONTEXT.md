@@ -89,7 +89,7 @@ python manage.py test
 - **Run:** `python manage.py test`
 
 ## Known Issues
-- No internal transfer endpoint (CONCEPT §4.2 — see CONCERN.md)
+- No internal transfer endpoint (CONCEPT §4.2)
 - No stock adjustment / write-off endpoints
 - GRN delete doesn't reverse stock changes
 - No `/health` endpoint (uses GET `/api/inventory/` as health check)

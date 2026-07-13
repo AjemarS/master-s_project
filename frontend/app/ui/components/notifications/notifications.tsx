@@ -37,7 +37,7 @@ function getNotificationIcon(type: Notification["type"]) {
     case "error":
       return <div className="h-2 w-2 rounded-full bg-red-500" />;
     case "info":
-      return <div className="h-2 w-2 rounded-full bg-blue-500" />;
+      return <div className="h-2 w-2 rounded-full bg-accent-electric" />;
     case "success":
       return <div className="h-2 w-2 rounded-full bg-green-500" />;
     case "warning":

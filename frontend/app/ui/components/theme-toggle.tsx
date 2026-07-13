@@ -71,7 +71,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         <DropdownMenuItem
           className={cn(
             "flex cursor-pointer items-center gap-2",
-            theme === "light" && "font-medium text-primary",
+            theme === "light" && "font-medium text-accent-electric",
           )}
           onClick={() => setTheme("light")}
         >
@@ -81,7 +81,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         <DropdownMenuItem
           className={cn(
             "flex cursor-pointer items-center gap-2",
-            theme === "dark" && "font-medium text-primary",
+            theme === "dark" && "font-medium text-accent-electric",
           )}
           onClick={() => setTheme("dark")}
         >
@@ -91,7 +91,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         <DropdownMenuItem
           className={cn(
             "flex cursor-pointer items-center gap-2",
-            (theme === "system" || !theme) && "font-medium text-primary",
+            (theme === "system" || !theme) && "font-medium text-accent-electric",
           )}
           onClick={() => setTheme("system")}
         >

@@ -22,7 +22,7 @@ test.describe("Products Page", () => {
   });
 
   test("header logo navigates to home from products", async ({ page }) => {
-    await page.locator("header").getByText("TechHub").click();
+    await page.locator("header").getByRole("link", { name: /TechHub/i }).click();
     await expect(page).toHaveURL("/");
   });
 });

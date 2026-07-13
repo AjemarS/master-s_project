@@ -168,3 +168,38 @@ test.describe("Admin Users", () => {
     await expect(table.locator("th").getByText(/роль/i)).toBeVisible();
   });
 });
+
+test.describe("Admin Auth: Anonymous Access", () => {
+  test("redirects anonymous users from /admin/summary to sign-in", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    try {
+      await page.goto("/admin/summary", { waitUntil: "networkidle" });
+      await expect(page).toHaveURL(/\/sign-in/);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("redirects anonymous users from /admin/users to sign-in", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    try {
+      await page.goto("/admin/users", { waitUntil: "networkidle" });
+      await expect(page).toHaveURL(/\/sign-in/);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("redirects anonymous users from /admin/orders to sign-in", async ({ browser }) => {
+    const context = await browser.newContext({ storageState: undefined });
+    const page = await context.newPage();
+    try {
+      await page.goto("/admin/orders", { waitUntil: "networkidle" });
+      await expect(page).toHaveURL(/\/sign-in/);
+    } finally {
+      await context.close();
+    }
+  });
+});

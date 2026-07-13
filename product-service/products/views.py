@@ -2,6 +2,7 @@ import logging
 
 from django.db import connection, transaction
 from django.db.models import F
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -48,6 +49,14 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve", "low_stock", "by_category"):
             return [IsAuthenticatedOrReadOnly()]
         return [IsAdminUser()]
+
+    def retrieve(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        if pk and not pk.isdigit():
+            obj = get_object_or_404(Product, slug=pk)
+            serializer = self.get_serializer(obj)
+            return Response(serializer.data)
+        return super().retrieve(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         instance = serializer.save()

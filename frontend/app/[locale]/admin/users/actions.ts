@@ -22,8 +22,9 @@ export const adminService = {
       userId,
       // Custom roles (cashier, warehouse_worker) are configured server-side.
       // Better Auth admin plugin types only include default roles,
-      // so we assert the narrower type. Runtime value is preserved.
-      role: role as "admin" | "user",
+      // so we assert to bypass the type restriction. Runtime value is preserved.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      role: role as any,
     });
   },
 
@@ -36,7 +37,8 @@ export const adminService = {
   async createUser(user: { email: string; password: string; name: string; role?: "admin" | "user" | "cashier" | "warehouse_worker" }) {
     return await authClient.admin.createUser({
       ...user,
-      role: user.role as "admin" | "user" | undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      role: user.role as any,
     });
   },
 

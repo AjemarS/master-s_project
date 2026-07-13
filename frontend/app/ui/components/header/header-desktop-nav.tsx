@@ -16,9 +16,9 @@ export const DesktopNavigation = memo(function DesktopNavigation({ navigation, p
           <li key={item.name}>
             <Link
               className={cn(
-                "text-sm font-medium transition-colors hover:text-primary",
+                "text-sm font-medium transition-colors hover:text-accent-electric",
                 isActive(item.href, pathname)
-                  ? "font-semibold text-primary"
+                  ? "font-semibold text-accent-electric"
                   : "text-muted-foreground"
               )}
               href={item.href}

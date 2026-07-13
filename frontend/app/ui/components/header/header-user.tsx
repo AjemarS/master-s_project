@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { BarChart, LogOut, Settings, Shield, UserIcon, CreditCard, Warehouse } from "lucide-react";
 import Link from "next/link";
 
@@ -27,6 +28,8 @@ export function HeaderUserDropdown({
   userImage,
   userName,
 }: HeaderUserDropdownProps) {
+  const tCommon = useTranslations("common");
+  const tNav = useTranslations("nav");
   const isAdmin = role === "admin";
   const isCashier = role === "cashier";
   const isWarehouseWorker = role === "warehouse_worker";
@@ -53,7 +56,7 @@ export function HeaderUserDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <div className="flex items-center justify-start gap-2 p-2">
-          <Avatar className="h-8 w-8 bg-primary/10">
+          <Avatar className="h-8 w-8 bg-accent-electric/10">
             <AvatarImage alt={userName || "User"} src={userImage || undefined} />
             <AvatarFallback>
               {userName ? (
@@ -63,7 +66,7 @@ export function HeaderUserDropdown({
                   .join("")
                   .slice(0, 2)
               ) : (
-                <UserIcon className="h-4 w-4 text-primary" />
+                <UserIcon className="h-4 w-4 text-accent-electric" />
               )}
             </AvatarFallback>
           </Avatar>
@@ -74,28 +77,22 @@ export function HeaderUserDropdown({
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link className="cursor-pointer" href="/dashboard/stats">
+          <Link className="cursor-pointer" href="/my/overview">
             <BarChart className="mr-2 h-4 w-4" />
-            Stats
+            {tNav("overview")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link className="cursor-pointer" href="/dashboard/profile">
-            <UserIcon className="mr-2 h-4 w-4" />
-            Profile
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link className="cursor-pointer" href="/dashboard/settings">
+          <Link className="cursor-pointer" href="/my/settings">
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            {tNav("settings")}
           </Link>
         </DropdownMenuItem>
         {showAdmin && (
           <DropdownMenuItem asChild>
             <Link className="cursor-pointer" href="/admin/summary">
               <Shield className="mr-2 h-4 w-4" />
-              {isCashier ? "POS" : isWarehouseWorker ? "Склад" : "Admin"}
+              {isCashier ? tCommon("pos") : isWarehouseWorker ? tCommon("warehouse") : tCommon("admin")}
             </Link>
           </DropdownMenuItem>
         )}
@@ -103,7 +100,7 @@ export function HeaderUserDropdown({
           <DropdownMenuItem asChild>
             <Link className="cursor-pointer" href="/admin/pos">
               <CreditCard className="mr-2 h-4 w-4" />
-              POS
+              {tCommon("pos")}
             </Link>
           </DropdownMenuItem>
         )}
@@ -111,7 +108,7 @@ export function HeaderUserDropdown({
           <DropdownMenuItem asChild>
             <Link className="cursor-pointer" href="/admin/warehouses">
               <Warehouse className="mr-2 h-4 w-4" />
-              Склади
+              {tNav("warehouses")}
             </Link>
           </DropdownMenuItem>
         )}
@@ -130,7 +127,7 @@ export function HeaderUserDropdown({
         >
           <Link href="/sign-out">
             <LogOut className="mr-2 h-4 w-4" />
-            Log out
+            {tCommon("signOut")}
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>

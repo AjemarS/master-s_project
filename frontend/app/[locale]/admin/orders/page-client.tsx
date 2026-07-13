@@ -13,7 +13,6 @@ import {
   Package,
   Search,
   ArrowUpDown,
-  Loader2,
 } from "lucide-react";
 import { orderApi } from "~/lib/api/admin-api";
 import type { Order, OrderDetail } from "~/lib/types";
@@ -22,7 +21,7 @@ import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
 import { formatCurrency, formatDate } from "~/lib/utils/format";
-import { orderStatusLabel, orderChannelLabel, getAllowedTransitions } from "~/lib/utils/order-status";
+import { orderChannelLabel, getAllowedTransitions } from "~/lib/utils/order-status";
 import { useOrders, useUpdateOrderStatus } from "~/lib/hooks/use-api-data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import {
@@ -115,7 +114,7 @@ export function AdminOrdersClient() {
           setOrderDetails((prev) => ({ ...prev, [orderId]: response.data! }));
         }
       } catch {
-        toast.error(tc("error"), { description: "Не вдалося завантажити деталі замовлення" });
+        toast.error(tc("error"), { description: t("loadError") });
       }
     }
   };
@@ -125,12 +124,12 @@ export function AdminOrdersClient() {
     try {
       await updateOrderStatus({ id: orderId, status: newStatus });
       toast.success(t("statusUpdated"), {
-        description: `Статус замовлення #${orderId} змінено на "${orderStatusLabel(newStatus)}"`,
+        description: t("statusChanged", { id: orderId, status: t(newStatus) }),
       });
       mutate();
     } catch (err) {
       toast.error(tc("error"), {
-        description: err instanceof Error ? err.message : "Не вдалося оновити статус",
+        description: err instanceof Error ? err.message : t("statusUpdateError"),
       });
     } finally {
       setUpdatingOrderId(null);
@@ -235,7 +234,7 @@ export function AdminOrdersClient() {
                 {
                   id: "channel",
                   header: t("channel"),
-                  cell: (order: Order) => <Badge variant="outline">{orderChannelLabel(order.channel)}</Badge>,
+                  cell: (order: Order) => <Badge variant="outline">{orderChannelLabel(t, order.channel)}</Badge>,
                 },
                 {
                   id: "status",
@@ -271,7 +270,7 @@ export function AdminOrdersClient() {
                             disabled={updatingOrderId === order.id}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {updatingOrderId === order.id ? "..." : orderStatusLabel(order.status)}
+                            {updatingOrderId === order.id ? "..." : t(order.status)}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>

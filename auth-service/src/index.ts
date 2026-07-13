@@ -1,6 +1,5 @@
 import express, { NextFunction, Request, Response } from "express";
 import { toNodeHandler } from "better-auth/node";
-import cors from "cors";
 import crypto from "crypto";
 import { auth, pool } from "./auth";
 import logger from "./logger";
@@ -53,7 +52,6 @@ export function createApp() {
     return ["http://localhost", "http://localhost:3000", "http://localhost:3001"];
   })();
 
-  app.use(cors({ origin: corsOrigins, credentials: true }));
   app.use(express.json());
 
   app.use((req: Request, res: Response, next: NextFunction) => {
