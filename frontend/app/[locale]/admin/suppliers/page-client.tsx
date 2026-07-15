@@ -11,8 +11,8 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { Truck, Plus } from "lucide-react";
-import { AdminPageHeader } from "../components";
+import { Truck, Plus, Pencil, Trash2 } from "lucide-react";
+import { AdminPageHeader, ConfirmDialog } from "../components";
 import {
   Table,
   TableHeader,
@@ -24,7 +24,13 @@ import {
 import { TableSkeleton, EmptyState } from "../components";
 import { useCurrentUser } from "~/lib/auth-client";
 import { ErrorAlert } from "~/ui/components/error-alert";
-import { useSuppliers, useCreateSupplier } from "~/lib/hooks/use-api-data";
+import {
+  useSuppliers,
+  useCreateSupplier,
+  useUpdateSupplier,
+  useDeleteSupplier,
+} from "~/lib/hooks/use-api-data";
+import type { Supplier } from "~/lib/types";
 
 export function SuppliersClient() {
   const t = useTranslations("suppliers");
@@ -33,12 +39,25 @@ export function SuppliersClient() {
   const { data, error, isLoading, mutate } = useSuppliers();
   const suppliers = data?.results || [];
   const { trigger: createSupplier, isMutating: saving } = useCreateSupplier();
+  const { trigger: updateSupplier, isMutating: updating } = useUpdateSupplier();
+  const { trigger: deleteSupplier, isMutating: deleting } = useDeleteSupplier();
+
   const [showCreate, setShowCreate] = useState(false);
   const [formName, setFormName] = useState("");
   const [formContact, setFormContact] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formAddress, setFormAddress] = useState("");
+
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editContact, setEditContact] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
 
@@ -60,6 +79,50 @@ export function SuppliersClient() {
       toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
     }
   };
+
+  const openEdit = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setEditName(supplier.name);
+    setEditContact(supplier.contact_person || "");
+    setEditPhone(supplier.phone || "");
+    setEditEmail(supplier.email || "");
+    setEditAddress(supplier.address || "");
+  };
+
+  const handleEdit = async () => {
+    if (!editingSupplier || !editName.trim()) return;
+    try {
+      await updateSupplier({
+        id: editingSupplier.id,
+        data: {
+          name: editName.trim(),
+          contact_person: editContact.trim(),
+          phone: editPhone.trim(),
+          email: editEmail.trim(),
+          address: editAddress.trim(),
+        },
+      });
+      toast.success(t("supplierUpdated"));
+      setEditingSupplier(null);
+      mutate();
+    } catch (err) {
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deleteSupplier(deleteConfirmId);
+      toast.success(t("supplierDeleted"));
+      setDeleteConfirmId(null);
+      mutate();
+    } catch (err) {
+      toast.error(t("deleteError"), { description: err instanceof Error ? err.message : tc("error") });
+    }
+  };
+
+  const colSpan = isAdmin ? 6 : 5;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
@@ -91,7 +154,7 @@ export function SuppliersClient() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <TableSkeleton rows={4} cols={5} />
+              <TableSkeleton rows={4} cols={colSpan} />
             ) : (
               <div className="border rounded-lg dark:border-slate-700">
                 <Table>
@@ -102,11 +165,12 @@ export function SuppliersClient() {
                       <TableHead>{t("phone")}</TableHead>
                       <TableHead>{t("email")}</TableHead>
                       <TableHead>{tc("active")}</TableHead>
+                      {isAdmin && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {suppliers.length === 0 ? (
-                      <EmptyState icon={Truck} message={t("noSuppliers")} colSpan={5} />
+                      <EmptyState icon={Truck} message={t("noSuppliers")} colSpan={colSpan} />
                     ) : (
                       suppliers.map((s) => (
                         <TableRow key={s.id}>
@@ -119,6 +183,18 @@ export function SuppliersClient() {
                               {s.is_active ? tc("yes") : tc("no")}
                             </Badge>
                           </TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openEdit(s)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => setDeleteConfirmId(s.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}
@@ -166,6 +242,55 @@ export function SuppliersClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editingSupplier} onOpenChange={(o) => { if (!o) setEditingSupplier(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("editDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("editDialogDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("name")} *</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("contactPerson")}</Label>
+              <Input value={editContact} onChange={(e) => setEditContact(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("phone")}</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("email")}</Label>
+              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("address")}</Label>
+              <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSupplier(null)} disabled={updating}>{tc("cancel")}</Button>
+            <Button onClick={handleEdit} disabled={updating || !editName.trim()}>
+              {updating ? tc("save") : tc("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+        onConfirm={handleDelete}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteConfirmDesc")}
+        confirmText={tc("delete")}
+        cancelText={tc("cancel")}
+        variant="destructive"
+        loading={deleting}
+      />
     </div>
   );
 }

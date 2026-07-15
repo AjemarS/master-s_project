@@ -26,8 +26,9 @@ import { toast } from "sonner";
 
 function formatDate(dateStr: string | null | undefined, locale: string): string {
   if (!dateStr) return "—";
+  const localeForIntl = locale === "ua" ? "uk" : locale;
   try {
-    return new Date(dateStr).toLocaleDateString(locale, {
+    return new Date(dateStr).toLocaleDateString(localeForIntl, {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -39,8 +40,9 @@ function formatDate(dateStr: string | null | undefined, locale: string): string 
 
 function formatMemberDate(date: string | Date | null | undefined, locale: string): string {
   if (!date) return "—";
+  const localeForIntl = locale === "ua" ? "uk" : locale;
   try {
-    return new Date(date).toLocaleDateString(locale, {
+    return new Date(date).toLocaleDateString(localeForIntl, {
       month: "long",
       year: "numeric",
     });
@@ -60,6 +62,8 @@ function isCompletedStatus(status: string): boolean {
 export function OverviewClient() {
   const t = useTranslations("overview");
   const locale = useLocale();
+  const tCommon = useTranslations("common");
+  const [dismissed, setDismissed] = useState(false);
   const { user, isPending: authPending } = useCurrentUserOrRedirect("/sign-in");
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -111,6 +115,16 @@ export function OverviewClient() {
   const activeOrders = orders.filter((o) => isActiveStatus(o.status)).length;
   const completedOrders = orders.filter((o) => isCompletedStatus(o.status)).length;
 
+  // Profile completion nudges
+  const isFirstNameMissing = !user?.first_name;
+  const isLastNameMissing = !user?.last_name;
+  const isPhoneMissing = !user?.phone;
+  const isEmailVerified = !!user?.emailVerified;
+
+  const missingCount = [isFirstNameMissing, isLastNameMissing, isPhoneMissing, !isEmailVerified].filter(Boolean).length;
+  const filledCount = 4 - missingCount;
+  const percent = Math.round((filledCount / 4) * 100);
+
   const handleContactSupport = () => {
     toast.info(t("contactSupport"), {
       description: "support@techhub.com",
@@ -155,6 +169,94 @@ export function OverviewClient() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Profile completion nudge */}
+      {!dismissed && percent < 100 && (
+        <Card className="border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {t("profileCompletion")}
+                </h4>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t("completionPercent", { percent: String(percent) })}
+                </p>
+              </div>
+              <div className="w-24 h-2 rounded-full bg-amber-200 dark:bg-amber-700">
+                <div
+                  className="h-2 rounded-full bg-amber-500 transition-all"
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              {isFirstNameMissing && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                    <span className="text-sm text-amber-700 dark:text-amber-300">{t("addFirstName")}</span>
+                  </div>
+                  <Link href="/my/settings?tab=profile">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-600 hover:text-amber-800">
+                      {tCommon("edit")}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              {isLastNameMissing && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                    <span className="text-sm text-amber-700 dark:text-amber-300">{t("addLastName")}</span>
+                  </div>
+                  <Link href="/my/settings?tab=profile">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-600 hover:text-amber-800">
+                      {tCommon("edit")}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              {isPhoneMissing && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                    <span className="text-sm text-amber-700 dark:text-amber-300">{t("addPhone")}</span>
+                  </div>
+                  <Link href="/my/settings?tab=profile">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-600 hover:text-amber-800">
+                      {tCommon("edit")}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              {!isEmailVerified && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                    <span className="text-sm text-amber-700 dark:text-amber-300">{t("verifyEmail")}</span>
+                  </div>
+                  <Link href="/my/settings?tab=profile">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-600 hover:text-amber-800">
+                      {tCommon("edit")}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 h-7 text-xs text-amber-500 hover:text-amber-700"
+              onClick={() => setDismissed(true)}
+            >
+              {t("remindLater")}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

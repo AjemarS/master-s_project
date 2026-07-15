@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
@@ -8,11 +8,11 @@ import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Badge } from "~/ui/primitives/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, CreditCard } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Loader2, CreditCard, AlertTriangle } from "lucide-react";
 import { AdminPageHeader } from "../components";
 import { formatCurrency } from "~/lib/utils/format";
-import { productApi, warehouseApi, orderApi } from "~/lib/api/admin-api";
-import type { Product, Warehouse } from "~/lib/types";
+import { productApi, warehouseApi, orderApi, stockApi } from "~/lib/api/admin-api";
+import type { Product, Warehouse, Stock } from "~/lib/types";
 
 interface ReceiptItem {
   product_id: number;
@@ -34,11 +34,46 @@ export function POSClient() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const abortRef = useRef<AbortController | null>(null);
+  const [stockByProduct, setStockByProduct] = useState<Map<number, number> | null>(null);
+  const [stockError, setStockError] = useState<string | null>(null);
+
   useEffect(() => {
     warehouseApi.getAll().then((res) => {
       if (res.data?.results) setWarehouses(res.data.results);
     });
   }, []);
+
+  useEffect(() => {
+    if (!selectedWarehouse) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    stockApi.getAll({ warehouse_id: selectedWarehouse }, controller.signal)
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        if (res.error) throw new Error(res.error.message);
+        const map = new Map<number, number>();
+        (res.data?.results ?? []).forEach((s: Stock) => {
+          map.set(s.product_id, s.available);
+        });
+        setStockByProduct(map);
+        setStockError(null);
+      })
+      .catch((err) => {
+        if (err.name === "AbortError") return;
+        setStockError(err.message || "Failed to load stock data");
+        setStockByProduct(null);
+      });
+
+    return () => {
+      controller.abort();
+      setStockByProduct(null);
+      setStockError(null);
+    };
+  }, [selectedWarehouse]);
 
   const searchProducts = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -95,6 +130,19 @@ export function POSClient() {
   };
 
   const total = receipt.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const filteredProducts = useMemo(() => {
+    if (!selectedWarehouse || stockError || stockByProduct === null) return products;
+    return products.filter((p) => (stockByProduct.get(p.id) ?? 0) > 0);
+  }, [products, selectedWarehouse, stockByProduct, stockError]);
+
+  const isStockLoading = !!(selectedWarehouse && stockByProduct === null && !stockError);
+  const showLoading = loading || isStockLoading;
+  const showStockError = stockError !== null && selectedWarehouse;
+  const showProductGrid = filteredProducts.length > 0 && !showLoading;
+  const showNoResults = !showLoading && !!searchTerm.trim() && products.length === 0;
+  const showNoStock = !showLoading && products.length > 0 && filteredProducts.length === 0 && selectedWarehouse && !stockError;
+  const showInitialPrompt = !showLoading && !searchTerm.trim() && products.length === 0 && !showStockError;
 
   const handleCompleteSale = async () => {
     if (!selectedWarehouse) {
@@ -164,37 +212,79 @@ export function POSClient() {
               </CardContent>
             </Card>
 
-            {loading && (
+            {showStockError && (
+              <div className="flex items-center gap-2 p-4 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{t("stockUnavailable")}</span>
+              </div>
+            )}
+
+            {showLoading && (
               <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                {tc("loading")}
+                {isStockLoading ? t("stockLoading") : tc("loading")}
               </div>
             )}
 
-            {products.length > 0 && !loading && (
+            {showProductGrid && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {products.map((product) => (
-                  <Card key={product.id} className="dark:bg-slate-800/80 dark:border-slate-700 hover:shadow-md transition-shadow cursor-pointer" onClick={() => addToReceipt(product)}>
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-slate-900 dark:text-slate-100">{product.name}</div>
-                        <div className="text-lg font-bold text-primary dark:text-primary">
-                          {formatCurrency(product.price)}
+                {filteredProducts.map((product) => {
+                  const stockQty = selectedWarehouse && stockByProduct ? (stockByProduct.get(product.id) ?? null) : null;
+                  const canAdd = selectedWarehouse
+                    ? (!stockError && stockQty !== null && stockQty > 0)
+                    : product.in_stock;
+                  const isAddDisabled = !canAdd || isStockLoading;
+                  return (
+                    <Card
+                      key={product.id}
+                      className={`dark:bg-slate-800/80 dark:border-slate-700 hover:shadow-md transition-shadow${isAddDisabled ? " opacity-60" : " cursor-pointer"}`}
+                      onClick={() => { if (!isAddDisabled) addToReceipt(product); }}
+                    >
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-slate-900 dark:text-slate-100">{product.name}</div>
+                          <div className="text-lg font-bold text-primary dark:text-primary">
+                            {formatCurrency(product.price)}
+                          </div>
+                          {selectedWarehouse ? (
+                            <span className={`text-xs mt-1 inline-block ${stockQty !== null && stockQty > 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
+                              {stockQty !== null
+                                ? `${stockQty} ${t("inStock").toLowerCase()}`
+                                : isStockLoading
+                                  ? t("stockLoading")
+                                  : "\u2014"}
+                            </span>
+                          ) : (
+                            <Badge variant={product.in_stock ? "default" : "secondary"} className="mt-1">
+                              {product.in_stock ? t("inStock") : t("outOfStock")}
+                            </Badge>
+                          )}
                         </div>
-                        <Badge variant={product.in_stock ? "default" : "secondary"} className="mt-1">
-                          {product.in_stock ? t("inStock") : t("outOfStock")}
-                        </Badge>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); addToReceipt(product); }}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <Button size="sm" variant="outline" disabled={isAddDisabled} onClick={(e) => { e.stopPropagation(); if (!isAddDisabled) addToReceipt(product); }}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
 
-            {!searchTerm.trim() && !loading && (
+            {showNoResults && (
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                <Search className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+                <p>{t("noProducts")}</p>
+              </div>
+            )}
+
+            {showNoStock && (
+              <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+                <p>{t("noStockInWarehouse")}</p>
+              </div>
+            )}
+
+            {showInitialPrompt && (
               <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                 <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
                 {t("searchProduct")}

@@ -1,20 +1,42 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
-import { adminClient, inferAdditionalFields, twoFactorClient } from "better-auth/client/plugins";
+import { adminClient, inferAdditionalFields, twoFactorClient, anonymousClient, emailOTPClient } from "better-auth/client/plugins";
 import { useRouter } from "~/i18n/navigation";
 import { useEffect } from "react";
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth",
   plugins: [
+    anonymousClient(),
+    emailOTPClient(),
     inferAdditionalFields({
       user: {
+        first_name: {
+          type: "string",
+          required: false,
+        },
+        last_name: {
+          type: "string",
+          required: false,
+        },
         status: {
           type: "string",
           required: false,
           defaultValue: "active",
           input: false,
+        },
+        phone: {
+          type: "string",
+          required: false,
+        },
+        marketing_consent: {
+          type: "boolean",
+          required: false,
+        },
+        locale: {
+          type: "string",
+          required: false,
         },
       },
     }),

@@ -28,8 +28,9 @@ function checkAndProxy(r) {
         return;
     }
 
-    // Anonymous users can create orders
-    if (apiAccess === "orders" && method === "POST") {
+    // Anonymous users (no userId) can only create orders (POST /api/orders/ base path)
+    // Authenticated users go through role-specific checks below
+    if (!userId && apiAccess === "orders" && method === "POST" && r.uri.match(/^\/api\/orders\/?$/)) {
         r.variables.gateway_user_id = userId;
         r.variables.gateway_user_role = userRole;
         r.variables.gateway_user_email = userEmail;
@@ -63,6 +64,15 @@ function checkAndProxy(r) {
             r.internalRedirect(r.variables.api_backend);
             return;
         }
+        // Authenticated user role can create online orders
+        if (userRole === "user" && apiAccess === "orders" && method === "POST") {
+            r.variables.gateway_user_id = userId;
+            r.variables.gateway_user_role = userRole;
+            r.variables.gateway_user_email = userEmail;
+            r.variables.gateway_user_name = userName;
+            r.internalRedirect(r.variables.api_backend);
+            return;
+        }
         deny(r, 403, "Access denied.");
         return;
     }
@@ -88,12 +98,28 @@ function checkAndProxy(r) {
     }
 
     // ── Role-based write access ──
+    // Cashier can only create POS orders, not online orders
     if (userRole === "cashier" && apiAccess === "orders") {
-        r.variables.gateway_user_id = userId;
-        r.variables.gateway_user_role = userRole;
-        r.variables.gateway_user_email = userEmail;
-        r.variables.gateway_user_name = userName;
-        r.internalRedirect(r.variables.api_backend);
+        // Only allow POST to /api/orders/pos/
+        if (method === "POST" && r.uri.includes("/pos/")) {
+            r.variables.gateway_user_id = userId;
+            r.variables.gateway_user_role = userRole;
+            r.variables.gateway_user_email = userEmail;
+            r.variables.gateway_user_name = userName;
+            r.internalRedirect(r.variables.api_backend);
+            return;
+        }
+        // Also allow cashier to GET their own orders (read their own POS history)
+        if (method === "GET") {
+            r.variables.gateway_user_id = userId;
+            r.variables.gateway_user_role = userRole;
+            r.variables.gateway_user_email = userEmail;
+            r.variables.gateway_user_name = userName;
+            r.internalRedirect(r.variables.api_backend);
+            return;
+        }
+        // Deny any other orders write access
+        deny(r, 403, "Cashier can only create POS orders");
         return;
     }
 

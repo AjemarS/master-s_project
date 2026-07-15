@@ -70,6 +70,16 @@ export function useCreateWarehouse() {
   return useApiMutation<Warehouse, Partial<Warehouse>>("warehouses-create", (d) => warehouseApi.create(d));
 }
 
+export function useUpdateWarehouse() {
+  return useApiMutation<Warehouse, { id: number; data: Partial<Warehouse> }>("warehouses-update", ({ id, data }) =>
+    warehouseApi.update(id, data)
+  );
+}
+
+export function useDeleteWarehouse() {
+  return useApiMutation<void, number>("warehouses-delete", (id) => warehouseApi.delete(id));
+}
+
 export function useStock(params?: { warehouse_id?: number; product_id?: number }) {
   const q = new URLSearchParams();
   if (params?.warehouse_id) q.append("warehouse_id", String(params.warehouse_id));
@@ -89,10 +99,30 @@ export function useCreateSupplier() {
   return useApiMutation<Supplier, Partial<Supplier>>("suppliers-create", (d) => supplierApi.create(d));
 }
 
+export function useUpdateSupplier() {
+  return useApiMutation<Supplier, { id: number; data: Partial<Supplier> }>("suppliers-update", ({ id, data }) =>
+    supplierApi.update(id, data)
+  );
+}
+
+export function useDeleteSupplier() {
+  return useApiMutation<void, number>("suppliers-delete", (id) => supplierApi.delete(id));
+}
+
 export function useCreateGoodsReceipt() {
   return useApiMutation<GoodsReceiptNote, Partial<GoodsReceiptNote>>(
     "goods-receipts-create", (d) => goodsReceiptApi.create(d)
   );
+}
+
+export function useUpdateGoodsReceipt() {
+  return useApiMutation<GoodsReceiptNote, { id: number; data: Partial<GoodsReceiptNote> }>(
+    "goods-receipts-update", ({ id, data }) => goodsReceiptApi.update(id, data)
+  );
+}
+
+export function useDeleteGoodsReceipt() {
+  return useApiMutation<void, number>("goods-receipts-delete", (id) => goodsReceiptApi.delete(id));
 }
 
 export function useTransferStock() {

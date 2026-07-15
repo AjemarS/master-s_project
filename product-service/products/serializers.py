@@ -196,3 +196,40 @@ class ProductSerializer(serializers.ModelSerializer):
             )
         attrs["original_price"] = original_price
         return attrs
+
+
+class ProductListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for product list endpoints (e.g. similar products)."""
+
+    category_name = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            "id", "slug",
+            "name", "name_uk", "name_en",
+            "category", "category_name",
+            "price", "original_price",
+            "image_url", "stock", "in_stock",
+            "rating",
+        ]
+        read_only_fields = ["slug", "in_stock"]
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
+
+    def get_category_name(self, obj):
+        locale = _get_locale(self.context.get("request"))
+        return _localized(obj.category, "name", locale)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        locale = _get_locale(self.context.get("request"))
+        data["name"] = _localized(instance, "name", locale)
+        if locale == "en":
+            data["price_usd"] = uah_to_usd(instance.price)
+            data["original_price_usd"] = uah_to_usd(instance.original_price)
+        return data

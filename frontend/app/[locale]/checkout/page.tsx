@@ -22,7 +22,7 @@ function CheckoutContent() {
   const tCommon = useTranslations("common");
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useCurrentUser();
+  const { user, isPending: authPending } = useCurrentUser();
   const { items, subtotal, clearCart } = useCart();
   const orderId = searchParams.get("order_id");
 
@@ -37,10 +37,6 @@ function CheckoutContent() {
   const handleSubmit = async () => {
     if (items.length === 0) {
       toast.error(tChk("emptyCart"));
-      return;
-    }
-    if (!name.trim() || !email.trim()) {
-      toast.error(tChk("nameRequired"));
       return;
     }
 
@@ -68,21 +64,36 @@ function CheckoutContent() {
         return;
       }
 
-      const pay = await orderApi.pay(order.data!.id);
-      if (pay.error) {
-        toast.error(tChk("paymentError"), { description: pay.error.message });
-        setSubmitting(false);
-        return;
-      }
-
-      const checkoutUrl = pay.data!.checkout_url;
+      const newOrderId = order.data!.id;
       clearCart();
-      window.location.href = checkoutUrl;
+
+      // If email provided, proceed to Stripe payment
+      if (email.trim()) {
+        const pay = await orderApi.pay(newOrderId);
+        if (pay.error) {
+          // Order created but payment link failed — redirect to order page
+          router.push(`/checkout?order_id=${newOrderId}`);
+          return;
+        }
+        const checkoutUrl = pay.data!.checkout_url;
+        window.location.href = checkoutUrl;
+      } else {
+        // No email — redirect to success page with order ID
+        router.push(`/checkout/success?order_id=${newOrderId}`);
+      }
     } catch (err) {
       toast.error(tCommon("error"), { description: err instanceof Error ? err.message : "Something went wrong" });
       setSubmitting(false);
     }
   };
+
+  if (authPending) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (orderId) {
     return (
@@ -118,8 +129,8 @@ function CheckoutContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{tChk("title")}</CardTitle>
-            <CardDescription>{tChk("subtitle")}</CardDescription>
+            <CardTitle>{!user ? tChk("guestTitle") : tChk("title")}</CardTitle>
+            <CardDescription>{!user ? tChk("guestDesc") : tChk("subtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {items.length === 0 ? (
@@ -146,12 +157,23 @@ function CheckoutContent() {
                 <div className="space-y-3">
                   <h3 className="font-semibold text-sm text-slate-600">{tChk("customerDetails")}</h3>
                   <div>
-                    <Label htmlFor="co-name">{tChk("nameLabel")} *</Label>
-                    <Input id="co-name" value={name} onChange={(e) => setName(e.target.value)} />
+                    <Label htmlFor="co-name">{user ? tChk("nameLabel") : tChk("guestName")}</Label>
+                    <Input
+                      id="co-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={user ? "" : tChk("guestNamePlaceholder")}
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="co-email">{tChk("emailLabel")} *</Label>
-                    <Input id="co-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <Label htmlFor="co-email">{user ? tChk("emailLabel") : tChk("guestEmail")}</Label>
+                    <Input
+                      id="co-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={user ? "" : tChk("guestEmailPlaceholder")}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="co-phone">{tChk("phoneLabel")}</Label>

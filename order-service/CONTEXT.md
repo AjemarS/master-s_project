@@ -29,17 +29,18 @@ python manage.py test
 
 ### Status Machine
 ```
-pending → shipped → delivered → completed
-  ↓          ↓                    ↓
-cancelled  cancelled           cancelled
+unpaid → paid → delivering → delivered → completed
+  ↓       ↓        ↓             ↓
+cancelled cancelled cancelled  cancelled
 ```
-- `pending`: initial state (stock reserved)
-- `shipped`: stock deducted, in transit
+- `unpaid`: initial state (created, not paid yet)
+- `paid`: payment confirmed (stock reserved via Stripe webhook)
+- `delivering`: stock deducted, in transit
 - `delivered`: received by customer
 - `completed`: fully processed
-- `cancelled`: from any state (triggers stock release)
+- `cancelled`: from any state (triggers stock release via inventory_service.release_stock)
 
-Transitions enforced in `OrderSerializer.validate_status()`.
+Transitions enforced in `Order.can_transition_to()`.
 
 #### Viewsets
 - `OrderViewSet` — CRUD, my orders (`@action`), POS sales (`@action`), status updates.
@@ -58,7 +59,7 @@ Transitions enforced in `OrderSerializer.validate_status()`.
 | GET | `/api/orders/payments/stripe-webhook/` | No auth | Stripe payment callback |
 | GET | `/api/reports/sales/` | Admin | Sales report (filterable by date) |
 | GET | `/api/reports/revenue/` | Admin | Revenue & margin report |
-| GET | `/api/reports/inventory-value/` | Admin | Inventory valuation (queries sold items) |
+| GET | `/api/reports/inventory-value/` | Admin | Inventory valuation (queries actual stock via inventory-service + product-service APIs) |
 | GET | `/api/docs/` | Any | Swagger UI |
 | GET | `/api/redoc/` | Any | ReDoc |
 
@@ -69,10 +70,12 @@ Transitions enforced in `OrderSerializer.validate_status()`.
 2. **Ship order:** order-service → `POST /api/inventory/stock/deduct/` (converts reserve → deduction)
 3. **Cancel order:** order-service → `POST /api/inventory/stock/release/` (releases reserved stock)
 
-### Known Gaps
-- **No compensation:** reserve failure leaves order in `pending` forever (no rollback).
-- **No idempotency keys:** retry on network failure may double-reserve.
-- **No stock pre-check:** orders accepted even when stock insufficient.
+### Saga Integration (Reserve on Create)
+- **Create order:** stock reserve with saga compensation on failure (rollback + cancel order)
+- **Ship order:** stock deduct with partial-failure compensation (revert status + release)
+- **Cancel order:** stock release via `release_stock` (best-effort, idempotency keys prevent double-release)
+- **Idempotency keys:** all inventory client calls include `idempotency_key` for safe retry
+- **Stock pre-check:** `check_availability` before order creation (returns 400 if insufficient)
 
 ## RabbitMQ Integration
 
@@ -85,13 +88,13 @@ Transitions enforced in `OrderSerializer.validate_status()`.
 ## Reports
 - **Sales report:** aggregated sales by date range, channel, status
 - **Revenue & margin:** total revenue, cost of goods sold, margin percentage (uses `cost_price_at_sale` on OrderItem)
-- **Inventory value:** currently queries sold items, not actual inventory
+- **Inventory value:** queries actual stock via inventory-service + product-service APIs
 
 ## Auth & Permissions
 - `GatewayAuthentication` — base class for all Django services
 - `IsAdminUser` — for status changes, reports
 - `IsAuthenticatedOrReadOnly` — for order creation (anonymous checkout allowed)
-- `AllowAny` on retrieve (currently public)
+- `IsAuthenticated` on retrieve (filtered by created_by for non-staff)
 
 ## Tests
 - **Framework:** Django `TestCase` + `APITestCase`
@@ -100,10 +103,6 @@ Transitions enforced in `OrderSerializer.validate_status()`.
 - **Run:** `python manage.py test`
 
 ## Known Issues
-- Saga compensation missing (reserve failure → order stuck in pending)
-- No stock pre-check before order create
-- `inventory-value` report queries sold items, not actual inventory
-- No product validation (accepts any `product_id` without cross-reference)
-- `order_number` generation may collide under load (timestamp + random, no unique constraint)
-- No `/health` endpoint (uses GET `/api/orders/` as health check)
-- Order detail endpoint is public (any UUID can view customer data)
+- No product validation (accepts any `product_id` without cross-referencing product-service)
+- `order_number` retry loop handles collisions but no DB-level unique guarantee (column has `unique=True` for future enforcement)
+- Test DB teardown prompts for `autoclobber` input (`EOFError`)

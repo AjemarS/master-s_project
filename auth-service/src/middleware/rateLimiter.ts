@@ -33,6 +33,16 @@ const RECORD_LOGIN_LUA = `
   return {0, 0}
 `;
 
+const SIGNUP_ATTEMPT_KEY = "rl:signup-attempt:";
+const SIGNUP_BLOCK_KEY = "rl:signup-block:";
+
+const RECORD_SIGNUP_LUA = `
+  local count = redis.call('INCR', KEYS[1])
+  if count == 1 then redis.call('EXPIRE', KEYS[1], 60) end
+  if count >= 10 then redis.call('SETEX', KEYS[2], 300, '1') return {1, 300} end
+  return {0, 0}
+`;
+
 const ADMIN_RATE_LUA = `
   local count = redis.call('INCR', KEYS[1])
   if count == 1 then redis.call('EXPIRE', KEYS[1], 60) end
@@ -44,11 +54,13 @@ const ADMIN_RATE_LUA = `
 `;
 
 let recordLoginSHA = "";
+let recordSignupSHA = "";
 let adminRateSHA = "";
 
 async function loadScripts() {
   try {
     recordLoginSHA = await redisClient.script("LOAD", RECORD_LOGIN_LUA) as string;
+    recordSignupSHA = await redisClient.script("LOAD", RECORD_SIGNUP_LUA) as string;
     adminRateSHA = await redisClient.script("LOAD", ADMIN_RATE_LUA) as string;
     logger.info("Rate limiter Lua scripts loaded");
   } catch (err) {
@@ -107,6 +119,38 @@ export async function resetLoginRateLimit(ip: string): Promise<void> {
   const attemptKey = `${ATTEMPT_KEY}${ip}`;
   const blockKey = `${BLOCK_KEY}${ip}`;
   await Promise.all([redisClient.del(attemptKey), redisClient.del(blockKey)]);
+}
+
+export async function checkAndRecordSignUpAttempt(ip: string): Promise<{
+  allowed: boolean;
+  retryAfter?: number;
+}> {
+  const attemptKey = `${SIGNUP_ATTEMPT_KEY}${ip}`;
+  const blockKey = `${SIGNUP_BLOCK_KEY}${ip}`;
+
+  // Atomic Lua: INCR, check threshold, SET block key if exceeded
+  if (recordSignupSHA) {
+    try {
+      const result = await redisClient.evalsha(recordSignupSHA, 2, attemptKey, blockKey) as [number, number];
+      if (result[0] === 1) return { allowed: false, retryAfter: result[1] || undefined };
+      return { allowed: true };
+    } catch { /* script may be flushed, fall through */ }
+  }
+
+  try {
+    const result = await redisClient.eval(RECORD_SIGNUP_LUA, 2, attemptKey, blockKey) as [number, number];
+    if (result[0] === 1) return { allowed: false, retryAfter: result[1] || undefined };
+    return { allowed: true };
+  } catch {
+    // Non-atomic fallback: INCR, check threshold, SET block key
+    const count = await redisClient.incr(attemptKey);
+    if (count === 1) await redisClient.expire(attemptKey, 60);
+    if (count >= 10) {
+      await redisClient.setex(blockKey, 300, "1");
+      return { allowed: false, retryAfter: 300 };
+    }
+    return { allowed: true };
+  }
 }
 
 export async function checkAdminRateLimit(userId: string, ip: string, method: string): Promise<{

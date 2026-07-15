@@ -54,13 +54,24 @@
     "signOut": "Вийти",
     "admin": "Адмін",
     "pos": "ПОС",
-    "warehouse": "Склад"
+    "warehouse": "Склад",
+    "codeExpiresIn": "Код дійсний 5 хвилин",
+    "codeSent": "Ми надіслали 6-значний код на {email}",
+    "continueAsGuest": "Продовжити як гість",
+    "emailCode": "Код з пошти",
+    "enterCode": "Введіть код підтвердження",
+    "firstName": "Ім'я",
+    "guestCheckout": "Оформити як гість",
+    "lastName": "Прізвище",
+    "resendCode": "Надіслати код повторно",
+    "saveOrder": "Зберегти замовлення",
+    "saveOrderDesc": "Введіть email, щоб відстежувати це та всі майбутні замовлення",
+    "searchProducts": "Пошук товарів...",
+    "sendCode": "Надіслати код"
   },
   "signUp": {
     "pageTitle": "Реєстрація",
     "pageSubtitle": "Створіть обліковий запис",
-    "nameLabel": "Ім'я",
-    "namePlaceholder": "Введіть ваше ім'я",
     "emailLabel": "Електронна пошта",
     "emailPlaceholder": "Введіть вашу пошту",
     "passwordLabel": "Пароль",
@@ -73,6 +84,13 @@
     "hasAccount": "Вже маєте обліковий запис?",
     "signInLink": "Увійти",
     "errorGeneric": "Помилка реєстрації. Спробуйте ще раз.",
+    "phoneLabel": "Номер телефону",
+    "phonePlaceholder": "+380 XX XXX XX XX",
+    "marketingConsent": "Я погоджуюсь отримувати рекламні листи та спеціальні пропозиції",
+    "firstNameLabel": "Ім'я",
+    "firstNamePlaceholder": "Введіть ім'я",
+    "lastNameLabel": "Прізвище",
+    "lastNamePlaceholder": "Введіть прізвище",
     "errorPasswordLength": "Пароль має бути щонайменше 8 символів"
   },
   "nav": {
@@ -320,7 +338,11 @@
     "saleComplete": "Продаж завершено",
     "saleError": "Не вдалося завершити продаж",
     "qty": "К-сть",
-    "price": "Ціна"
+    "price": "Ціна",
+    "noProducts": "Товари не знайдено",
+    "noStockInWarehouse": "На цьому складі немає товарів у наявності",
+    "stockLoading": "Завантаження даних про залишки...",
+    "stockUnavailable": "Дані про залишки для цього складу недоступні"
   },
   "cart": {
     "title": "Кошик",
@@ -365,7 +387,15 @@
     "continueOrder": "Продовжити з замовленням #{id}",
     "viewStatus": "Переглянути статус",
     "orderNumber": "Замовлення #{id}",
-    "viewOrder": "Переглянути замовлення"
+    "viewOrder": "Переглянути замовлення",
+    "guestTitle": "Замовлення без реєстрації",
+    "guestDesc": "Ви оформлюєте замовлення без акаунта. Після покупки ви можете зберегти замовлення, створивши акаунт.",
+    "guestEmail": "Email (для квитанції)",
+    "guestEmailPlaceholder": "your@email.com",
+    "guestName": "Ваше ім'я",
+    "guestNamePlaceholder": "Введіть ім'я",
+    "orderCreated": "Замовлення успішно створено!",
+    "saveOrderPrompt": "Зберегти це замовлення? Створіть акаунт, щоб відстежувати його."
   },
   "orderDetail": {
     "title": "Замовлення #{id}",
@@ -458,7 +488,16 @@
     "noMovements": "Немає переміщень",
     "manageWarehouses": "Керування складами",
     "moveProducts": "Переміщення товарів",
-    "suppliersLink": "Постачальники"
+    "suppliersLink": "Постачальники",
+    "editWarehouse": "Редагувати склад",
+    "deleteWarehouse": "Видалити склад",
+    "editDialogTitle": "Редагувати склад",
+    "editDialogDesc": "Оновіть інформацію про склад.",
+    "deleteConfirmTitle": "Видалити склад",
+    "deleteConfirmDesc": "Ви впевнені, що хочете видалити цей склад? Цю дію не можна скасувати.",
+    "warehouseUpdated": "Склад успішно оновлено",
+    "warehouseDeleted": "Склад успішно видалено",
+    "deleteError": "Не вдалося видалити склад"
   },
   "suppliers": {
     "title": "Постачальники",
@@ -471,7 +510,16 @@
     "address": "Адреса",
     "noSuppliers": "Немає постачальників",
     "createDialogTitle": "Додати постачальника",
-    "createDialogDesc": "Додайте нового постачальника."
+    "createDialogDesc": "Додайте нового постачальника.",
+    "editSupplier": "Редагувати постачальника",
+    "deleteSupplier": "Видалити постачальника",
+    "editDialogTitle": "Редагувати постачальника",
+    "editDialogDesc": "Оновіть інформацію про постачальника.",
+    "deleteConfirmTitle": "Видалити постачальника",
+    "deleteConfirmDesc": "Ви впевнені, що хочете видалити цього постачальника? Цю дію не можна скасувати.",
+    "supplierUpdated": "Постачальника успішно оновлено",
+    "supplierDeleted": "Постачальника успішно видалено",
+    "deleteError": "Не вдалося видалити постачальника"
   },
   "goodsReceipts": {
     "title": "Прибуткові накладні",
@@ -494,7 +542,14 @@
     "addItem": "Додати",
     "productId": "ID товару",
     "qty": "К-сть",
-    "costPrice": "Ціна"
+    "costPrice": "Ціна",
+    "editDialogTitle": "Редагувати прибуткову накладну",
+    "editDialogDesc": "Оновіть інформацію заголовка накладної. Позиції не можна змінювати.",
+    "deleteConfirmTitle": "Видалити прибуткову накладну",
+    "deleteConfirmDesc": "Ви впевнені, що хочете видалити цю накладну? Кількість товару на складі буде скориговано. Цю дію не можна скасувати.",
+    "grnUpdated": "Прибуткову накладну успішно оновлено",
+    "grnDeleted": "Прибуткову накладну успішно видалено",
+    "deleteError": "Не вдалося видалити прибуткову накладну"
   },
   "stockMovements": {
     "title": "Журнал руху товарів",
@@ -527,7 +582,17 @@
     "adjustStockReasonPlaceholder": "Опишіть причину коригування...",
     "adjustStockSubmitting": "Збереження...",
     "adjustStockSuccess": "Залишок скориговано",
-    "adjustStockError": "Помилка коригування залишку"
+    "adjustStockError": "Помилка коригування залишку",
+    "confirmAdjustTitle": "Підтвердження коригування залишків",
+    "currentQty": "Поточна кількість",
+    "newQty": "Нова кількість",
+    "difference": "Різниця",
+    "continue": "Продовжити",
+    "confirmAdjust": "Підтвердити коригування",
+    "back": "Назад",
+    "writeOffWarning": "Встановлення залишку 0 буде записано як списання.",
+    "largeAdjustWarning": "Це коригування змінює залишок більш ніж на 20%.",
+    "stockFetchError": "Не вдалося отримати поточні дані про залишки"
   },
   "reports": {
     "title": "Звіти",
@@ -659,7 +724,10 @@
     "confirmationEmail": "На вашу електронну пошту надійде підтвердження.",
     "viewOrder": "Переглянути замовлення",
     "continueShopping": "Продовжити покупки",
-    "loading": "Завантаження інформації про замовлення..."
+    "loading": "Завантаження інформації про замовлення...",
+    "saveOrder": "Зберегти замовлення",
+    "saveOrderDesc": "Створіть акаунт, щоб відстежувати замовлення, переглядати історію та пришвидшити оформлення.",
+    "createAccount": "Створити акаунт"
   },
   "notifications": {
     "pageTitle": "Налаштування сповіщень",
@@ -801,7 +869,15 @@
     "selectCountry": "Оберіть країну",
     "copied": "Скопійовано",
     "copyBackupCodes": "Копіювати резервні коди",
-    "backupCodesCopied": "Резервні коди скопійовано в буфер обміну"
+    "backupCodesCopied": "Резервні коди скопійовано в буфер обміну",
+    "phoneLabel": "Телефон",
+    "phonePlaceholder": "+380 XX XXX XX XX",
+    "marketingConsent": "Маркетингові листи",
+    "marketingConsentDesc": "Отримуйте рекламні пропозиції та новини про нові товари",
+    "firstNameLabel": "Ім'я",
+    "firstNamePlaceholder": "Введіть ім'я",
+    "lastNameLabel": "Прізвище",
+    "lastNamePlaceholder": "Введіть прізвище"
   },
   "signIn": {
     "pageTitle": "Вхід",
@@ -824,6 +900,13 @@
     "errorEmailNotVerified": "Будь ласка, підтвердьте вашу електронну пошту перед входом.",
     "resendVerification": "Надіслати лист підтвердження",
     "verificationSent": "Лист підтвердження надіслано! Перевірте вашу поштову скриньку.",
+    "emailOtpTitle": "Код з пошти",
+    "emailOtpDesc": "Введіть email, щоб отримати код підтвердження",
+    "otpSent": "Ми надіслали код на {email}",
+    "otpLabel": "Код підтвердження",
+    "otpPlaceholder": "Введіть 6-значний код",
+    "sendOtp": "Надіслати код",
+    "signInWithOtp": "Увійти за кодом",
     "successRegistered": "Обліковий запис створено! Увійдіть."
   },
   "dashboard": {
@@ -863,7 +946,14 @@
     "editProfile": "Редагувати профіль",
     "findStore": "Знайти найближчий магазин",
     "contactSupport": "Зв'язатися з підтримкою",
-    "loading": "Завантаження..."
+    "loading": "Завантаження...",
+    "profileCompletion": "Заповнення профілю",
+    "completionPercent": "Заповнено на {percent}%",
+    "addFirstName": "Додайте ім'я для персоналізованих привітань",
+    "addLastName": "Додайте прізвище",
+    "addPhone": "Додайте номер телефону для сповіщень про доставку",
+    "verifyEmail": "Підтвердіть email, щоб отримувати квитанції",
+    "remindLater": "Нагадати пізніше"
   },
   "mfa": {
     "pageTitle": "Двофакторна аутентифікація",

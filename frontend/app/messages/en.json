@@ -54,13 +54,24 @@
     "signOut": "Log out",
     "admin": "Admin",
     "pos": "POS",
-    "warehouse": "Warehouse"
+    "warehouse": "Warehouse",
+    "codeExpiresIn": "Code expires in 5 minutes",
+    "codeSent": "We've sent a 6-digit code to {email}",
+    "continueAsGuest": "Continue as guest",
+    "emailCode": "Email code",
+    "enterCode": "Enter verification code",
+    "firstName": "First name",
+    "guestCheckout": "Checkout as guest",
+    "lastName": "Last name",
+    "resendCode": "Resend code",
+    "saveOrder": "Save your order",
+    "saveOrderDesc": "Enter your email to track this order and all future orders",
+    "searchProducts": "Search products...",
+    "sendCode": "Send code"
   },
   "signUp": {
     "pageTitle": "Sign Up",
     "pageSubtitle": "Create your account",
-    "nameLabel": "Name",
-    "namePlaceholder": "Enter your name",
     "emailLabel": "Email",
     "emailPlaceholder": "Enter your email",
     "passwordLabel": "Password",
@@ -73,6 +84,13 @@
     "hasAccount": "Already have an account?",
     "signInLink": "Sign in",
     "errorGeneric": "Registration failed. Please try again.",
+    "phoneLabel": "Phone Number",
+    "phonePlaceholder": "+380 XX XXX XX XX",
+    "marketingConsent": "I agree to receive promotional emails and special offers",
+    "firstNameLabel": "First name",
+    "firstNamePlaceholder": "Enter your first name",
+    "lastNameLabel": "Last name",
+    "lastNamePlaceholder": "Enter your last name",
     "errorPasswordLength": "Password must be at least 8 characters"
   },
   "nav": {
@@ -320,7 +338,11 @@
     "saleComplete": "Sale completed",
     "saleError": "Failed to complete sale",
     "qty": "Qty",
-    "price": "Price"
+    "price": "Price",
+    "noProducts": "No products found",
+    "noStockInWarehouse": "This warehouse has no products in stock",
+    "stockLoading": "Loading stock data...",
+    "stockUnavailable": "Stock data unavailable for this warehouse"
   },
   "cart": {
     "title": "Your Cart",
@@ -365,7 +387,15 @@
     "continueOrder": "Continue with order #{id}",
     "viewStatus": "View Order Status",
     "orderNumber": "Order #{id}",
-    "viewOrder": "View Order Details"
+    "viewOrder": "View Order Details",
+    "guestTitle": "Checkout as guest",
+    "guestDesc": "You're checking out without an account. After purchase, you can save your order by creating an account.",
+    "guestEmail": "Email (for receipt)",
+    "guestEmailPlaceholder": "your@email.com",
+    "guestName": "Your name",
+    "guestNamePlaceholder": "Enter your name",
+    "orderCreated": "Order placed successfully!",
+    "saveOrderPrompt": "Save this order? Create an account to track it."
   },
   "orderDetail": {
     "title": "Order #{id}",
@@ -458,7 +488,16 @@
     "noMovements": "No movements",
     "manageWarehouses": "Manage Warehouses",
     "moveProducts": "Move Products",
-    "suppliersLink": "Suppliers"
+    "suppliersLink": "Suppliers",
+    "editWarehouse": "Edit Warehouse",
+    "deleteWarehouse": "Delete Warehouse",
+    "editDialogTitle": "Edit Warehouse",
+    "editDialogDesc": "Update the warehouse's information.",
+    "deleteConfirmTitle": "Delete Warehouse",
+    "deleteConfirmDesc": "Are you sure you want to delete this warehouse? This action cannot be undone.",
+    "warehouseUpdated": "Warehouse updated successfully",
+    "warehouseDeleted": "Warehouse deleted successfully",
+    "deleteError": "Failed to delete warehouse"
   },
   "suppliers": {
     "title": "Suppliers",
@@ -471,7 +510,16 @@
     "address": "Address",
     "noSuppliers": "No suppliers",
     "createDialogTitle": "Add Supplier",
-    "createDialogDesc": "Add a new supplier."
+    "createDialogDesc": "Add a new supplier.",
+    "editSupplier": "Edit Supplier",
+    "deleteSupplier": "Delete Supplier",
+    "editDialogTitle": "Edit Supplier",
+    "editDialogDesc": "Update the supplier's information.",
+    "deleteConfirmTitle": "Delete Supplier",
+    "deleteConfirmDesc": "Are you sure you want to delete this supplier? This action cannot be undone.",
+    "supplierUpdated": "Supplier updated successfully",
+    "supplierDeleted": "Supplier deleted successfully",
+    "deleteError": "Failed to delete supplier"
   },
   "goodsReceipts": {
     "title": "Goods Receipts",
@@ -494,7 +542,14 @@
     "addItem": "Add",
     "productId": "Product ID",
     "qty": "Qty",
-    "costPrice": "Cost Price"
+    "costPrice": "Cost Price",
+    "editDialogTitle": "Edit Goods Receipt",
+    "editDialogDesc": "Update the goods receipt header information. Items cannot be changed.",
+    "deleteConfirmTitle": "Delete Goods Receipt",
+    "deleteConfirmDesc": "Are you sure you want to delete this receipt? Stock quantities will be adjusted. This action cannot be undone.",
+    "grnUpdated": "Goods receipt updated successfully",
+    "grnDeleted": "Goods receipt deleted successfully",
+    "deleteError": "Failed to delete goods receipt"
   },
   "stockMovements": {
     "title": "Stock Movements",
@@ -527,7 +582,17 @@
     "adjustStockReasonPlaceholder": "Describe the reason for adjustment...",
     "adjustStockSubmitting": "Saving...",
     "adjustStockSuccess": "Stock adjusted successfully",
-    "adjustStockError": "Failed to adjust stock"
+    "adjustStockError": "Failed to adjust stock",
+    "confirmAdjustTitle": "Confirm Stock Adjustment",
+    "currentQty": "Current Quantity",
+    "newQty": "New Quantity",
+    "difference": "Difference",
+    "continue": "Continue",
+    "confirmAdjust": "Confirm Adjustment",
+    "back": "Back",
+    "writeOffWarning": "Setting stock to 0 will record this as a write-off movement.",
+    "largeAdjustWarning": "This adjustment changes stock by more than 20%.",
+    "stockFetchError": "Could not fetch current stock data"
   },
   "reports": {
     "title": "Reports",
@@ -659,7 +724,10 @@
     "confirmationEmail": "You will receive a confirmation email shortly.",
     "viewOrder": "View Order Details",
     "continueShopping": "Continue Shopping",
-    "loading": "Loading order information..."
+    "loading": "Loading order information...",
+    "saveOrder": "Save your order",
+    "saveOrderDesc": "Create an account to track your order, view history, and get faster checkout.",
+    "createAccount": "Create Account"
   },
   "notifications": {
     "pageTitle": "Notification Preferences",
@@ -801,7 +869,15 @@
     "selectCountry": "Select country",
     "copied": "Copied",
     "copyBackupCodes": "Copy backup codes",
-    "backupCodesCopied": "Backup codes copied to clipboard"
+    "backupCodesCopied": "Backup codes copied to clipboard",
+    "phoneLabel": "Phone",
+    "phonePlaceholder": "+380 XX XXX XX XX",
+    "marketingConsent": "Marketing emails",
+    "marketingConsentDesc": "Receive promotional offers and news about new products",
+    "firstNameLabel": "First name",
+    "firstNamePlaceholder": "Enter your first name",
+    "lastNameLabel": "Last name",
+    "lastNamePlaceholder": "Enter your last name"
   },
   "signIn": {
     "pageTitle": "Sign In",
@@ -824,6 +900,13 @@
     "errorEmailNotVerified": "Please verify your email before signing in.",
     "resendVerification": "Resend verification email",
     "verificationSent": "Verification email sent! Check your inbox.",
+    "emailOtpTitle": "Email code",
+    "emailOtpDesc": "Enter your email to receive a verification code",
+    "otpSent": "We've sent a code to {email}",
+    "otpLabel": "Verification code",
+    "otpPlaceholder": "Enter 6-digit code",
+    "sendOtp": "Send code",
+    "signInWithOtp": "Sign in with code",
     "successRegistered": "Account created! Please sign in."
   },
   "dashboard": {
@@ -863,7 +946,14 @@
     "editProfile": "Edit Profile",
     "findStore": "Find Nearest Store",
     "contactSupport": "Contact Support",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "profileCompletion": "Profile completion",
+    "completionPercent": "{percent}% complete",
+    "addFirstName": "Add your first name for personalized greetings",
+    "addLastName": "Add your last name",
+    "addPhone": "Add phone number for delivery updates",
+    "verifyEmail": "Verify your email to receive order receipts",
+    "remindLater": "Remind me later"
   },
   "mfa": {
     "pageTitle": "Two-Factor Authentication",
