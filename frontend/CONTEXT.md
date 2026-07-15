@@ -76,11 +76,14 @@ app/
 ## Auth Middleware (`proxy.ts`)
 - **i18n:** uses `createIntlMiddleware` from `next-intl/middleware`
 - **Auth:** verifies session via Better Auth client
-- **Route protection:**
-  - `/admin/*` — requires `admin` role (redirects to `/` if not admin)
-  - `/checkout/*` — requires authenticated user
-  - `/order/*` — requires authenticated user
-- **Current gap:** `/pos/*` and `/warehouse/*` not gated for cashier/warehouse_worker roles
+- **Route protection (via proxy.ts):**
+  - `/admin/*` — requires auth, role-gated by path (see `roleRouteAccess` map)
+  - `/checkout/*` — removed from protectedRoutes (guest checkout allowed)
+  - `/order/*` — requires auth (user or admin)
+  - `/dashboard` — requires auth (user or admin)
+  - `/my` — requires auth (user or admin)
+- **Admin route access map:** granular per-page (admin, cashier, warehouse_worker roles)
+- **Backstop:** any unlisted `/admin/*` path requires admin role
 
 ## API Client (`app/lib/api.ts`)
 - Base URL: `/api` (proxied through gateway)
@@ -100,6 +103,4 @@ app/
 - **Status:** Coverage and pass rate undocumented
 
 ## Known Issues
-- Inventory pages (warehouses, suppliers, GRN, stock movements) are read-only — no mutation UIs for create/edit
 - Testimonials hardcoded in Ukrainian (not in translation files)
-- Role-specific route gating incomplete (cashier, warehouse_worker not protected in proxy.ts)

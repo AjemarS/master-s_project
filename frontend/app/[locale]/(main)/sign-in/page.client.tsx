@@ -5,7 +5,7 @@ import { Link } from "~/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter } from "~/i18n/navigation";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import { Card, CardContent } from "~/ui/primitives/card";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Separator } from "~/ui/primitives/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/ui/primitives/tabs";
 
 export function SignInPageClient() {
   const router = useRouter();
@@ -28,7 +29,15 @@ export function SignInPageClient() {
   const [loading, setLoading] = useState(false);
   const [isEmailUnverified, setIsEmailUnverified] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const otpCountdownRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const t = useTranslations("signIn");
+  const tCommon = useTranslations("common");
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +118,64 @@ export function SignInPageClient() {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!otpEmail) return;
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const { error } = await authClient.emailOtp.sendVerificationOtp({
+        email: otpEmail,
+        type: "sign-in",
+      });
+      if (error) {
+        setOtpError(error.message || t("errorGeneric"));
+        return;
+      }
+      setOtpSent(true);
+      setOtpCountdown(300);
+      otpCountdownRef.current = setInterval(() => {
+        setOtpCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(otpCountdownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch {
+      setOtpError(t("errorGeneric"));
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleOtpSignIn = async () => {
+    if (!otpEmail || !otpCode) return;
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const { error } = await authClient.signIn.emailOtp({
+        email: otpEmail,
+        otp: otpCode,
+      });
+      if (error) {
+        setOtpError(error.message || t("errorGeneric"));
+        return;
+      }
+      router.push("/my/overview");
+    } catch {
+      setOtpError(t("errorGeneric"));
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (otpCountdownRef.current) clearInterval(otpCountdownRef.current);
+    };
+  }, []);
+
   return (
     <div
       className={`
@@ -168,113 +235,259 @@ export function SignInPageClient() {
             </div>
           )}
 
-          <Card className="border-none shadow-sm">
-            <CardContent className="pt-2">
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleEmailLogin(e).catch(console.error);
-                }}
-              >
-                <div className="grid gap-2">
-                  <Label htmlFor="email">{t("emailLabel")}</Label>
-                  <Input
-                    id="email"
-                    onChange={(e) => {
-                      setEmail(e.target.value);
+          {/* Continue as guest */}
+          <div className="text-center">
+            <Button
+              variant="outline"
+              className="w-full mb-4"
+              onClick={async () => {
+                const result = await authClient.signIn.anonymous();
+                if (result?.error) {
+                  setError(t("errorGeneric"));
+                }
+                router.push("/");
+              }}
+            >
+              {tCommon("continueAsGuest")}
+            </Button>
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {t("orContinueWith")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <Tabs defaultValue="password" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="password">{t("signInButton")}</TabsTrigger>
+              <TabsTrigger value="otp">{tCommon("emailCode")}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="password">
+              <Card className="border-none shadow-sm">
+                <CardContent className="pt-2">
+                  <form
+                    className="space-y-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleEmailLogin(e).catch(console.error);
                     }}
-                    placeholder={t("emailPlaceholder")}
-                    required
-                    type="email"
-                    value={email}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">{t("passwordLabel")}</Label>
-                    <Link
-                      className={`
-                        text-sm text-muted-foreground
-                        hover:underline
-                      `}
-                      href="/forgot-password"
-                    >
-                      {t("forgotPassword")}
-                    </Link>
-                  </div>
-                  <Input
-                    id="password"
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                    }}
-                    placeholder={t("passwordPlaceholder")}
-                    required
-                    type="password"
-                    value={password}
-                  />
-                </div>
-                {error && <div className="text-sm font-medium text-destructive">{error}</div>}
-                {isEmailUnverified && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                    disabled={resendingVerification}
-                    onClick={handleResendVerification}
                   >
-                    {resendingVerification ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : null}
-                    {t("resendVerification")}
-                  </Button>
-                )}
-                <Button className="w-full" disabled={loading} type="submit" aria-label="Sign in">
-                  {loading ? t("signingIn") : t("signInButton")}
-                </Button>
-              </form>
-              <div className="relative mt-6">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator className="w-full" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">{t("orContinueWith")}</span>
-                </div>
-              </div>
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <Button
-                  className="flex items-center gap-2"
-                  disabled={loading}
-                  onClick={handleGitHubLogin}
-                  variant="outline"
-                >
-                  <GitHubIcon className="h-5 w-5" />
-                  {t("github")}
-                </Button>
-                <Button
-                  className="flex items-center gap-2"
-                  disabled={loading}
-                  onClick={handleGoogleLogin}
-                  variant="outline"
-                >
-                  <GoogleIcon className="h-5 w-5" />
-                  {t("google")}
-                </Button>
-              </div>
-              <div className="mt-6 text-center text-sm text-muted-foreground">
-                {t("noAccount")}{" "}
-                <Link
-                  className={`
-                    text-primary underline-offset-4
-                    hover:underline
-                  `}
-                  href="/sign-up"
-                >
-                  {t("signUpLink")}
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">{t("emailLabel")}</Label>
+                      <Input
+                        id="email"
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                        }}
+                        placeholder={t("emailPlaceholder")}
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">{t("passwordLabel")}</Label>
+                        <Link
+                          className={`
+                            text-sm text-muted-foreground
+                            hover:underline
+                          `}
+                          href="/forgot-password"
+                        >
+                          {t("forgotPassword")}
+                        </Link>
+                      </div>
+                      <Input
+                        id="password"
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                        }}
+                        placeholder={t("passwordPlaceholder")}
+                        required
+                        type="password"
+                        value={password}
+                      />
+                    </div>
+                    {error && (
+                      <div className="text-sm font-medium text-destructive">{error}</div>
+                    )}
+                    {isEmailUnverified && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        disabled={resendingVerification}
+                        onClick={handleResendVerification}
+                      >
+                        {resendingVerification ? (
+                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        ) : null}
+                        {t("resendVerification")}
+                      </Button>
+                    )}
+                    <Button
+                      className="w-full"
+                      disabled={loading}
+                      type="submit"
+                      aria-label="Sign in"
+                    >
+                      {loading ? t("signingIn") : t("signInButton")}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="otp">
+              <Card className="border-none shadow-sm">
+                <CardContent className="pt-2">
+                  <form
+                    className="space-y-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (otpSent) {
+                        handleOtpSignIn();
+                      } else {
+                        handleSendOtp();
+                      }
+                    }}
+                  >
+                    {!otpSent ? (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="otp-email">{t("emailLabel")}</Label>
+                          <Input
+                            id="otp-email"
+                            type="email"
+                            value={otpEmail}
+                            onChange={(e) => setOtpEmail(e.target.value)}
+                            placeholder={t("emailPlaceholder")}
+                            required
+                          />
+                        </div>
+                        {otpError && (
+                          <div className="text-sm font-medium text-destructive">{otpError}</div>
+                        )}
+                        <Button
+                          className="w-full"
+                          disabled={otpLoading || !otpEmail}
+                          type="submit"
+                        >
+                          {otpLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          {tCommon("sendCode")}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-muted-foreground text-center">
+                          {t("otpSent", { email: otpEmail })}
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="otp-code">{t("otpLabel")}</Label>
+                          <Input
+                            id="otp-code"
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={otpCode}
+                            onChange={(e) =>
+                              setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                            }
+                            placeholder={t("otpPlaceholder")}
+                            className="text-center text-lg tracking-widest"
+                            required
+                            autoFocus
+                          />
+                        </div>
+                        {otpError && (
+                          <div className="text-sm font-medium text-destructive">{otpError}</div>
+                        )}
+                        {otpCountdown > 0 && (
+                          <div className="text-xs text-center text-muted-foreground">
+                            {tCommon("codeExpiresIn")}
+                          </div>
+                        )}
+                        {otpCountdown === 0 && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="w-full"
+                            disabled={otpLoading}
+                            onClick={handleSendOtp}
+                            type="button"
+                          >
+                            {tCommon("resendCode")}
+                          </Button>
+                        )}
+                        <Button
+                          className="w-full"
+                          disabled={otpLoading || otpCode.length !== 6}
+                          type="submit"
+                        >
+                          {otpLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          {t("signInWithOtp")}
+                        </Button>
+                      </>
+                    )}
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="relative mt-6">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                {t("orContinueWith")}
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              className="flex items-center gap-2"
+              disabled={loading}
+              onClick={handleGitHubLogin}
+              variant="outline"
+            >
+              <GitHubIcon className="h-5 w-5" />
+              {t("github")}
+            </Button>
+            <Button
+              className="flex items-center gap-2"
+              disabled={loading}
+              onClick={handleGoogleLogin}
+              variant="outline"
+            >
+              <GoogleIcon className="h-5 w-5" />
+              {t("google")}
+            </Button>
+          </div>
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            {t("noAccount")}{" "}
+            <Link
+              className={`
+                text-primary underline-offset-4
+                hover:underline
+              `}
+              href="/sign-up"
+            >
+              {t("signUpLink")}
+            </Link>
+          </div>
         </div>
       </div>
     </div>

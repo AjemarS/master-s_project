@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
@@ -13,10 +13,12 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { Checkbox } from "~/ui/primitives/checkbox";
-import { Warehouse as WarehouseIcon, Package, Plus, ArrowRightLeft } from "lucide-react";
-import { AdminPageHeader } from "../components";
-import { useWarehouses, useCreateWarehouse, useStock, useTransferStock } from "~/lib/hooks/use-api-data";
-import type { Warehouse, Stock } from "~/lib/types";
+import { Warehouse as WarehouseIcon, Package, Plus, ArrowRightLeft, Pencil, Trash2, Loader2 } from "lucide-react";
+import { AdminPageHeader, ConfirmDialog } from "../components";
+import { useWarehouses, useCreateWarehouse, useUpdateWarehouse, useDeleteWarehouse, useStock, useTransferStock } from "~/lib/hooks/use-api-data";
+import type { Warehouse, Stock, Product } from "~/lib/types";
+import { useCurrentUser } from "~/lib/auth-client";
+import { productApi } from "~/lib/api/admin-api";
 import {
   Table,
   TableHeader,
@@ -35,6 +37,8 @@ export function WarehousesClient() {
   const { data: whData, error: whError, isLoading: whLoading, mutate: whMutate } = useWarehouses();
   const { data: stData, error: stError, isLoading: stLoading, mutate: stMutate } = useStock();
   const { trigger: createWarehouse, isMutating: saving } = useCreateWarehouse();
+  const { trigger: updateWarehouse, isMutating: updating } = useUpdateWarehouse();
+  const { trigger: deleteWarehouse, isMutating: deleting } = useDeleteWarehouse();
   const { trigger: transferStock, isMutating: transferSaving } = useTransferStock();
 
   const warehouses: Warehouse[] = whData?.results ?? [];
@@ -53,6 +57,45 @@ export function WarehousesClient() {
   const [transferToWh, setTransferToWh] = useState("");
   const [transferQuantity, setTransferQuantity] = useState("1");
   const [transferNotes, setTransferNotes] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [productResults, setProductResults] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    if (productSearch.length < 2) {
+      return;
+    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    let cancelled = false;
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      setProductResults([]);
+      try {
+        const res = await productApi.getAll({ search: productSearch, pageSize: 10 });
+        if (cancelled) return;
+        if (!res.error && res.data?.results) {
+          setProductResults(res.data.results);
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setSearching(false);
+    }, 300);
+    return () => {
+      cancelled = true;
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [productSearch]);
+
+  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editType, setEditType] = useState<"warehouse" | "showroom">("warehouse");
+  const [editActive, setEditActive] = useState(true);
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+
+  const { user } = useCurrentUser();
+  const isAdmin = user?.role === "admin";
 
   const handleCreate = async () => {
     if (!formName.trim()) return;
@@ -70,6 +113,48 @@ export function WarehousesClient() {
       stMutate();
     } catch (err) {
       toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
+    }
+  };
+
+  const openEdit = (wh: Warehouse) => {
+    setEditingWarehouse(wh);
+    setEditName(wh.name);
+    setEditAddress(wh.address || "");
+    setEditType(wh.type);
+    setEditActive(wh.is_active);
+  };
+
+  const handleEdit = async () => {
+    if (!editingWarehouse || !editName.trim()) return;
+    try {
+      await updateWarehouse({
+        id: editingWarehouse.id,
+        data: {
+          name: editName.trim(),
+          type: editType,
+          address: editAddress.trim(),
+          is_active: editActive,
+        },
+      });
+      toast.success(t("warehouseUpdated"));
+      setEditingWarehouse(null);
+      whMutate();
+      stMutate();
+    } catch (err) {
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deleteWarehouse(deleteConfirmId);
+      toast.success(t("warehouseDeleted"));
+      setDeleteConfirmId(null);
+      whMutate();
+      stMutate();
+    } catch (err) {
+      toast.error(t("deleteError"), { description: err instanceof Error ? err.message : tc("error") });
     }
   };
 
@@ -147,11 +232,12 @@ export function WarehousesClient() {
                         <TableHead>{t("type")}</TableHead>
                         <TableHead>{t("address")}</TableHead>
                         <TableHead>{t("active")}</TableHead>
+                        {isAdmin && <TableHead className="text-right">{tc("actions")}</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {warehouses.length === 0 ? (
-                        <EmptyState icon={WarehouseIcon} message={t("noWarehouses")} colSpan={4} />
+                        <EmptyState icon={WarehouseIcon} message={t("noWarehouses")} colSpan={isAdmin ? 5 : 4} />
                       ) : (
                         warehouses.map((wh) => (
                           <TableRow key={wh.id}>
@@ -167,6 +253,18 @@ export function WarehousesClient() {
                                 {wh.is_active ? tc("yes") : tc("no")}
                               </Badge>
                             </TableCell>
+                            {isAdmin && (
+                              <TableCell>
+                                <div className="flex justify-end gap-2">
+                                  <Button size="sm" variant="outline" onClick={() => openEdit(wh)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => setDeleteConfirmId(wh.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))
                       )}
@@ -302,6 +400,60 @@ export function WarehousesClient() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!editingWarehouse} onOpenChange={(o) => { if (!o) setEditingWarehouse(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("editDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("editDialogDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("name")} *</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("type")}</Label>
+              <Select value={editType} onValueChange={(v) => setEditType(v as "warehouse" | "showroom")}>
+                <SelectTrigger className="col-span-3"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="warehouse">{t("warehouse")}</SelectItem>
+                  <SelectItem value="showroom">{t("showroom")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("address")}</Label>
+              <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">{t("active")}</Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <Checkbox checked={editActive} onCheckedChange={(c) => setEditActive(c === true)} />
+                <span className="text-sm text-slate-600">{editActive ? tc("yes") : tc("no")}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingWarehouse(null)} disabled={updating}>{tc("cancel")}</Button>
+            <Button onClick={handleEdit} disabled={updating || !editName.trim()}>
+              {updating ? tc("save") : tc("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+        onConfirm={handleDelete}
+        title={t("deleteConfirmTitle")}
+        description={t("deleteConfirmDesc")}
+        confirmText={tc("delete")}
+        cancelText={tc("cancel")}
+        variant="destructive"
+        loading={deleting}
+      />
+
       <Dialog open={showTransfer} onOpenChange={(o) => { if (!o) setShowTransfer(false); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -311,8 +463,37 @@ export function WarehousesClient() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("productId")} *</Label>
-              <Input type="number" min="1" value={transferProductId} onChange={(e) => setTransferProductId(e.target.value)}
-                className="col-span-3" placeholder={t("productId")} />
+              <div className="col-span-3 relative">
+                <Input
+                  placeholder={tc("searchProducts")}
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                />
+                {searching && (
+                  <div className="absolute right-3 top-2.5">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                )}
+                {productSearch.length >= 2 && productResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-800 border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {productResults.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm"
+                        onClick={() => {
+                          setProductSearch(`${p.name} (#${p.id})`);
+                          setTransferProductId(String(p.id));
+                          setProductResults([]);
+                        }}
+                      >
+                        <span className="font-medium">{p.name}</span>
+                        <span className="text-muted-foreground ml-2">#{p.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">{t("fromWarehouse")} *</Label>

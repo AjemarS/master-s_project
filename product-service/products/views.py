@@ -15,7 +15,7 @@ from shared_eventbus.publisher import publish_event
 from .filters import ProductFilter
 from .models import Category, Product
 from .pagination import StandardResultsSetPagination
-from .serializers import CategorySerializer, ProductSerializer
+from .serializers import CategorySerializer, ProductListSerializer, ProductSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         """
         Read-only actions are open; mutating actions require admin auth.
         """
-        if self.action in ("list", "retrieve", "low_stock", "by_category"):
+        if self.action in ("list", "retrieve", "low_stock", "by_category", "similar"):
             return [IsAuthenticatedOrReadOnly()]
         return [IsAdminUser()]
 
@@ -135,6 +135,24 @@ class ProductViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(products, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def similar(self, request, pk=None):
+        """Return up to 8 in-stock products in the same category (excluding current)."""
+        product = self.get_object()
+        if not product.category_id:
+            return Response([])
+
+        similar = (
+            Product.objects
+            .select_related("category")
+            .filter(category=product.category, in_stock=True)
+            .exclude(pk=product.pk)[:8]
+        )
+        serializer = ProductListSerializer(
+            similar, many=True, context={"request": request}
+        )
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])

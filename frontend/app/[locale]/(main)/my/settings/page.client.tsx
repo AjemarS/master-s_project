@@ -75,7 +75,9 @@ export function SettingsClient() {
   const { isPending, user } = useCurrentUserOrRedirect("/sign-in");
 
   // ── Profile state ──────────────────────────────────────────────
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
   const [language, setLanguage] = useState("ua");
   const [savingProfile, setSavingProfile] = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
@@ -129,18 +131,25 @@ export function SettingsClient() {
   const [savingNotif, setSavingNotif] = useState<Record<string, boolean>>({});
   const isSavingNotif = useRef(false);
 
+  // ── Marketing consent state ────────────────────────────────────
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [savingMarketingConsent, setSavingMarketingConsent] = useState(false);
+
   // ── Initialise from user ───────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     const init = async () => {
-      const u = user as { name?: string; address_line1?: string; address_line2?: string; city?: string; state?: string; postal_code?: string; country?: string };
-      setName(u.name || "");
+      const u = user as { first_name?: string; last_name?: string; phone?: string; marketing_consent?: boolean; address_line1?: string; address_line2?: string; city?: string; state?: string; postal_code?: string; country?: string };
+      setFirstName(u.first_name || "");
+      setLastName(u.last_name || "");
+      setPhone(u.phone || "");
       setAddressLine1(u.address_line1 || "");
       setAddressLine2(u.address_line2 || "");
       setAddressCity(u.city || "");
       setAddressState(u.state || "");
       setAddressPostalCode(u.postal_code || "");
       setAddressCountry(u.country || "");
+      setMarketingConsent(u.marketing_consent || false);
     };
     init();
   }, [user]);
@@ -182,7 +191,7 @@ export function SettingsClient() {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      await authClient.updateUser({ name, image: undefined });
+      await authClient.updateUser({ first_name: firstName, last_name: lastName, image: undefined, phone, locale: language });
       // Navigate to selected locale — full page reload needed for
       // next-intl server components to pick up the new locale.
       const currentLocale = window.location.pathname.match(/^\/([a-z]{2})/)?.[1] || "ua";
@@ -379,6 +388,21 @@ export function SettingsClient() {
     }
   };
 
+  // ── Marketing consent toggle ────────────────────────────────────
+  const handleMarketingConsent = async (checked: boolean) => {
+    setSavingMarketingConsent(true);
+    setMarketingConsent(checked);
+    try {
+      await authClient.updateUser({ marketing_consent: checked });
+      toast.success(t("changesSaved"));
+    } catch {
+      setMarketingConsent(!checked);
+      toast.error(t("changesError"));
+    } finally {
+      setSavingMarketingConsent(false);
+    }
+  };
+
   // ── Loading state ──────────────────────────────────────────────
   if (isPending) {
     return (
@@ -416,14 +440,39 @@ export function SettingsClient() {
             <CardTitle>{t("profileInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Name */}
+            {/* First & Last Name */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="settings-firstname">{t("firstNameLabel")}</Label>
+                <Input
+                  id="settings-firstname"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder={t("firstNamePlaceholder")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="settings-lastname">{t("lastNameLabel")}</Label>
+                <Input
+                  id="settings-lastname"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder={t("lastNamePlaceholder")}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Phone */}
             <div className="grid gap-2">
-              <Label htmlFor="settings-name">{t("nameLabel")}</Label>
+              <Label htmlFor="settings-phone">{t("phoneLabel")}</Label>
               <Input
-                id="settings-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("namePlaceholder")}
+                id="settings-phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder={t("phonePlaceholder")}
                 className="flex-1"
               />
             </div>
@@ -940,7 +989,7 @@ export function SettingsClient() {
             <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {user?.name || user?.email || "—"}
+                  {[user?.first_name, user?.last_name].filter(Boolean).join(" ") || user?.email || "—"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {user?.email || "—"}
@@ -1067,6 +1116,31 @@ export function SettingsClient() {
                     {t("marketingDesc")}
                   </p>
                   <div className="space-y-3">
+                    {/* Marketing consent master toggle */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label
+                          htmlFor="notif-marketing-consent"
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {t("marketingConsent")}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          {t("marketingConsentDesc")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {savingMarketingConsent && (
+                          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                        )}
+                        <Switch
+                          id="notif-marketing-consent"
+                          checked={marketingConsent}
+                          onCheckedChange={handleMarketingConsent}
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <Label
                         htmlFor="notif-marketing-email"

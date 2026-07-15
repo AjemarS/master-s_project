@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
-import { admin, twoFactor } from "better-auth/plugins";
+import { admin, anonymous, emailOTP, twoFactor } from "better-auth/plugins";
 import { Pool } from "pg";
-import { sendResetPasswordEmail, sendVerificationEmail } from "./email/sender";
+import { sendOtpEmail, sendResetPasswordEmail, sendVerificationEmail } from "./email/sender";
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -42,6 +42,43 @@ export const auth = betterAuth({
   }),
 
   plugins: [
+    anonymous({
+      emailDomainName: "techhub.guest",
+      onLinkAccount: async ({ anonymousUser, newUser }) => {
+        const orderServiceUrl = process.env.ORDER_SERVICE_URL ?? "http://order-service:8002";
+        try {
+          const response = await fetch(`${orderServiceUrl}/api/orders/reassign/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Service-API-Key": process.env.SERVICE_API_KEY || "",
+            },
+            body: JSON.stringify({
+              anonymous_user_id: anonymousUser.user.id,
+              new_user_id: newUser.user.id,
+            }),
+            signal: AbortSignal.timeout(5000),
+          });
+          if (!response.ok) {
+            console.error(`[anonymous] Order reassign failed: ${response.status} ${response.statusText}`);
+            return;
+          }
+          const data = (await response.json()) as { reassigned: number };
+          console.log(`[anonymous] Reassigned ${data.reassigned} orders: ${anonymousUser.user.id} → ${newUser.user.id}`);
+        } catch (error) {
+          console.error(`[anonymous] Order reassign error: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      },
+    }),
+    emailOTP({
+      async sendVerificationOTP({ email, otp, type }) {
+        // Don't await to prevent timing attacks
+        void sendOtpEmail(email, otp, type);
+      },
+      otpLength: 6,
+      expiresIn: 300, // 5 minutes
+      resendStrategy: "reuse", // Reuse same OTP code on resend
+    }),
     admin({
       adminUserIds: [],
     }),
@@ -50,7 +87,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: !!process.env.RESEND_API_KEY,
+    requireEmailVerification: true,
     minPasswordLength: 8,
     revokeSessionsOnPasswordReset: true,
     sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
@@ -103,6 +140,8 @@ export const auth = betterAuth({
 
   user: {
     additionalFields: {
+      first_name: { type: "string", input: true, required: false },
+      last_name: { type: "string", input: true, required: false },
       status: { type: "string", defaultValue: "active", input: false, required: false },
       address_line1: { type: "string", input: true, required: false },
       address_line2: { type: "string", input: true, required: false },
@@ -110,6 +149,9 @@ export const auth = betterAuth({
       state: { type: "string", input: true, required: false },
       postal_code: { type: "string", input: true, required: false },
       country: { type: "string", input: true, required: false },
+      phone: { type: "string", input: true, required: false },
+      marketing_consent: { type: "boolean", input: true, required: false },
+      locale: { type: "string", input: true, required: false },
     },
   },
 

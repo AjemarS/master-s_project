@@ -6,10 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
-import { CheckCircle, ShoppingBag, ArrowRight, Package } from "lucide-react";
+import { CheckCircle, ShoppingBag, ArrowRight, Package, UserPlus } from "lucide-react";
+import { useCurrentUser } from "~/lib/auth-client";
 
 function SuccessContent() {
   const t = useTranslations("checkoutSuccess");
+  const { user } = useCurrentUser();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
 
@@ -49,6 +51,19 @@ function SuccessContent() {
           </Button>
         </CardContent>
       </Card>
+
+      {user?.isAnonymous && (
+        <Card className="w-full max-w-md border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+          <CardContent className="flex flex-col gap-3 pt-6 text-center">
+            <UserPlus className="h-12 w-12 mx-auto text-amber-500" />
+            <CardTitle className="text-lg">{t("saveOrder")}</CardTitle>
+            <CardDescription>{t("saveOrderDesc")}</CardDescription>
+            <Button asChild className="w-full">
+              <Link href="/sign-up">{t("createAccount")} <ArrowRight className="h-4 w-4 ml-2" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

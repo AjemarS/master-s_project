@@ -3,6 +3,7 @@ API views for order management.
 Thin layer that validates input, delegates to order_service, and formats HTTP responses.
 """
 import logging
+import os
 
 import stripe
 from django.conf import settings
@@ -131,6 +132,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         if self.action == "pos":
             return [IsAdminOrCashier()]
+        if self.action == "reassign":
+            return [AllowAny()]  # Internal endpoint — see docstring
         return [IsAdminUser()]
 
     def get_queryset(self):
@@ -145,7 +148,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     # ── Standard CRUD ────────────────────────────────────────────────
 
     def create(self, request, *args, **kwargs):
-        """Create an online order."""
+        """Create an online order with stock reserve and saga compensation."""
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -180,6 +183,47 @@ class OrderViewSet(viewsets.ModelViewSet):
             channel=data.get("channel", Order.ONLINE),
             user_id=user_id,
         )
+
+        # ── Reserve stock with saga compensation ──────────────────────
+        if warehouse_id:
+            all_success, succeeded = svc.reserve_order_stock(order, request)
+            if not all_success:
+                # Release all successfully reserved items (best effort)
+                for pid, qty in succeeded:
+                    release_stock(
+                        product_id=pid,
+                        warehouse_id=warehouse_id,
+                        quantity=qty,
+                        reference_type="order",
+                        reference_id=str(order.id),
+                        idempotency_key=f"compensate-reserve-{order.id}-{pid}",
+                        request=request,
+                    )
+
+                # Mark order as cancelled and record error reason in notes
+                error_reason = "Stock reservation failed during order creation"
+                order.status = Order.CANCELLED
+                order.notes = (order.notes + "\n" + error_reason).strip()
+                order.save(update_fields=["status", "notes"])
+
+                logger.error(
+                    "Order cancelled — reserve failure | number=%s",
+                    order.order_number,
+                )
+
+                return Response(
+                    {
+                        "error": "Stock reservation failed",
+                        "reason": error_reason,
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            logger.info(
+                "Stock reserved | order=%s items=%d",
+                order.order_number, len(succeeded),
+            )
+
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
 
     # ── Custom Actions ────────────────────────────────────────────────
@@ -323,6 +367,35 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"])
+    def reassign(self, request):
+        """Reassign orders from anonymous user to permanent user on account upgrade.
+        Called internally by auth-service on onLinkAccount.
+        """
+        # Validate service API key
+        service_key = request.META.get("HTTP_X_SERVICE_API_KEY", "")
+        expected_key = os.environ.get("SERVICE_API_KEY", "")
+        if expected_key and service_key != expected_key:
+            return Response(
+                {"error": "Invalid service API key"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        anonymous_user_id = request.data.get("anonymous_user_id")
+        new_user_id = request.data.get("new_user_id")
+
+        if not anonymous_user_id or not new_user_id:
+            return Response(
+                {"error": "Both anonymous_user_id and new_user_id are required"},
+                status=400,
+            )
+
+        updated = Order.objects.filter(created_by=anonymous_user_id).update(
+            created_by=new_user_id
+        )
+
+        return Response({"reassigned": updated})
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):

@@ -87,6 +87,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 INVENTORY_SERVICE_URL = os.environ.get(
     "INVENTORY_SERVICE_URL", "http://inventory-service:8001"
 )
+PRODUCT_SERVICE_URL = os.environ.get(
+    "PRODUCT_SERVICE_URL", "http://product-service:8000"
+)
 AUDIT_SERVICE_URL = os.environ.get(
     "AUDIT_SERVICE_URL", "http://audit-service:8005"
 )

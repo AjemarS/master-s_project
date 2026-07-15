@@ -16,6 +16,7 @@ import {
   checkLoginRateLimit,
   recordFailedAttempt,
   resetLoginRateLimit,
+  checkAndRecordSignUpAttempt,
   initRateLimiter,
   redisClient,
   adminRateLimit,
@@ -107,6 +108,35 @@ export function createApp() {
       if (res.statusCode === 200) resetLoginRateLimit(ip).catch(() => {});
       else if (res.statusCode === 401 || res.statusCode === 403) recordFailedAttempt(ip).catch(() => {});
     });
+    next();
+  });
+
+  // Sign-up rate limiter (atomic check+record BEFORE handler — no TOCTOU race)
+  app.use("/auth/sign-up/email", async (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    let allowed: boolean;
+    let retryAfter: number | undefined;
+    let redisDown = false;
+    try {
+      const result = await checkAndRecordSignUpAttempt(ip);
+      allowed = result.allowed;
+      retryAfter = result.retryAfter;
+    } catch (err) {
+      logger.error("Sign-up rate limit check failed — blocking request as safety measure", { error: (err as Error).message, ip });
+      allowed = false;
+      retryAfter = 30;
+      redisDown = true;
+    }
+    if (!allowed) {
+      return res.status(429).json({
+        success: false,
+        message: redisDown
+          ? "Service temporarily unavailable. Please try again shortly."
+          : `Too many sign-up attempts. Please try again in ${retryAfter} seconds.`,
+        retryAfter,
+      });
+    }
+    // No onFinished needed — counter already incremented atomically
     next();
   });
 

@@ -10,7 +10,7 @@ const intlMiddleware = createIntlMiddleware({
 });
 
 // Routes that require authentication
-const protectedRoutes = ["/dashboard", "/admin", "/order", "/my", "/checkout"];
+const protectedRoutes = ["/dashboard", "/admin", "/order", "/my"];
 
 // Role-based route access map
 // More specific paths are checked first (longest match wins)

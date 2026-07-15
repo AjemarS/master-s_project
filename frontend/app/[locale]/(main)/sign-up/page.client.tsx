@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Link } from "~/i18n/navigation";
 import { useRouter } from "~/i18n/navigation";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { signIn, signUp } from "~/lib/auth-client";
 import { GitHubIcon } from "~/ui/components/icons/github";
@@ -14,14 +14,19 @@ import { Card, CardContent } from "~/ui/primitives/card";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Separator } from "~/ui/primitives/separator";
+import { Checkbox } from "~/ui/primitives/checkbox";
 
 export function SignUpPageClient() {
+  const locale = useLocale();
   const t = useTranslations("signUp");
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
-    name: "",
+    firstName: "",
+    lastName: "",
     password: "",
+    phone: "",
+    marketingConsent: false,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,9 +45,14 @@ export function SignUpPageClient() {
     setLoading(true);
     try {
       const { error: signUpError } = await signUp.email({
-        name: formData.name,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         email: formData.email,
         password: formData.password,
+        phone: formData.phone,
+        marketing_consent: formData.marketingConsent,
+        locale,
       });
       if (signUpError) {
         setError(t("errorGeneric"));
@@ -137,17 +147,31 @@ export function SignUpPageClient() {
           <Card className="border-none shadow-sm">
             <CardContent className="pt-2">
               <form className="space-y-4" onSubmit={handleSubmit}>
-                <div className="grid gap-2">
-                  <Label htmlFor="name">{t("nameLabel")}</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    onChange={handleChange}
-                    placeholder={t("namePlaceholder")}
-                    required
-                    type="text"
-                    value={formData.name}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="firstName">{t("firstNameLabel")}</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      onChange={handleChange}
+                      placeholder={t("firstNamePlaceholder")}
+                      required
+                      type="text"
+                      value={formData.firstName}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="lastName">{t("lastNameLabel")}</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      onChange={handleChange}
+                      placeholder={t("lastNamePlaceholder")}
+                      required
+                      type="text"
+                      value={formData.lastName}
+                    />
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email">{t("emailLabel")}</Label>
@@ -172,6 +196,27 @@ export function SignUpPageClient() {
                     type="password"
                     value={formData.password}
                   />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">{t("phoneLabel")}</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    onChange={handleChange}
+                    placeholder={t("phonePlaceholder")}
+                    type="tel"
+                    value={formData.phone}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="marketingConsent"
+                    checked={formData.marketingConsent}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, marketingConsent: checked === true }))}
+                  />
+                  <Label htmlFor="marketingConsent" className="text-sm text-muted-foreground cursor-pointer">
+                    {t("marketingConsent")}
+                  </Label>
                 </div>
                 {error && <div className="text-sm font-medium text-destructive">{error}</div>}
                 <Button className="w-full" disabled={loading} type="submit">

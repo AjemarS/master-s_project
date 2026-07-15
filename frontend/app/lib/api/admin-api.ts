@@ -106,14 +106,23 @@ export const warehouseApi = {
   async create(data: Partial<Warehouse>): Promise<ApiResponse<Warehouse>> {
     return apiCall(`${INVENTORY_API_URL}/warehouses/`, { method: "POST", body: JSON.stringify(data) });
   },
+
+  async update(id: number, data: Partial<Warehouse>): Promise<ApiResponse<Warehouse>> {
+    return apiCall(`${INVENTORY_API_URL}/warehouses/${id}/`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async delete(id: number): Promise<ApiResponse<void>> {
+    return apiCall(`${INVENTORY_API_URL}/warehouses/${id}/`, { method: "DELETE" });
+  },
 };
 
 export const stockApi = {
-  async getAll(params?: { warehouse_id?: number; product_id?: number }): Promise<ApiResponse<{ results: Stock[]; count: number }>> {
+  async getAll(params?: { warehouse_id?: number; product_id?: number }, signal?: AbortSignal): Promise<ApiResponse<{ results: Stock[]; count: number }>> {
     const q = new URLSearchParams();
     if (params?.warehouse_id) q.append("warehouse_id", String(params.warehouse_id));
     if (params?.product_id) q.append("product_id", String(params.product_id));
-    return apiCall(`${INVENTORY_API_URL}/stock/${q.toString() ? `?${q}` : ""}`);
+    const qs = q.toString();
+    return apiCall(`${INVENTORY_API_URL}/stock/${qs ? `?${qs}` : ""}`, { signal });
   },
 };
 
@@ -125,6 +134,14 @@ export const supplierApi = {
   async create(data: Partial<Supplier>): Promise<ApiResponse<Supplier>> {
     return apiCall(`${INVENTORY_API_URL}/suppliers/`, { method: "POST", body: JSON.stringify(data) });
   },
+
+  async update(id: number, data: Partial<Supplier>): Promise<ApiResponse<Supplier>> {
+    return apiCall(`${INVENTORY_API_URL}/suppliers/${id}/`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async delete(id: number): Promise<ApiResponse<void>> {
+    return apiCall(`${INVENTORY_API_URL}/suppliers/${id}/`, { method: "DELETE" });
+  },
 };
 
 export const goodsReceiptApi = {
@@ -134,6 +151,14 @@ export const goodsReceiptApi = {
 
   async create(data: Partial<GoodsReceiptNote>): Promise<ApiResponse<GoodsReceiptNote>> {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async update(id: number, data: Partial<GoodsReceiptNote>): Promise<ApiResponse<GoodsReceiptNote>> {
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/${id}/`, { method: "PUT", body: JSON.stringify(data) });
+  },
+
+  async delete(id: number): Promise<ApiResponse<void>> {
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/${id}/`, { method: "DELETE" });
   },
 };
 

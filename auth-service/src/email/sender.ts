@@ -66,7 +66,8 @@ function resetPasswordHtml(url: string): string {
 
 export async function sendVerificationEmail(email: string, url: string): Promise<void> {
   if (!resend) {
-    console.warn("[email] Resend not configured, skipping verification email to", email);
+    console.log("[email] DEV MODE: Verification email URL for", email);
+    console.log("[email]", url);
     return;
   }
   try {
@@ -84,7 +85,8 @@ export async function sendVerificationEmail(email: string, url: string): Promise
 
 export async function sendResetPasswordEmail(email: string, url: string): Promise<void> {
   if (!resend) {
-    console.warn("[email] Resend not configured, skipping reset email to", email);
+    console.log("[email] DEV MODE: Reset password URL for", email);
+    console.log("[email]", url);
     return;
   }
   try {
@@ -123,5 +125,38 @@ export async function sendImpersonationCode(email: string, code: string): Promis
     console.log("[email] Impersonation code sent to", email);
   } catch (err) {
     console.error("[email] Failed to send impersonation code:", err);
+  }
+}
+
+export async function sendOtpEmail(email: string, otp: string, type: "sign-in" | "email-verification" | "forget-password" | "change-email"): Promise<void> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const appName = "TechHub";
+
+  if (!resendApiKey) {
+    // Dev mode — log OTP to console
+    console.log(`[email] DEV MODE: OTP for ${email} (${type})`);
+    console.log(`[email] Your OTP code: ${otp}`);
+    return;
+  }
+
+  // Production — send via Resend
+  const subject = type === "sign-in"
+    ? `Your ${appName} sign-in code`
+    : type === "email-verification" || type === "change-email"
+      ? `Verify your ${appName} email`
+      : `Reset your ${appName} password`;
+
+  const { Resend } = await import("resend");
+  const resend = new Resend(resendApiKey);
+
+  const { error } = await resend.emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "noreply@techhub.local",
+    to: email,
+    subject,
+    html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
+  });
+
+  if (error) {
+    console.error(`[email] Failed to send OTP to ${email}:`, error);
   }
 }

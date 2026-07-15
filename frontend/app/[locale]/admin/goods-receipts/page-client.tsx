@@ -12,10 +12,15 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { Textarea } from "~/ui/primitives/textarea";
-import { ClipboardList, Plus, X } from "lucide-react";
-import { AdminPageHeader } from "../components";
+import { ClipboardList, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { AdminPageHeader, ConfirmDialog } from "../components";
 import { formatCurrency } from "~/lib/utils/format";
-import { useGoodsReceipts, useCreateGoodsReceipt, useSuppliers, useWarehouses } from "~/lib/hooks/use-api-data";
+import {
+  useGoodsReceipts, useCreateGoodsReceipt, useUpdateGoodsReceipt, useDeleteGoodsReceipt,
+  useSuppliers, useWarehouses,
+} from "~/lib/hooks/use-api-data";
+import { useCurrentUser } from "~/lib/auth-client";
+import type { GoodsReceiptNote } from "~/lib/types";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import {
   Table,
@@ -47,12 +52,24 @@ export function GoodsReceiptsClient() {
   const { data: supData } = useSuppliers();
   const { data: whData } = useWarehouses();
   const { trigger: createGrn, isMutating: saving } = useCreateGoodsReceipt();
+  const { trigger: updateGrn, isMutating: updating } = useUpdateGoodsReceipt();
+  const { trigger: deleteGrn, isMutating: deleting } = useDeleteGoodsReceipt();
 
   const receipts = grData?.results || [];
   const suppliers = supData?.results || [];
   const warehouses = whData?.results || [];
 
+  const { user } = useCurrentUser();
+  const isAdmin = user?.role === "admin";
+
   const [showCreate, setShowCreate] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<GoodsReceiptNote | null>(null);
+  const [editSupplier, setEditSupplier] = useState("");
+  const [editWarehouse, setEditWarehouse] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editRef, setEditRef] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const [formSupplier, setFormSupplier] = useState("");
   const [formWarehouse, setFormWarehouse] = useState("");
@@ -105,6 +122,50 @@ export function GoodsReceiptsClient() {
     }
   };
 
+  const openEdit = (grn: GoodsReceiptNote) => {
+    setEditingReceipt(grn);
+    setEditSupplier(String(grn.supplier));
+    setEditWarehouse(String(grn.warehouse));
+    setEditDate(grn.receipt_date.split("T")[0] || grn.receipt_date);
+    setEditRef(grn.reference_number || "");
+    setEditNotes(grn.notes || "");
+  };
+
+  const handleEdit = async () => {
+    if (!editingReceipt) return;
+    try {
+      await updateGrn({
+        id: editingReceipt.id,
+        data: {
+          supplier: parseInt(editSupplier, 10),
+          warehouse: parseInt(editWarehouse, 10),
+          receipt_date: editDate,
+          reference_number: editRef,
+          notes: editNotes,
+        },
+      });
+      toast.success(t("grnUpdated"));
+      setEditingReceipt(null);
+      grMutate();
+    } catch (err) {
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      await deleteGrn(deleteConfirmId);
+      toast.success(t("grnDeleted"));
+      setDeleteConfirmId(null);
+      grMutate();
+    } catch (err) {
+      toast.error(t("deleteError"), { description: err instanceof Error ? err.message : "" });
+    }
+  };
+
+  const colSpan = isAdmin ? 7 : 6;
+
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
@@ -113,11 +174,11 @@ export function GoodsReceiptsClient() {
           subtitle={t("subtitle")}
           icon={ClipboardList}
           backLabel={tc("back")}
-          actions={
+          actions={isAdmin ? (
             <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
               <Plus className="h-4 w-4" /> {t("createGrn")}
             </Button>
-          }
+          ) : undefined}
         />
 
         <ErrorAlert message={grError?.message || null} />
@@ -135,7 +196,7 @@ export function GoodsReceiptsClient() {
           </CardHeader>
           <CardContent>
             {grLoading ? (
-              <TableSkeleton rows={4} cols={6} />
+              <TableSkeleton rows={4} cols={colSpan} />
             ) : (
               <div className="border rounded-lg dark:border-slate-700">
                 <Table>
@@ -147,11 +208,12 @@ export function GoodsReceiptsClient() {
                       <TableHead>{t("date")}</TableHead>
                       <TableHead>{t("amount")}</TableHead>
                       <TableHead>{t("createdBy")}</TableHead>
+                      {isAdmin && <TableHead className="text-right">{tc("actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {receipts.length === 0 ? (
-                      <EmptyState icon={ClipboardList} message={t("noReceipts")} colSpan={6} />
+                      <EmptyState icon={ClipboardList} message={t("noReceipts")} colSpan={colSpan} />
                     ) : (
                       receipts.map((r) => (
                         <TableRow key={r.id}>
@@ -161,6 +223,18 @@ export function GoodsReceiptsClient() {
                           <TableCell className="text-muted-foreground">{formatDate(r.receipt_date)}</TableCell>
                           <TableCell className="font-semibold">{formatCurrency(r.total_amount)}</TableCell>
                           <TableCell className="text-muted-foreground">{r.created_by}</TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => setDeleteConfirmId(r.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     )}
@@ -248,6 +322,73 @@ export function GoodsReceiptsClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {isAdmin && (
+        <>
+          <Dialog open={!!editingReceipt} onOpenChange={(o) => { if (!o) setEditingReceipt(null); }}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{t("editDialogTitle")}</DialogTitle>
+                <DialogDescription>{t("editDialogDesc")}</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">{t("supplier")} *</Label>
+                  <div className="col-span-3">
+                    <Select value={editSupplier} onValueChange={setEditSupplier}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder={t("selectSupplier")} /></SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">{t("warehouse")} *</Label>
+                  <div className="col-span-3">
+                    <Select value={editWarehouse} onValueChange={setEditWarehouse}>
+                      <SelectTrigger className="w-full"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
+                      <SelectContent>
+                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">{t("date")}</Label>
+                  <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">{t("refNumber")}</Label>
+                  <Input value={editRef} onChange={(e) => setEditRef(e.target.value)} placeholder={t("refPlaceholder")} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">{tc("notes")}</Label>
+                  <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="col-span-3" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingReceipt(null)} disabled={updating}>{tc("cancel")}</Button>
+                <Button onClick={handleEdit} disabled={updating || !editSupplier || !editWarehouse}>
+                  {updating ? tc("save") : tc("save")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <ConfirmDialog
+            open={deleteConfirmId !== null}
+            onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
+            onConfirm={handleDelete}
+            title={t("deleteConfirmTitle")}
+            description={t("deleteConfirmDesc")}
+            confirmText={tc("delete")}
+            cancelText={tc("cancel")}
+            variant="destructive"
+            loading={deleting}
+          />
+        </>
+      )}
     </div>
   );
 }
