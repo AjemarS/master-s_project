@@ -5,15 +5,15 @@ services:
     container_name: products_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${PRODUCTS_DB_NAME:-products_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_products_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${PRODUCTS_DB_NAME:-products_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,14 +27,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${INVENTORY_DB_NAME}
-      POSTGRES_USER: ${INVENTORY_DB_USER}
-      POSTGRES_PASSWORD: ${INVENTORY_DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_inventory_data:/var/lib/postgresql/data
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,14 +48,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${ORDERS_DB_NAME}
-      POSTGRES_USER: ${ORDERS_DB_USER}
-      POSTGRES_PASSWORD: ${ORDERS_DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_orders_data:/var/lib/postgresql/data
     ports:
       - "5435:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,54 +69,36 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${AUTH_DB_NAME}
-      POSTGRES_USER: ${AUTH_DB_USER}
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
       - postgres_auth_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - microservices_network
 
-  # Notifications Database
-  notifications_db:
+  # Logging Database (shared between audit and notification services)
+  logging_db:
     image: postgres:15-alpine
-    container_name: notifications_db
+    container_name: logging_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${NOTIFICATIONS_DB_NAME}
-      POSTGRES_USER: ${NOTIFICATIONS_DB_USER}
-      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD}
+      POSTGRES_DB: ${LOGGING_DB_NAME:-logging_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     volumes:
-      - postgres_notifications_data:/var/lib/postgresql/data
+      - postgres_logging_data:/var/lib/postgresql/data
     ports:
       - "5436:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - microservices_network
-
-  audit_db:
-    image: postgres:15-alpine
-    container_name: audit_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${AUDIT_DB_USER:-audit}
-      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD:-audit123}
-      POSTGRES_DB: ${AUDIT_DB_NAME:-audit_db}
-    volumes:
-      - postgres_audit_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AUDIT_DB_USER:-audit} -d ${AUDIT_DB_NAME:-audit_db}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${LOGGING_DB_NAME:-logging_db}"]
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
@@ -127,15 +109,16 @@ services:
     build:
       context: .
       dockerfile: product-service/Dockerfile
+      target: dev
     container_name: product_service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@products_db:5432/${POSTGRES_DB}
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@products_db:5432/${PRODUCTS_DB_NAME:-products_db}
+      DB_NAME: ${PRODUCTS_DB_NAME:-products_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_HOST: products_db
+      DB_PORT: "5432"
       DJANGO_SETTINGS_MODULE: product_service.settings
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
@@ -161,11 +144,12 @@ services:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
+      target: dev
     container_name: auth_service
     restart: unless-stopped
     environment:
       PORT: ${AUTH_PORT}
-      DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth_db:5432/${AUTH_DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@auth_db:5432/${AUTH_DB_NAME}
       FRONTEND_URL: ${FRONTEND_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
@@ -199,13 +183,14 @@ services:
     build:
       context: .
       dockerfile: inventory-service/Dockerfile
+      target: dev
     container_name: inventory_service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${INVENTORY_DB_USER}:${INVENTORY_DB_PASSWORD}@inventory_db:5432/${INVENTORY_DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@inventory_db:5432/${INVENTORY_DB_NAME}
       DB_NAME: ${INVENTORY_DB_NAME}
-      DB_USER: ${INVENTORY_DB_USER}
-      DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_HOST: inventory_db
       DB_PORT: "5432"
       DJANGO_SETTINGS_MODULE: inventory_service.settings
@@ -234,13 +219,14 @@ services:
     build:
       context: .
       dockerfile: order-service/Dockerfile
+      target: dev
     container_name: order_service
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${ORDERS_DB_USER}:${ORDERS_DB_PASSWORD}@orders_db:5432/${ORDERS_DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@orders_db:5432/${ORDERS_DB_NAME}
       DB_NAME: ${ORDERS_DB_NAME}
-      DB_USER: ${ORDERS_DB_USER}
-      DB_PASSWORD: ${ORDERS_DB_PASSWORD}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_HOST: orders_db
       DB_PORT: "5432"
       DJANGO_SETTINGS_MODULE: order_service.settings
@@ -271,6 +257,7 @@ services:
     build:
       context: ./notification-service
       dockerfile: Dockerfile
+      target: dev
     container_name: notification_service
     restart: unless-stopped
     environment:
@@ -279,12 +266,12 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      NOTIFICATIONS_DATABASE_URL: postgresql://${NOTIFICATIONS_DB_USER}:${NOTIFICATIONS_DB_PASSWORD}@notifications_db:5432/${NOTIFICATIONS_DB_NAME}
-      AUTH_DATABASE_URL: postgresql://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@auth_db:5432/${AUTH_DB_NAME}
+      NOTIFICATIONS_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@logging_db:5432/${LOGGING_DB_NAME:-logging_db}
+      AUTH_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@auth_db:5432/${AUTH_DB_NAME}
     depends_on:
       rabbitmq:
         condition: service_healthy
-      notifications_db:
+      logging_db:
         condition: service_healthy
     networks:
       - microservices_network
@@ -294,16 +281,17 @@ services:
     build:
       context: ./audit-service
       dockerfile: Dockerfile
+      target: dev
     container_name: audit_service
     restart: unless-stopped
     environment:
       PORT: "8005"
       RABBITMQ_URL: ${RABBITMQ_URL}
-      DATABASE_URL: postgresql://${AUDIT_DB_USER:-audit}:${AUDIT_DB_PASSWORD:-audit123}@audit_db:5432/${AUDIT_DB_NAME:-audit_db}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@logging_db:5432/${LOGGING_DB_NAME:-logging_db}
     depends_on:
       rabbitmq:
         condition: service_healthy
-      audit_db:
+      logging_db:
         condition: service_healthy
     networks:
       - microservices_network
@@ -313,13 +301,14 @@ services:
     build:
       context: .
       dockerfile: product-service/Dockerfile
+      target: dev
     container_name: product_consumer
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@products_db:5432/${POSTGRES_DB}
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@products_db:5432/${PRODUCTS_DB_NAME:-products_db}
+      DB_NAME: ${PRODUCTS_DB_NAME:-products_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_HOST: products_db
       DB_PORT: "5432"
       DJANGO_SETTINGS_MODULE: product_service.settings
@@ -344,13 +333,14 @@ services:
     build:
       context: .
       dockerfile: inventory-service/Dockerfile
+      target: dev
     container_name: inventory_consumer
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${INVENTORY_DB_USER}:${INVENTORY_DB_PASSWORD}@inventory_db:5432/${INVENTORY_DB_NAME}
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@inventory_db:5432/${INVENTORY_DB_NAME}
       DB_NAME: ${INVENTORY_DB_NAME}
-      DB_USER: ${INVENTORY_DB_USER}
-      DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_HOST: inventory_db
       DB_PORT: "5432"
       DJANGO_SETTINGS_MODULE: inventory_service.settings
@@ -396,23 +386,24 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
     container_name: frontend_app
     restart: unless-stopped
     environment:
       - NODE_ENV=${NODE_ENV}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - NEXT_PUBLIC_AUTH_URL=${NEXT_PUBLIC_AUTH_URL}
-      - API_SERVICE_URL=${API_SERVICE_URL}
+      - API_SERVICE_URL=${API_GATEWAY_URL:-http://gateway:8080/api}
       - PROXY_AUTH_URL=${PROXY_AUTH_URL}
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - /app/.next
+      - next_cache:/app/.next
     ports:
       - "3000:3000"
     networks:
       - microservices_network
-    command: npm run dev
+    command: sh -c "npm install && npm run dev"
 
   # RabbitMQ (event bus)
   rabbitmq:
@@ -455,9 +446,9 @@ volumes:
   postgres_inventory_data:
   postgres_orders_data:
   postgres_auth_data:
-  postgres_notifications_data:
-  postgres_audit_data:
+  postgres_logging_data:
   redis_data:
+  next_cache:
 
 networks:
   microservices_network:

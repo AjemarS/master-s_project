@@ -12,14 +12,15 @@ services:
   auth_db:
     ports: !reset []
 
-  notifications_db:
-    ports: !reset []
-
-  audit_db:
+  logging_db:
     ports: !reset []
 
   # Django Product Service
   product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+      target: prod
     volumes: !reset []
     ports: !reset []
     environment:
@@ -50,6 +51,10 @@ services:
 
   # Django Inventory Service
   inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+      target: prod
     volumes: !reset []
     ports: !reset []
     environment:
@@ -64,7 +69,7 @@ services:
                --access-logfile -
                --error-logfile -"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health/')\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/inventory/')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -80,6 +85,10 @@ services:
 
   # Django Order Service
   order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+      target: prod
     volumes: !reset []
     ports: !reset []
     environment:
@@ -110,12 +119,16 @@ services:
 
   # Auth Service (Better Auth)
   auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+      target: prod
     volumes: !reset []
     ports: !reset []
     environment:
       NODE_ENV: "production"
       LOG_LEVEL: "info"
-    command: sh -c "npm run build && npm run start"
+    command: node dist/index.js
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
       interval: 30s
@@ -133,11 +146,15 @@ services:
 
   # Next.js Frontend
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
     volumes: !reset []
     ports: !reset []
     environment:
       NODE_ENV: "production"
-    command: sh -c "npm run build && npm run start"
+    command: npm run start
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 30s
@@ -168,6 +185,10 @@ services:
 
   # Notification Service
   notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+      target: prod
     environment:
       NODE_ENV: "production"
     deploy:
@@ -181,6 +202,10 @@ services:
 
   # Audit Service
   audit-service:
+    build:
+      context: ./audit-service
+      dockerfile: Dockerfile
+      target: prod
     environment:
       NODE_ENV: "production"
     deploy:
@@ -194,6 +219,10 @@ services:
 
   # Product Event Consumer
   product-consumer:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+      target: prod
     volumes: !reset []
     environment:
       DEBUG: "False"
@@ -208,6 +237,10 @@ services:
 
   # Inventory Event Consumer
   inventory-consumer:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+      target: prod
     volumes: !reset []
     environment:
       DEBUG: "False"

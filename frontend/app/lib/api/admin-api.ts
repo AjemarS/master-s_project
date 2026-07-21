@@ -16,6 +16,7 @@ export const productApi = {
     ordering?: string;
     createdAfter?: string;
     createdBefore?: string;
+    minRating?: number;
   }): Promise<ApiResponse<{ results: Product[]; count: number; next: string | null; previous: string | null }>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
@@ -25,6 +26,7 @@ export const productApi = {
     if (params?.minPrice) queryParams.append("min_price", params.minPrice.toString());
     if (params?.maxPrice) queryParams.append("max_price", params.maxPrice.toString());
     if (params?.inStock !== undefined) queryParams.append("in_stock", params.inStock.toString());
+    if (params?.minRating !== undefined) queryParams.append("min_rating", params.minRating.toString());
     if (params?.minStock !== undefined) queryParams.append("min_stock", params.minStock.toString());
     if (params?.maxStock !== undefined) queryParams.append("max_stock", params.maxStock.toString());
     if (params?.ordering) queryParams.append("ordering", params.ordering);

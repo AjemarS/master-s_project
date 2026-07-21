@@ -1,5 +1,24 @@
-import { Pool } from "pg";
+import { Pool, type QueryResult } from "pg";
 import logger from "./logger";
+
+async function queryWithRetry(pool: Pool, queryText: string, params?: any[], retries = 15, delay = 2000): Promise<QueryResult> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await pool.query(queryText, params);
+    } catch (error: any) {
+      if (error.code === 'ECONNREFUSED' || error.message?.includes('getaddrinfo') || error.message?.includes('EAI_AGAIN')) {
+        if (attempt === retries) {
+          throw error;
+        }
+        console.warn(`Database query attempt ${attempt}/${retries} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Unreachable");
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -33,7 +52,7 @@ export interface AuditQuery {
 }
 
 export async function initTables(): Promise<void> {
-  await pool.query(`
+  await queryWithRetry(pool, `
     CREATE TABLE IF NOT EXISTS audit_logs (
       id BIGSERIAL PRIMARY KEY,
       request_id VARCHAR(255),
@@ -61,7 +80,7 @@ export async function initTables(): Promise<void> {
 }
 
 export async function insertEntry(entry: AuditEntry): Promise<void> {
-  await pool.query(
+  await queryWithRetry(pool,
     `INSERT INTO audit_logs (request_id, event_id, routing_key, event_type, service,
       method, path, user_id, status_code, payload, error_message, duration_ms)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
@@ -98,10 +117,10 @@ export async function queryEntries(q: AuditQuery): Promise<{ rows: Record<string
   const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
   const offset = (q.page - 1) * q.limit;
 
-  const totalResult = await pool.query(`SELECT COUNT(*) FROM audit_logs ${where}`, params);
+  const totalResult = await queryWithRetry(pool, `SELECT COUNT(*) FROM audit_logs ${where}`, params);
   const total = parseInt(totalResult.rows[0].count, 10);
 
-  const dataResult = await pool.query(
+  const dataResult = await queryWithRetry(pool,
     `SELECT * FROM audit_logs ${where} ORDER BY created_at DESC LIMIT $${idx + 1} OFFSET $${idx + 2}`,
     [...params, q.limit, offset],
   );

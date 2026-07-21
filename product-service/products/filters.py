@@ -13,6 +13,7 @@ class ProductFilter(filters.FilterSet):
     in_stock = filters.BooleanFilter(field_name="in_stock")
     created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
     created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
+    min_rating = filters.NumberFilter(field_name="rating", lookup_expr="gte")
 
     class Meta:
         model = Product

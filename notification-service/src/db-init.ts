@@ -1,8 +1,27 @@
 import { getNotifPool } from "./db";
+import logger from "./logger";
+
+async function connectWithRetry(pool: import("pg").Pool, retries = 15, delay = 2000): Promise<import("pg").PoolClient> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const client = await pool.connect();
+      logger.info("Connected to database");
+      return client;
+    } catch (error) {
+      if (attempt === retries) {
+        logger.error(`Failed to connect after ${retries} attempts`);
+        throw error;
+      }
+      logger.warn(`Database connection attempt ${attempt}/${retries} failed, retrying...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("Unreachable");
+}
 
 export async function initTables(): Promise<void> {
   const pool = getNotifPool();
-  const client = await pool.connect();
+  const client = await connectWithRetry(pool);
   try {
     await client.query("BEGIN");
 

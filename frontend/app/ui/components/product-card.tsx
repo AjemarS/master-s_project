@@ -82,8 +82,8 @@ export const ProductCard = React.memo(function ProductCard({
   };
 
   return (
-    <div className={cn("group", className)} {...props}>
-      <Link href={`/products/${product.slug || product.id}`}>
+    <div className={cn("group h-full", className)} {...props}>
+      <Link className="block h-full" href={`/products/${product.slug || product.id}`}>
         <Card
           className={cn(
             "relative flex h-full flex-col overflow-hidden rounded-lg py-0 transition-all duration-200 ease-in-out hover:shadow-md",
