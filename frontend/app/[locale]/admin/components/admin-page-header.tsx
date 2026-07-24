@@ -34,12 +34,12 @@ export function AdminPageHeader({
       )}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-            <Icon className="h-10 w-10 text-purple-600" />
+          <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
+            <Icon className="h-10 w-10 text-primary" />
             {title}
           </h1>
           {subtitle && (
-            <p className="text-slate-600 dark:text-slate-400">{subtitle}</p>
+            <p className="text-muted-foreground">{subtitle}</p>
           )}
         </div>
         {actions}

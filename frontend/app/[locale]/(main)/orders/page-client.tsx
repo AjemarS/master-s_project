@@ -106,12 +106,12 @@ export function MyOrdersClient() {
       <table className="w-full">
         <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
           <tr>
-            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">№</th>
-            {showStatus && <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Статус</th>}
-            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Канал</th>
-            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Сума</th>
-            <th className="text-left p-4 text-sm font-medium text-slate-600 dark:text-slate-400">Дата</th>
-            <th className="text-right p-4 text-sm font-medium text-slate-600 dark:text-slate-400"></th>
+            <th className="text-left p-4 text-sm font-medium text-muted-foreground">№</th>
+            {showStatus && <th className="text-left p-4 text-sm font-medium text-muted-foreground">Статус</th>}
+            <th className="text-left p-4 text-sm font-medium text-muted-foreground">Канал</th>
+            <th className="text-left p-4 text-sm font-medium text-muted-foreground">Сума</th>
+            <th className="text-left p-4 text-sm font-medium text-muted-foreground">Дата</th>
+            <th className="text-right p-4 text-sm font-medium text-muted-foreground"></th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +119,7 @@ export function MyOrdersClient() {
             const cfg = STATUS_CFG[order.status] || { label: order.status, color: "" };
             return (
               <tr key={order.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
+                <td className="p-4 font-medium text-foreground">
                   <Link href={`/order/${order.id}`} className="hover:text-primary">{order.order_number}</Link>
                 </td>
                 {showStatus && (
@@ -132,11 +132,11 @@ export function MyOrdersClient() {
                     {order.channel === "online" ? "Онлайн" : "POS"}
                   </Badge>
                 </td>
-                <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(order.total_amount)}</td>
-                <td className="p-4 text-sm text-slate-600 dark:text-slate-400">{new Date(order.created_at).toLocaleDateString("uk-UA")}</td>
+                <td className="p-4 font-semibold text-foreground">{formatCurrency(order.total_amount)}</td>
+                <td className="p-4 text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString("uk-UA")}</td>
                 <td className="p-4 text-right flex items-center justify-end gap-1">
                   {getAllowedTransitions(order.status).includes("cancelled") && (
-                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => handleCancel(order.id)}>
+                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive/80" onClick={() => handleCancel(order.id)}>
                       <XCircle className="h-4 w-4" />
                     </Button>
                   )}
@@ -149,8 +149,8 @@ export function MyOrdersClient() {
           })}
           {items.length === 0 && (
             <tr>
-              <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400">
-                <Package className="h-12 w-12 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+              <td colSpan={6} className="text-center py-12 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 Немає замовлень
               </td>
             </tr>
@@ -174,7 +174,7 @@ export function MyOrdersClient() {
   return (
     <Card className="dark:bg-slate-800/80 dark:border-slate-700">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 dark:text-slate-100">
+        <CardTitle className="flex items-center gap-2 text-foreground">
           <Package className="h-5 w-5" />
           Мої замовлення
         </CardTitle>

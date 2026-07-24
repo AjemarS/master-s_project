@@ -47,6 +47,10 @@ class Product(models.Model):
         verbose_name="Категорія",
     )
 
+    brand = models.CharField(max_length=100, blank=True, verbose_name="Бренд")
+    color = models.CharField(max_length=50, blank=True, verbose_name="Колір")
+    is_on_sale = models.BooleanField(default=False, verbose_name="Акційний")
+
     features = models.JSONField(default=list, verbose_name="Особливості")
 
     price = models.DecimalField(
@@ -101,6 +105,7 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         # Keep in_stock in sync with stock count
         self.in_stock = self.stock > 0
+        self.is_on_sale = self.original_price > 0 and Decimal(str(self.original_price)) > Decimal(str(self.price))
         if not self.slug:
             base_slug = slugify(self.name_en or self.name or "")
             if not base_slug:

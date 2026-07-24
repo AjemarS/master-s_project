@@ -7,11 +7,11 @@ import { notificationsApi, createNotificationSSE } from "~/lib/api/notifications
 
 export function NotificationsWidget() {
   const { user } = useCurrentUser();
+  const userId = user?.id;
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const cleanupRef = React.useRef<(() => void) | null>(null);
-  const userId = user?.id;
 
   React.useEffect(() => {
     if (!userId) return;
@@ -19,7 +19,6 @@ export function NotificationsWidget() {
     cleanupRef.current = null;
 
     const init = async () => {
-      setLoading(true);
       const [listRes, unreadRes] = await Promise.all([
         notificationsApi.list(userId, 1, 50),
         notificationsApi.unreadCount(userId),

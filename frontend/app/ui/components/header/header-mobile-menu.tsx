@@ -33,7 +33,9 @@ interface MobileMenuProps {
 
 export function MobileMenu({ showAuth, user, onClose }: MobileMenuProps) {
   const t = useTranslations("common");
+  const nav = useTranslations("nav");
   const pathname = usePathname();
+  const isAdmin = user?.role === "admin";
 
   return (
     <div className="md:hidden">
@@ -53,6 +55,74 @@ export function MobileMenu({ showAuth, user, onClose }: MobileMenuProps) {
           >
             {t("signUp")}
           </Link>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <div className="border-b px-4 py-3">
+        <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Навігація
+        </p>
+        <div className="space-y-1">
+          <Link
+            className="block rounded-md px-3 py-2 text-base font-medium transition-colors hover:bg-muted/50"
+            href="/products"
+            onClick={onClose}
+          >
+            {nav("products")}
+          </Link>
+          {user && (
+            <Link
+              className="block rounded-md px-3 py-2 text-base font-medium transition-colors hover:bg-muted/50"
+              href="/wishlist"
+              onClick={onClose}
+            >
+              {nav("favorites")}
+            </Link>
+          )}
+          {user && (
+            <Link
+              className="block rounded-md px-3 py-2 text-base font-medium transition-colors hover:bg-muted/50"
+              href="/my/orders"
+              onClick={onClose}
+            >
+              {nav("myOrders")}
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* User section */}
+      {user && (
+        <div className="border-b px-4 py-3">
+          <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {user.name || user.email}
+          </p>
+          <div className="space-y-1">
+            <Link
+              className="block rounded-md px-3 py-2 text-base font-medium transition-colors hover:bg-muted/50"
+              href="/my/orders"
+              onClick={onClose}
+            >
+              {nav("myOrders")}
+            </Link>
+            <Link
+              className="block rounded-md px-3 py-2 text-base font-medium transition-colors hover:bg-muted/50"
+              href="/my/overview"
+              onClick={onClose}
+            >
+              {nav("overview")}
+            </Link>
+            {isAdmin && (
+              <Link
+                className="block rounded-md px-3 py-2 text-base font-medium transition-colors hover:bg-muted/50"
+                href="/admin/summary"
+                onClick={onClose}
+              >
+                Адмінка
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

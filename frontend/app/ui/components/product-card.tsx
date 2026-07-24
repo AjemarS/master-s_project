@@ -1,11 +1,12 @@
 "use client";
 
-import { ShoppingCart, Star } from "lucide-react";
+import { Heart, ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { useTranslations } from "next-intl";
 
 import { cn } from "~/lib/cn";
+import { useWishlist } from "~/lib/hooks/use-wishlist";
 import { Product } from "~/lib/types";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
@@ -28,6 +29,7 @@ export const ProductCard = React.memo(function ProductCard({
   ...props
 }: ProductCardProps) {
   const t = useTranslations("products");
+  const { isInWishlist, toggleItem } = useWishlist();
   const [isHovered, setIsHovered] = React.useState(false);
   const [isAddingToCart, setIsAddingToCart] = React.useState(false);
 
@@ -110,23 +112,48 @@ export const ProductCard = React.memo(function ProductCard({
             </Badge>
 
             {discount > 0 && (
-              <Badge className="absolute top-2 right-2 bg-destructive text-destructive-foreground">
+              <Badge className="absolute top-2 right-12 bg-destructive text-foreground">
                 {t("off", { discount })}
               </Badge>
             )}
+
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleItem(product.id);
+              }}
+              className="absolute top-2 right-2 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-colors hover:bg-background"
+              aria-label={
+                isInWishlist(product.id)
+                  ? "Видалити з обраного"
+                  : "Додати до обраного"
+              }
+            >
+              <Heart
+                className={cn(
+                  "h-4 w-4 transition-colors",
+                  isInWishlist(product.id)
+                    ? "fill-red-500 text-red-500"
+                    : "text-muted-foreground",
+                )}
+              />
+            </button>
           </div>
 
           <CardContent className="flex-1 p-4 pt-4">
-            <h3 className="line-clamp-2 text-base font-medium transition-colors group-hover:text-accent-electric">
-              {product.name}
-            </h3>
+            <div className="min-h-[3rem]">
+              <h3 className="line-clamp-2 text-base font-medium transition-colors group-hover:text-accent-electric">
+                {product.name}
+              </h3>
+            </div>
 
             {variant === "default" && (
               <>
                 <div className="mt-1.5">{renderStars()}</div>
                 <div className="mt-2 flex items-center gap-1.5">
                   <span className="font-medium text-foreground">{formatCurrency(price)}</span>
-                  {originalPrice > 0 && (
+                  {discount > 0 && (
                     <span className="text-sm text-muted-foreground line-through">
                       {formatCurrency(originalPrice)}
                     </span>

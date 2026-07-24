@@ -92,6 +92,6 @@ python manage.py test
 - No internal transfer endpoint (CONCEPT §4.2)
 - No stock adjustment / write-off endpoints
 - GRN delete doesn't reverse stock changes
-- No `/health` endpoint (uses GET `/api/inventory/` as health check)
+- Health endpoint: GET /api/inventory/health/ (AllowAny, DB probe)
 - No product validation (accepts any `product_id` without verification against product-service)
 - DRF validation errors in English, not Ukrainian

@@ -7,6 +7,7 @@ export const productApi = {
     page?: number;
     pageSize?: number;
     search?: string;
+    ids?: string;
     category?: number;
     minPrice?: number;
     maxPrice?: number;
@@ -17,16 +18,23 @@ export const productApi = {
     createdAfter?: string;
     createdBefore?: string;
     minRating?: number;
+    onSale?: boolean;
+    brand?: string;
+    color?: string;
   }): Promise<ApiResponse<{ results: Product[]; count: number; next: string | null; previous: string | null }>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append("page", params.page.toString());
     if (params?.pageSize) queryParams.append("page_size", params.pageSize.toString());
     if (params?.search) queryParams.append("search", params.search);
+    if (params?.ids) queryParams.append("ids", params.ids);
     if (params?.category) queryParams.append("category", params.category.toString());
     if (params?.minPrice) queryParams.append("min_price", params.minPrice.toString());
     if (params?.maxPrice) queryParams.append("max_price", params.maxPrice.toString());
     if (params?.inStock !== undefined) queryParams.append("in_stock", params.inStock.toString());
     if (params?.minRating !== undefined) queryParams.append("min_rating", params.minRating.toString());
+    if (params?.onSale !== undefined) queryParams.append("on_sale", params.onSale.toString());
+    if (params?.brand) queryParams.append("brand", params.brand);
+    if (params?.color) queryParams.append("color", params.color);
     if (params?.minStock !== undefined) queryParams.append("min_stock", params.minStock.toString());
     if (params?.maxStock !== undefined) queryParams.append("max_stock", params.maxStock.toString());
     if (params?.ordering) queryParams.append("ordering", params.ordering);
@@ -119,10 +127,11 @@ export const warehouseApi = {
 };
 
 export const stockApi = {
-  async getAll(params?: { warehouse_id?: number; product_id?: number }, signal?: AbortSignal): Promise<ApiResponse<{ results: Stock[]; count: number }>> {
+  async getAll(params?: { warehouse_id?: number; product_id?: number; pageSize?: number }, signal?: AbortSignal): Promise<ApiResponse<Stock[]>> {
     const q = new URLSearchParams();
     if (params?.warehouse_id) q.append("warehouse_id", String(params.warehouse_id));
     if (params?.product_id) q.append("product_id", String(params.product_id));
+    if (params?.pageSize) q.append("page_size", String(params.pageSize));
     const qs = q.toString();
     return apiCall(`${INVENTORY_API_URL}/stock/${qs ? `?${qs}` : ""}`, { signal });
   },

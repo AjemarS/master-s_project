@@ -6,10 +6,10 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "~
 
 export function TableSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div className="border rounded-lg dark:border-slate-700">
+    <div className="border rounded-lg dark:border-border">
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+          <TableRow className="bg-muted/50 dark:bg-muted border-b dark:border-border">
             {Array.from({ length: cols }).map((_, i) => (
               <TableHead key={i}><Skeleton className="h-4 w-24" /></TableHead>
             ))}
@@ -31,7 +31,7 @@ export function TableSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: nu
 
 export function StatsCardSkeleton() {
   return (
-    <Card>
+    <Card className="dark:bg-card dark:border-border">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-5 w-5 rounded" />

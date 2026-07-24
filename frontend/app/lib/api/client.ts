@@ -2,6 +2,7 @@
  * Unified API client for all frontend API calls.
  * Provides consistent error handling, base URL, and credentials.
  */
+import { getSessionId } from "../session-id";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth";
@@ -30,13 +31,8 @@ async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiRe
     const locale = typeof window !== "undefined" ? localStorage.getItem("techhub_locale") || "ua" : "ua";
     headers["Accept-Language"] = locale;
 
-    // Auto-attach session_id for anonymous cart
-    if (typeof window !== "undefined") {
-      const sessionId = localStorage.getItem("techhub_session_id");
-      if (sessionId) {
-        headers["X-Session-Id"] = sessionId;
-      }
-    }
+    // Auto-attach session_id for cart persistence (stored in cookie)
+    headers["X-Session-Id"] = getSessionId();
 
     const response = await fetch(url, {
       ...options,
@@ -96,13 +92,4 @@ export const cartApi = {
     }),
   clear: () => apiCall(`${API_URL}/cart/clear/`, { method: "POST" }),
   merge: () => apiCall<import("../types").CartResponse>(`${API_URL}/cart/merge/`, { method: "POST" }),
-  getSessionId: (): string => {
-    if (typeof window === "undefined") return "";
-    let sid = localStorage.getItem("techhub_session_id");
-    if (!sid) {
-      sid = crypto.randomUUID();
-      localStorage.setItem("techhub_session_id", sid);
-    }
-    return sid;
-  },
 };

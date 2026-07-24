@@ -11,7 +11,8 @@ import {
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
-import { Truck, Plus, Pencil, Trash2 } from "lucide-react";
+import { Truck, Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AdminPageHeader, ConfirmDialog } from "../components";
 import {
   Table,
@@ -42,6 +43,7 @@ export function SuppliersClient() {
   const { trigger: updateSupplier, isMutating: updating } = useUpdateSupplier();
   const { trigger: deleteSupplier, isMutating: deleting } = useDeleteSupplier();
 
+  const [formError, setFormError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [formName, setFormName] = useState("");
   const [formContact, setFormContact] = useState("");
@@ -63,6 +65,11 @@ export function SuppliersClient() {
 
   const handleCreate = async () => {
     if (!formName.trim()) return;
+    if (formEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail.trim())) {
+      setFormError("Invalid email format.");
+      return;
+    }
+    setFormError(null);
     try {
       await createSupplier({
         name: formName.trim(),
@@ -81,6 +88,7 @@ export function SuppliersClient() {
   };
 
   const openEdit = (supplier: Supplier) => {
+    setFormError(null);
     setEditingSupplier(supplier);
     setEditName(supplier.name);
     setEditContact(supplier.contact_person || "");
@@ -91,6 +99,11 @@ export function SuppliersClient() {
 
   const handleEdit = async () => {
     if (!editingSupplier || !editName.trim()) return;
+    if (editEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) {
+      setFormError("Invalid email format.");
+      return;
+    }
+    setFormError(null);
     try {
       await updateSupplier({
         id: editingSupplier.id,
@@ -125,7 +138,7 @@ export function SuppliersClient() {
   const colSpan = isAdmin ? 6 : 5;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
@@ -133,7 +146,7 @@ export function SuppliersClient() {
           icon={Truck}
           backLabel={tc("back")}
           actions={isAdmin ? (
-            <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
+            <Button onClick={() => { setFormError(null); setShowCreate(true); }} className="flex items-center gap-2">
               <Plus className="h-4 w-4" /> {t("addSupplier")}
             </Button>
           ) : undefined}
@@ -141,12 +154,12 @@ export function SuppliersClient() {
 
         <ErrorAlert message={error?.message ?? null} />
 
-        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+        <Card className="dark:bg-card dark:border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="dark:text-slate-100">{t("title")}</CardTitle>
-                <CardDescription className="dark:text-slate-400">
+                <CardTitle className="text-foreground">{t("title")}</CardTitle>
+                <CardDescription className="text-muted-foreground">
                   {suppliers.length > 0 ? tc("count", { count: suppliers.length }) : t("noSuppliers")}
                 </CardDescription>
               </div>
@@ -156,10 +169,10 @@ export function SuppliersClient() {
             {isLoading ? (
               <TableSkeleton rows={4} cols={colSpan} />
             ) : (
-              <div className="border rounded-lg dark:border-slate-700">
+              <div className="border rounded-lg dark:border-border">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                    <TableRow className="bg-muted/50 border-b dark:border-border">
                       <TableHead>{t("name")}</TableHead>
                       <TableHead>{t("contactPerson")}</TableHead>
                       <TableHead>{t("phone")}</TableHead>
@@ -206,7 +219,7 @@ export function SuppliersClient() {
         </Card>
       </div>
 
-      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) setShowCreate(false); }}>
+      <Dialog open={showCreate} onOpenChange={(o) => { if (!o) { setFormError(null); setShowCreate(false); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("createDialogTitle")}</DialogTitle>
@@ -214,36 +227,42 @@ export function SuppliersClient() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("name")} *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-name" className="text-right pr-2">{t("name")} *</Label>
+              <Input id="sup-name" value={formName} onChange={(e) => setFormName(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("contactPerson")}</Label>
-              <Input value={formContact} onChange={(e) => setFormContact(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-contact" className="text-left pr-2">{t("contactPerson")}</Label>
+              <Input id="sup-contact" value={formContact} onChange={(e) => setFormContact(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("phone")}</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-phone" className="text-right pr-2">{t("phone")}</Label>
+              <Input id="sup-phone" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("email")}</Label>
-              <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-email" className="text-right pr-2">{t("email")}</Label>
+              <Input id="sup-email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("address")}</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-address" className="text-right pr-2">{t("address")}</Label>
+              <Input id="sup-address" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} className="col-span-3" />
             </div>
           </div>
+          {formError && (
+            <Alert variant="destructive" className="mb-2 mx-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)} disabled={saving}>{tc("cancel")}</Button>
             <Button onClick={handleCreate} disabled={saving || !formName.trim()}>
-              {saving ? tc("create") : tc("create")}
+              {saving ? tc("saving") : tc("create")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!editingSupplier} onOpenChange={(o) => { if (!o) setEditingSupplier(null); }}>
+      <Dialog open={!!editingSupplier} onOpenChange={(o) => { if (!o) { setFormError(null); setEditingSupplier(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("editDialogTitle")}</DialogTitle>
@@ -251,30 +270,36 @@ export function SuppliersClient() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("name")} *</Label>
-              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-edit-name" className="text-right pr-2">{t("name")} *</Label>
+              <Input id="sup-edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("contactPerson")}</Label>
-              <Input value={editContact} onChange={(e) => setEditContact(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-edit-contact" className="text-left pr-2">{t("contactPerson")}</Label>
+              <Input id="sup-edit-contact" value={editContact} onChange={(e) => setEditContact(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("phone")}</Label>
-              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-edit-phone" className="text-right pr-2">{t("phone")}</Label>
+              <Input id="sup-edit-phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("email")}</Label>
-              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-edit-email" className="text-right pr-2">{t("email")}</Label>
+              <Input id="sup-edit-email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("address")}</Label>
-              <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="col-span-3" />
+              <Label htmlFor="sup-edit-address" className="text-right pr-2">{t("address")}</Label>
+              <Input id="sup-edit-address" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="col-span-3" />
             </div>
           </div>
+          {formError && (
+            <Alert variant="destructive" className="mb-2 mx-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingSupplier(null)} disabled={updating}>{tc("cancel")}</Button>
             <Button onClick={handleEdit} disabled={updating || !editName.trim()}>
-              {updating ? tc("save") : tc("save")}
+              {updating ? tc("saving") : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

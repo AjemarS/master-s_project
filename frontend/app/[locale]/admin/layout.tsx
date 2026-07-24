@@ -7,7 +7,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen">
       <ImpersonationBadge />
       <AdminSidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50">
+      <main className="flex-1 min-w-0 overflow-y-auto bg-muted/50">
         <ErrorBoundary>
           {children}
         </ErrorBoundary>

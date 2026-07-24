@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "~/ui/primitives/button";
+
 export default function AdminError({
   error,
   reset,
@@ -14,12 +16,7 @@ export default function AdminError({
         <p className="text-muted-foreground max-w-md mx-auto">
           {error.message || "Something went wrong in the admin panel. Please try again."}
         </p>
-        <button
-          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          onClick={() => reset()}
-        >
-          Try again
-        </button>
+        <Button onClick={() => reset()}>Try again</Button>
       </div>
     </div>
   );

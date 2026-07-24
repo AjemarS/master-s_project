@@ -52,14 +52,14 @@ class Command(BaseCommand):
             west: 12,
             south: 4,
         }
-        for product_id in range(1, 26):
+        for product_id in range(1, 51):
             for wh, qty in warehouse_stock_map.items():
                 Stock.objects.get_or_create(
                     product_id=product_id,
                     warehouse=wh,
                     defaults={"quantity": qty, "reserved": 0},
                 )
-        self.stdout.write("  Stock levels created for 25 products across 5 warehouses")
+        self.stdout.write("  Stock levels created for 50 products across 5 warehouses")
 
         suppliers_data = [
             {"name": "ТОВ «ТехноПостач»", "contact": "Іван Петренко", "phone": "+380441234567", "email": "info@techopostach.ua", "address": "м. Київ, вул. Логістична 10"},

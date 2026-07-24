@@ -101,7 +101,7 @@ export function CategoriesClient() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
@@ -117,10 +117,10 @@ export function CategoriesClient() {
 
         <ErrorAlert message={error?.message ?? null} />
 
-        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+        <Card className="dark:bg-card dark:border-border">
           <CardHeader>
-            <CardTitle className="dark:text-slate-100">{t("title")}</CardTitle>
-            <CardDescription className="dark:text-slate-400">
+            <CardTitle className="text-foreground">{t("title")}</CardTitle>
+            <CardDescription className="text-muted-foreground">
               {categories.length > 0 ? tc("count", { count: categories.length }) : t("noCategories")}
             </CardDescription>
           </CardHeader>
@@ -128,10 +128,10 @@ export function CategoriesClient() {
             {isLoading ? (
               <TableSkeleton rows={5} cols={4} />
             ) : (
-              <div className="border rounded-lg dark:border-slate-700">
+              <div className="border rounded-lg dark:border-border">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                    <TableRow className="bg-muted/50 border-b dark:border-border">
                       <TableHead>{t("id")}</TableHead>
                       <TableHead>{t("name")}</TableHead>
                       <TableHead>{t("parent")}</TableHead>
@@ -148,7 +148,7 @@ export function CategoriesClient() {
                           <TableRow>
                             <TableCell className="font-medium">#{cat.id}</TableCell>
                             <TableCell className="font-medium">
-                              <span className="flex items-center gap-1"><FolderTree className="h-3.5 w-3.5 text-purple-500" /> {cat.name}</span>
+                              <span className="flex items-center gap-1"><FolderTree className="h-3.5 w-3.5 text-primary" /> {cat.name}</span>
                             </TableCell>
                             <TableCell className="text-muted-foreground">—</TableCell>
                             <TableCell className="text-muted-foreground">{cat.product_count ?? "—"}</TableCell>
@@ -206,12 +206,12 @@ export function CategoriesClient() {
               <Input id="cat-name" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder={t("name")} className="mt-2" autoFocus />
             </div>
             <div>
-              <Label className="text-xs text-slate-500">{t("nameUa")}</Label>
-              <Input value={formNameUk} onChange={(e) => setFormNameUk(e.target.value)} placeholder={t("nameUa")} className="mt-1" />
+              <Label htmlFor="cat-name-uk" className="text-xs text-muted-foreground">{t("nameUa")}</Label>
+              <Input id="cat-name-uk" value={formNameUk} onChange={(e) => setFormNameUk(e.target.value)} placeholder={t("nameUa")} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-slate-500">{t("nameEn")}</Label>
-              <Input value={formNameEn} onChange={(e) => setFormNameEn(e.target.value)} placeholder={t("nameEn")} className="mt-1" />
+              <Label htmlFor="cat-name-en" className="text-xs text-muted-foreground">{t("nameEn")}</Label>
+              <Input id="cat-name-en" value={formNameEn} onChange={(e) => setFormNameEn(e.target.value)} placeholder={t("nameEn")} className="mt-1" />
             </div>
             <div>
               <Label htmlFor="cat-parent">{t("parent")}</Label>
@@ -229,7 +229,7 @@ export function CategoriesClient() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)} disabled={saving}>{tc("cancel")}</Button>
             <Button onClick={handleSave} disabled={saving || !formName.trim()}>
-              {saving ? tc("save") : tc("save")}
+              {saving ? tc("saving") : tc("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -61,21 +61,21 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="border rounded-lg dark:border-slate-700 relative">
+    <div className="border rounded-lg dark:border-border relative">
       {isValidating && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-purple-200 dark:bg-purple-900 overflow-hidden rounded-t-lg">
-          <div className="h-full w-1/3 bg-purple-600 animate-pulse rounded-full" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/20 dark:bg-primary/10 overflow-hidden rounded-t-lg">
+          <div className="h-full w-1/3 bg-primary animate-pulse rounded-full" />
         </div>
       )}
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+          <TableRow className="bg-muted/50 border-b border-border">
             {columns.map((col) => (
               <TableHead
                 key={col.id}
                 className={
                   col.sortable
-                    ? `cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 select-none ${col.headerClassName ?? ""}`
+                    ? `cursor-pointer hover:text-foreground select-none ${col.headerClassName ?? ""}`
                     : col.headerClassName ?? ""
                 }
                 onClick={col.sortable && onSort ? () => onSort(col.id) : undefined}

@@ -156,7 +156,7 @@ export function UserTable({
       header: "User",
       cell: (user) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-linear-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold">
+          <div className="h-10 w-10 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-white font-semibold">
             {user.name?.charAt(0).toUpperCase() || "U"}
           </div>
           <div>
@@ -195,7 +195,7 @@ export function UserTable({
             <Ban className="h-3 w-3" /> Banned
           </Badge>
         ) : (
-          <Badge variant="default" className="flex items-center gap-1 w-fit bg-green-600">
+          <Badge variant="default" className="flex items-center gap-1 w-fit bg-primary">
             <CheckCircle className="h-3 w-3" /> Active
           </Badge>
         ),
@@ -223,11 +223,11 @@ export function UserTable({
             <Pencil className="h-4 w-4" />
           </Button>
           {user.banned ? (
-            <Button size="sm" variant="outline" className="border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950" onClick={() => handleUnbanClick(user)} title="Unban user">
+            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary/10" onClick={() => handleUnbanClick(user)} title="Unban user">
               <CheckCircle className="h-4 w-4" />
             </Button>
           ) : (
-            <Button size="sm" variant="outline" className="border-orange-600 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950" onClick={() => handleBanClick(user)} title="Ban user">
+            <Button size="sm" variant="outline" className="border-accent-electric text-accent-electric hover:bg-accent-electric/10" onClick={() => handleBanClick(user)} title="Ban user">
               <Ban className="h-4 w-4" />
             </Button>
           )}
@@ -241,12 +241,12 @@ export function UserTable({
 
   return (
     <>
-      <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+      <Card className="dark:bg-card dark:border-border">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="dark:text-slate-100">User Accounts</CardTitle>
-              <CardDescription className="dark:text-slate-400">
+              <CardTitle className="text-foreground">User Accounts</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 Manage user roles, permissions, and account status
               </CardDescription>
             </div>
@@ -260,7 +260,7 @@ export function UserTable({
           {/* Search */}
           <div className="mb-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t("search")}
                 value={searchTerm}
@@ -272,10 +272,10 @@ export function UserTable({
 
           {/* Filter Panel */}
           {showFilters && (
-            <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
+            <div className="mb-6 p-4 border rounded-lg bg-muted/50 dark:border-border">
               <div className="flex flex-wrap items-end gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-slate-500">Role</Label>
+                  <Label className="text-muted-foreground">Role</Label>
                   <Select value={roleFilter} onValueChange={onRoleFilterChange}>
                     <SelectTrigger className="w-40"><SelectValue placeholder="All roles" /></SelectTrigger>
                     <SelectContent>
@@ -288,7 +288,7 @@ export function UserTable({
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-slate-500">Status</Label>
+                  <Label className="text-muted-foreground">Status</Label>
                   <Select value={statusFilter} onValueChange={onStatusFilterChange}>
                     <SelectTrigger className="w-32"><SelectValue placeholder="All statuses" /></SelectTrigger>
                     <SelectContent>
@@ -319,12 +319,12 @@ export function UserTable({
           />
 
           {/* Better-Auth Admin Features Info */}
-          <div className="mt-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="mt-6 p-4 bg-primary/10 border-primary/20 rounded-lg">
             <div className="flex items-start gap-3">
               <Shield className="h-5 w-5 text-primary dark:text-primary mt-0.5" />
               <div>
-                <h4 className="font-semibold text-green-900 dark:text-green-200 mb-1">Better-Auth Admin Features</h4>
-                <ul className="text-sm text-green-800 dark:text-green-300 space-y-1">
+                <h4 className="font-semibold text-primary mb-1">Better-Auth Admin Features</h4>
+                <ul className="text-sm text-primary/80 space-y-1">
                   <li>{"\u2022"} List all users with detailed information</li>
                   <li>{"\u2022"} Ban/Unban users with optional reason and expiry</li>
                   <li>{"\u2022"} Set user roles (admin, user, etc.)</li>
@@ -340,7 +340,7 @@ export function UserTable({
       {/* Pagination */}
       {totalCount > pageSize && (
         <div className="flex items-center justify-between mt-4 px-1">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages} ({totalCount} total)
           </p>
           <div className="flex gap-2">

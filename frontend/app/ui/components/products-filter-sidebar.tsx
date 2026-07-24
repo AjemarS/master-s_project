@@ -1,6 +1,5 @@
 "use client";
 
-import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 
@@ -8,153 +7,157 @@ import { Button } from "~/ui/primitives/button";
 import { Checkbox } from "~/ui/primitives/checkbox";
 import { Label } from "~/ui/primitives/label";
 import { Separator } from "~/ui/primitives/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/ui/primitives/select";
+import { CategoryCombobox } from "~/ui/components/category-combobox";
+import { FilterCombobox } from "~/ui/components/filter-combobox";
+import { PriceRangeSlider } from "~/ui/components/price-range-slider";
 
 interface ProductsFilterSidebarProps {
-  search: string;
-  onSearchChange: (value: string) => void;
-  minPrice: string;
-  maxPrice: string;
-  onPriceChange: (min: string, max: string) => void;
+  priceRange: [number, number];
+  priceMin: number;
+  priceMax: number;
+  onPriceRangeChange: (value: [number, number]) => void;
   categories: { id: number; name: string }[];
   selectedCategoryId: number | null;
   onCategorySelect: (id: number | null) => void;
+  brands: string[];
+  selectedBrand: string | null;
+  onBrandChange: (value: string | null) => void;
+  colors: string[];
+  selectedColor: string | null;
+  onColorChange: (value: string | null) => void;
   onlyInStock: boolean;
   onInStockChange: (value: boolean) => void;
+  onSale: boolean;
+  onSaleChange: (value: boolean) => void;
   minRating: number;
   onMinRatingChange: (value: number) => void;
-  sort: string;
-  onSortChange: (value: string) => void;
   onReset: () => void;
+  activeFilterCount?: number;
 }
 
 export function ProductsFilterSidebar({
-  search,
-  onSearchChange,
-  minPrice,
-  maxPrice,
-  onPriceChange,
+  priceRange,
+  priceMin,
+  priceMax,
+  onPriceRangeChange,
   categories,
   selectedCategoryId,
   onCategorySelect,
+  brands,
+  selectedBrand,
+  onBrandChange,
+  colors,
+  selectedColor,
+  onColorChange,
   onlyInStock,
   onInStockChange,
+  onSale,
+  onSaleChange,
   minRating,
   onMinRatingChange,
-  sort,
-  onSortChange,
   onReset,
+  activeFilterCount,
 }: ProductsFilterSidebarProps) {
   const t = useTranslations("products");
 
   return (
-    <div className="rounded-2xl border bg-card p-5 shadow-sm">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <input
-          aria-label={t("searchPlaceholder")}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={t("searchPlaceholder")}
-          type="search"
-          value={search}
+    <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+
+      {activeFilterCount !== undefined && activeFilterCount > 0 && (
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-muted-foreground">{t("activeFilters", { count: activeFilterCount })}</span>
+          <span className="bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
+            {activeFilterCount}
+          </span>
+        </div>
+      )}
+
+      {/* Price Range Slider */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">{t("price")}</h4>
+        <PriceRangeSlider
+          min={priceMin}
+          max={priceMax}
+          value={priceRange}
+          onChange={onPriceRangeChange}
         />
       </div>
 
-      <Separator className="my-4" />
-
-      {/* Price */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium">{t("price")}</h4>
-        <div className="flex items-center gap-2">
-          <input
-            aria-label={t("minPrice")}
-            className="h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            onChange={(e) => {
-              onPriceChange(e.target.value, maxPrice);
-            }}
-            placeholder={t("minPrice")}
-            type="number"
-            value={minPrice}
-          />
-          <span className="text-xs text-muted-foreground">—</span>
-          <input
-            aria-label={t("maxPrice")}
-            className="h-8 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            onChange={(e) => {
-              onPriceChange(minPrice, e.target.value);
-            }}
-            placeholder={t("maxPrice")}
-            type="number"
-            value={maxPrice}
-          />
-        </div>
-      </div>
-
-      <Separator className="my-4" />
+      <Separator />
 
       {/* Category */}
       <div className="space-y-2">
         <h4 className="text-sm font-medium">{t("category")}</h4>
-        <div className="max-h-[200px] space-y-1.5 overflow-y-auto">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={selectedCategoryId === null}
-              id="cat-all"
-              onCheckedChange={() => onCategorySelect(null)}
-            />
-            <Label
-              className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-              htmlFor="cat-all"
-            >
-              {t("all")}
-            </Label>
-          </div>
-          {categories.map((cat) => (
-            <div className="flex items-center gap-2" key={cat.id}>
-              <Checkbox
-                checked={selectedCategoryId === cat.id}
-                id={`cat-${cat.id}`}
-                onCheckedChange={(checked) => {
-                  onCategorySelect(checked ? cat.id : null);
-                }}
-              />
-              <Label
-                className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                htmlFor={`cat-${cat.id}`}
-              >
-                {cat.name}
-              </Label>
-            </div>
-          ))}
+        <CategoryCombobox
+          categories={categories}
+          value={selectedCategoryId}
+          onChange={onCategorySelect}
+        />
+      </div>
+
+      <Separator />
+
+      {/* Brand */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">{t("brand")}</h4>
+        <FilterCombobox
+          items={brands}
+          value={selectedBrand}
+          onChange={onBrandChange}
+          searchPlaceholder={t("searchBrand")}
+          emptyText={t("noBrandsFound")}
+          allLabel={t("allBrands")}
+        />
+      </div>
+
+      <Separator />
+
+      {/* Color */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">{t("color")}</h4>
+        <FilterCombobox
+          items={colors}
+          value={selectedColor}
+          onChange={onColorChange}
+          searchPlaceholder={t("searchColor")}
+          emptyText={t("noColorsFound")}
+          allLabel={t("allColors")}
+        />
+      </div>
+
+      <Separator />
+
+      {/* Toggles */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={onlyInStock}
+            id="in-stock"
+            onCheckedChange={(checked) => onInStockChange(checked === true)}
+          />
+          <Label
+            className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            htmlFor="in-stock"
+          >
+            {t("inStock")}
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={onSale}
+            id="on-sale"
+            onCheckedChange={(checked) => onSaleChange(checked === true)}
+          />
+          <Label
+            className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            htmlFor="on-sale"
+          >
+            {t("onSale")}
+          </Label>
         </div>
       </div>
 
-      <Separator className="my-4" />
-
-      {/* In stock */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          checked={onlyInStock}
-          id="in-stock"
-          onCheckedChange={(checked) => onInStockChange(checked === true)}
-        />
-        <Label
-          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-          htmlFor="in-stock"
-        >
-          {t("inStock")}
-        </Label>
-      </div>
-
-      <Separator className="my-4" />
+      <Separator />
 
       {/* Rating */}
       <div className="space-y-2">
@@ -178,26 +181,7 @@ export function ProductsFilterSidebar({
         </div>
       </div>
 
-      <Separator className="my-4" />
-
-      {/* Sort */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium">{t("sortBy")}</h4>
-        <Select onValueChange={onSortChange} value={sort}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">{t("sortNewest")}</SelectItem>
-            <SelectItem value="price_asc">{t("sortPriceAsc")}</SelectItem>
-            <SelectItem value="price_desc">{t("sortPriceDesc")}</SelectItem>
-            <SelectItem value="rating">{t("sortRating")}</SelectItem>
-            <SelectItem value="name">{t("sortName")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Separator className="my-4" />
+      <Separator />
 
       {/* Reset */}
       <Button

@@ -168,7 +168,7 @@ class StockAPITest(APITestCase):
     def test_list_stock(self):
         response = self.client.get("/api/stock/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(len(response.data), 1)
 
     def test_reserve_stock_success(self):
         user = _create_admin_user()

@@ -65,6 +65,7 @@ export default function AdminProductsClient({
   const [stockDialog, setStockDialog] = useState<{ open: boolean; product: Product | null }>({ open: false, product: null });
   const [stockDelta, setStockDelta] = useState("");
   const [stockAdjusting, setStockAdjusting] = useState(false);
+  const [stockConfirmStep, setStockConfirmStep] = useState(false);
   const t = useTranslations("products");
   const tc = useTranslations("common");
 
@@ -138,9 +139,10 @@ export default function AdminProductsClient({
   const handleStockClick = (product: Product) => {
     setStockDialog({ open: true, product });
     setStockDelta("");
+    setStockConfirmStep(false);
   };
 
-  const handleStockConfirm = async () => {
+  const handleStockConfirm = () => {
     const product = stockDialog.product;
     if (!product) return;
     const delta = parseInt(stockDelta, 10);
@@ -148,11 +150,20 @@ export default function AdminProductsClient({
       toast.error("Enter a valid quantity change");
       return;
     }
+    setStockConfirmStep(true);
+  };
+
+  const handleStockExecute = async () => {
+    const product = stockDialog.product;
+    if (!product) return;
+    const delta = parseInt(stockDelta, 10);
+    if (isNaN(delta) || delta === 0) return;
     setStockAdjusting(true);
     try {
       await productApi.updateStock(product.id, delta);
       toast.success("Stock updated", { description: `${product.name}: ${product.stock} → ${product.stock + delta}` });
       setStockDialog({ open: false, product: null });
+      setStockConfirmStep(false);
       mutate();
     } catch (err) {
       toast.error("Failed to update stock", { description: err instanceof Error ? err.message : "Error" });
@@ -260,7 +271,7 @@ export default function AdminProductsClient({
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
@@ -327,7 +338,6 @@ export default function AdminProductsClient({
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalCount={totalCount}
           loading={isLoading}
           onPageChange={(p) => { setCurrentPage(p); mutate(); }}
         />
@@ -344,32 +354,69 @@ export default function AdminProductsClient({
           loading={deleting}
         />
 
-        <Dialog open={stockDialog.open} onOpenChange={(o) => setStockDialog({ ...stockDialog, open: o })}>
+        <Dialog open={stockDialog.open} onOpenChange={(o) => { setStockDialog({ ...stockDialog, open: o }); if (!o) setStockConfirmStep(false); }}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle>{t("stock")} — {stockDialog.product?.name}</DialogTitle>
+              <DialogTitle>
+                {stockConfirmStep ? t("confirmTitle", { name: stockDialog.product?.name ?? "" }) : `${t("stock")} — ${stockDialog.product?.name}`}
+              </DialogTitle>
               <DialogDescription>
-                {t("stock")}: {t("units", { count: stockDialog.product?.stock ?? 0 })}
+                {stockConfirmStep
+                  ? t("confirmDesc")
+                  : `${t("stock")}: ${t("units", { count: stockDialog.product?.stock ?? 0 })}`}
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4 space-y-3">
-              <Label htmlFor="stock-delta">{t("stock")}</Label>
-              <Input
-                id="stock-delta"
-                onChange={(e) => setStockDelta(e.target.value)}
-                placeholder={t("stockPlaceholder")}
-                type="number"
-                value={stockDelta}
-              />
-              <p className="text-xs text-muted-foreground">
-                Positive = restock, negative = deduct
-              </p>
-            </div>
+            {stockConfirmStep ? (
+              <div className="py-4 space-y-4">
+                <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("currentStock")}</span>
+                    <span className="font-medium">{stockDialog.product?.stock ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("adjustment")}</span>
+                    <span className={`font-medium ${parseInt(stockDelta, 10) > 0 ? "text-primary" : "text-destructive"}`}>
+                      {parseInt(stockDelta, 10) > 0 ? "+" : ""}{stockDelta}
+                    </span>
+                  </div>
+                  <div className="border-t pt-2 flex justify-between text-sm font-semibold">
+                    <span>{t("newStock")}</span>
+                    <span>{(stockDialog.product?.stock ?? 0) + parseInt(stockDelta, 10)}</span>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">{t("confirmPrompt")}</p>
+              </div>
+            ) : (
+              <div className="py-4 space-y-3">
+                <Label htmlFor="stock-delta">{t("stock")}</Label>
+                <Input
+                  id="stock-delta"
+                  onChange={(e) => setStockDelta(e.target.value)}
+                  placeholder={t("stockPlaceholder")}
+                  type="number"
+                  value={stockDelta}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("stockHint")}
+                </p>
+              </div>
+            )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setStockDialog({ open: false, product: null })} type="button">{tc("cancel")}</Button>
-              <Button onClick={handleStockConfirm} disabled={stockAdjusting || !stockDelta} type="button">
-                {stockAdjusting ? tc("loading") : tc("confirm")}
-              </Button>
+              {stockConfirmStep ? (
+                <>
+                  <Button variant="outline" onClick={() => setStockConfirmStep(false)} type="button">{t("back")}</Button>
+                  <Button onClick={handleStockExecute} disabled={stockAdjusting} type="button">
+                    {stockAdjusting ? tc("loading") : tc("confirm")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => { setStockDialog({ open: false, product: null }); setStockConfirmStep(false); }} type="button">{tc("cancel")}</Button>
+                  <Button onClick={handleStockConfirm} disabled={!stockDelta} type="button">
+                    {t("continue")}
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

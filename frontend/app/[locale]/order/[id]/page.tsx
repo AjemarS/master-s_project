@@ -46,18 +46,18 @@ export default function OrderPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-8">
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
-            <Package className="h-16 w-16 mx-auto mb-2 text-slate-300" />
+            <Package className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
             <CardTitle>{tDet("notFound")}</CardTitle>
             <CardDescription>{tDet("notFoundDesc")}</CardDescription>
           </CardHeader>
@@ -72,7 +72,7 @@ export default function OrderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-2xl mx-auto">
         <Link href="/">
           <Button variant="ghost" className="mb-4 flex items-center gap-2">
@@ -95,16 +95,16 @@ export default function OrderPage() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-slate-500">{tDet("name")}</span>
+                <span className="text-muted-foreground">{tDet("name")}</span>
                 <p className="font-medium">{order.customer_name || tDet("noName")}</p>
               </div>
               <div>
-                <span className="text-slate-500">{tDet("email")}</span>
+                <span className="text-muted-foreground">{tDet("email")}</span>
                 <p className="font-medium">{order.customer_email || tDet("noName")}</p>
               </div>
               {order.customer_phone && (
                 <div>
-                  <span className="text-slate-500">{tDet("phone")}</span>
+                  <span className="text-muted-foreground">{tDet("phone")}</span>
                   <p className="font-medium">{order.customer_phone}</p>
                 </div>
               )}
@@ -112,21 +112,21 @@ export default function OrderPage() {
 
             {order.delivery_method && (
               <div className="border-t pt-4">
-                <h3 className="font-semibold text-sm text-slate-600 mb-2">{tDet("delivery")}</h3>
+                <h3 className="font-semibold text-sm text-muted-foreground mb-2">{tDet("delivery")}</h3>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-slate-500">{tDet("deliveryMethod")}</span>
+                    <span className="text-muted-foreground">{tDet("deliveryMethod")}</span>
                     <p className="font-medium">{tDet(order.delivery_method)}</p>
                   </div>
                   {order.shipping_city && (
                     <div>
-                      <span className="text-slate-500">{tDet("shippingCity")}</span>
+                      <span className="text-muted-foreground">{tDet("shippingCity")}</span>
                       <p className="font-medium">{order.shipping_city}</p>
                     </div>
                   )}
                   {order.shipping_address && (
                     <div className="col-span-2">
-                      <span className="text-slate-500">{tDet("shippingAddress")}</span>
+                      <span className="text-muted-foreground">{tDet("shippingAddress")}</span>
                       <p className="font-medium">{order.shipping_address}</p>
                     </div>
                   )}
@@ -135,21 +135,21 @@ export default function OrderPage() {
             )}
 
             <div>
-              <h3 className="font-semibold text-sm text-slate-600 mb-2">{tDet("items")}</h3>
-              <div className="border rounded-lg overflow-hidden dark:border-slate-700">
+              <h3 className="font-semibold text-sm text-muted-foreground mb-2">{tDet("items")}</h3>
+              <div className="border rounded-lg overflow-hidden dark:border-border">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 dark:bg-slate-800">
+                  <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-400">{tDet("product")}</th>
-                      <th className="text-right p-3 font-medium text-slate-600 dark:text-slate-400">{tDet("qty")}</th>
-                      <th className="text-right p-3 font-medium text-slate-600 dark:text-slate-400">{tDet("price")}</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">{tDet("product")}</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">{tDet("qty")}</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">{tDet("price")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {order.items.map((item) => (
-                      <tr key={item.id} className="border-t dark:border-slate-700">
-                        <td className="p-3 text-slate-900 dark:text-slate-200">{item.product_name || `#${item.product_id}`}</td>
-                        <td className="p-3 text-right text-slate-600 dark:text-slate-400">{item.quantity}</td>
+                      <tr key={item.id} className="border-t dark:border-border">
+                        <td className="p-3 text-foreground">{item.product_name || `#${item.product_id}`}</td>
+                        <td className="p-3 text-right text-muted-foreground">{item.quantity}</td>
                         <td className="p-3 text-right font-medium">{formatCurrency(item.price)}</td>
                       </tr>
                     ))}

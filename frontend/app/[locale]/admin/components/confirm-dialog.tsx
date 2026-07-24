@@ -39,7 +39,7 @@ export function ConfirmDialog({
       <DialogContent>
         <DialogHeader>
           <div className="flex items-center gap-3">
-            {variant === "destructive" && <AlertTriangle className="h-5 w-5 text-red-600" />}
+            {variant === "destructive" && <AlertTriangle className="h-5 w-5 text-destructive" />}
             <DialogTitle>{title}</DialogTitle>
           </div>
           <DialogDescription>{description}</DialogDescription>

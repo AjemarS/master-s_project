@@ -260,6 +260,9 @@ services:
       target: dev
     container_name: notification_service
     restart: unless-stopped
+    volumes:
+      - ./notification-service:/app
+      - /app/node_modules
     environment:
       PORT: "8003"
       RABBITMQ_URL: ${RABBITMQ_URL}
@@ -275,6 +278,7 @@ services:
         condition: service_healthy
     networks:
       - microservices_network
+    command: sh -c "npm install && npm run dev"
 
   # Audit Service (centralized logging)
   audit-service:
@@ -284,6 +288,9 @@ services:
       target: dev
     container_name: audit_service
     restart: unless-stopped
+    volumes:
+      - ./audit-service:/app
+      - /app/node_modules
     environment:
       PORT: "8005"
       RABBITMQ_URL: ${RABBITMQ_URL}
@@ -295,6 +302,7 @@ services:
         condition: service_healthy
     networks:
       - microservices_network
+    command: sh -c "npm install && npm run dev"
 
   # Product Event Consumer (RabbitMQ)
   product-consumer:
@@ -378,6 +386,7 @@ services:
       - frontend
       - auth-service
       - audit-service
+      - notification-service
     networks:
       - microservices_network
 

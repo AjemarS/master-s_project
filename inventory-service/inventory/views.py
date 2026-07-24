@@ -144,6 +144,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 class StockViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Stock.objects.select_related("warehouse").all()
     serializer_class = StockSerializer
+    pagination_class = None
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = StockFilter
     ordering_fields = ["product_id", "quantity", "warehouse__name"]

@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
-            <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
+            <CheckCircle className="h-12 w-12 mx-auto mb-2 text-primary" />
             <CardTitle>{t("successTitle")}</CardTitle>
             <CardDescription>{t("successMessage")}</CardDescription>
           </CardHeader>
@@ -67,14 +67,16 @@ export default function ForgotPasswordPage() {
               <Label htmlFor="fp-email">{t("emailLabel")}</Label>
               <Input id="fp-email" type="email" placeholder={t("emailPlaceholder")} value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading || !email}>
               {loading ? t("sending") : t("sendButton")}
             </Button>
-            <Button variant="link" className="w-full" asChild>
+          </form>
+          <div className="mt-4">
+            <Button variant="outline" className="w-full" asChild>
               <Link href="/sign-in"><ArrowLeft className="h-4 w-4 mr-1" /> {t("backToSignIn")}</Link>
             </Button>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>

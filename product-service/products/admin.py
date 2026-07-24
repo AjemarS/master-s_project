@@ -19,6 +19,8 @@ class ProcessedEventAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
         "name",
+        "brand",
+        "color",
         "price",
         "original_price",
         "in_stock",
@@ -28,6 +30,6 @@ class ProductAdmin(admin.ModelAdmin):
         "rating",
         "created_at",
     ]
-    list_filter = ["category", "in_stock", "created_at"]
-    search_fields = ["name", "description"]
+    list_filter = ["category", "in_stock", "brand", "color", "created_at"]
+    search_fields = ["name", "description", "brand"]
     list_editable = ["price", "original_price", "in_stock"]

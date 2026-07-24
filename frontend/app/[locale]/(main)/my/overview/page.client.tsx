@@ -262,7 +262,7 @@ export function OverviewClient() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary/70">
               <ShoppingCart className="h-6 w-6" />
             </div>
             <div>
@@ -290,7 +290,7 @@ export function OverviewClient() {
 
         <Card>
           <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary/70">
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
@@ -378,7 +378,7 @@ export function OverviewClient() {
             <CardContent className="p-4 grid grid-cols-1 gap-2">
               <Link href="/products">
                 <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
-                  <ShoppingBag className="h-5 w-5 text-purple-500 shrink-0" />
+                  <ShoppingBag className="h-5 w-5 text-primary shrink-0" />
                   <span>{t("browseProducts")}</span>
                 </Button>
               </Link>
@@ -402,7 +402,7 @@ export function OverviewClient() {
                 className="w-full justify-start gap-3 h-auto py-3 px-4"
                 onClick={handleFindStore}
               >
-                <MapPin className="h-5 w-5 text-emerald-500 shrink-0" />
+                <MapPin className="h-5 w-5 text-primary shrink-0" />
                 <span>{t("findStore")}</span>
               </Button>
 
@@ -411,7 +411,7 @@ export function OverviewClient() {
                 className="w-full justify-start gap-3 h-auto py-3 px-4"
                 onClick={handleContactSupport}
               >
-                <HeadphonesIcon className="h-5 w-5 text-rose-500 shrink-0" />
+                <HeadphonesIcon className="h-5 w-5 text-accent-electric shrink-0" />
                 <span>{t("contactSupport")}</span>
               </Button>
             </CardContent>

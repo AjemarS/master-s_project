@@ -39,8 +39,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     ]
     filterset_class = ProductFilter
     search_fields = ["name", "description"]
-    ordering_fields = ["name", "price", "stock", "created_at", "updated_at"]
-    ordering = ["-created_at"]
+    ordering_fields = ["name", "price", "stock", "created_at", "updated_at", "in_stock"]
+    ordering = ["-in_stock", "-created_at"]
+
+    def filter_queryset(self, queryset):
+        qs = super().filter_queryset(queryset)
+        # Always sort in-stock products first, out-of-stock last
+        return qs.order_by("-in_stock", *qs.query.order_by)
 
     def get_permissions(self):
         """

@@ -103,7 +103,7 @@ export default function UsersPageClient() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
@@ -129,32 +129,32 @@ export default function UsersPageClient() {
         <ErrorAlert message={error} />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Total Users</div>
-              <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{users.length}</div>
+              <div className="text-sm text-muted-foreground">Total Users</div>
+              <div className="text-3xl font-bold text-foreground">{totalCount}</div>
             </CardContent>
           </Card>
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600 dark:text-slate-400">{t("active")}</div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-sm text-muted-foreground">{t("active")}</div>
+              <div className="text-3xl font-bold text-primary">
                 {users.filter((u) => !u.banned).length}
               </div>
             </CardContent>
           </Card>
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600 dark:text-slate-400">{t("banned")}</div>
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-sm text-muted-foreground">{t("banned")}</div>
+              <div className="text-3xl font-bold text-destructive">
                 {users.filter((u) => u.banned).length}
               </div>
             </CardContent>
           </Card>
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardContent className="pt-6">
-              <div className="text-sm text-slate-600 dark:text-slate-400">Admins</div>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-sm text-muted-foreground">Admins</div>
+              <div className="text-3xl font-bold text-primary">
                 {users.filter((u) => u.role === "admin").length}
               </div>
             </CardContent>

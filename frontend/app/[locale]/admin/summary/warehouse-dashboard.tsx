@@ -11,7 +11,7 @@ import {
   LayoutDashboard, PlusCircle, Truck, Package,
 } from "lucide-react";
 import type { Product } from "~/lib/types";
-import { StatsCardSkeleton } from "../components";
+import { StatsCardSkeleton, AdminPageHeader } from "../components";
 import { useGoodsReceipts, useStockMovements } from "~/lib/hooks/use-api-data";
 
 interface WarehouseDashboardProps {
@@ -34,15 +34,13 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+      <div className="min-h-screen bg-muted/50 p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className=" text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-              <Warehouse className="h-10 w-10 text-orange-600" />
-              {tWh("warehouse")}
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">{tWh("whSubtitle")}</p>
-          </div>
+          <AdminPageHeader
+            title={tWh("warehouse")}
+            subtitle={tWh("whSubtitle")}
+            icon={Warehouse}
+          />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {Array.from({ length: 3 }).map((_, i) => (
               <StatsCardSkeleton key={i} />
@@ -54,70 +52,68 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className=" text-4xl font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-3">
-            <Warehouse className="h-10 w-10 text-orange-600" />
-            {tWh("warehouse")}
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">{tWh("whSubtitle")}</p>
-        </div>
+        <AdminPageHeader
+          title={tWh("warehouse")}
+          subtitle={tWh("whSubtitle")}
+          icon={Warehouse}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500 dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 border-t-4 border-t-destructive dark:bg-card dark:border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">{tSum("lowStock")}</CardTitle>
-              <AlertCircle className="h-5 w-5 text-red-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">{tSum("lowStock")}</CardTitle>
+              <AlertCircle className="h-5 w-5 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-red-600">{lowStockProducts.length}</div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{tSum("lowStockDesc")}</p>
+              <div className="text-3xl font-bold text-destructive">{lowStockProducts.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">{tSum("lowStockDesc")}</p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-orange-500 dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 border-t-4 border-t-accent-electric dark:bg-card dark:border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">{tWh("totalProducts")}</CardTitle>
-              <Package className="h-5 w-5 text-orange-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">{tWh("totalProducts")}</CardTitle>
+              <Package className="h-5 w-5 text-accent-electric" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+              <div className="text-3xl font-bold text-foreground">
                 {initialProducts.length}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{tWh("inCatalog")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{tWh("inCatalog")}</p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 border-t-4 border-t-primary dark:bg-card dark:border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">{tWh("recentGrns")}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{tWh("recentGrns")}</CardTitle>
               <ClipboardList className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{recentGrns.length}</div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{tWh("recentPeriod")}</p>
+              <div className="text-3xl font-bold text-foreground">{recentGrns.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">{tWh("recentPeriod")}</p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow border-l-4 border-l-purple-500 dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="hover:shadow-lg transition-all hover:-translate-y-0.5 border-t-4 border-t-primary dark:bg-card dark:border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-300">{tWh("movements")}</CardTitle>
-              <ArrowRightLeft className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">{tWh("movements")}</CardTitle>
+              <ArrowRightLeft className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">{recentMovements.length}</div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{tWh("recentOperations")}</p>
+              <div className="text-3xl font-bold text-foreground">{recentMovements.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">{tWh("recentOperations")}</p>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 dark:text-slate-100 text-base">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
+                <CardTitle className="flex items-center gap-2 text-foreground text-base">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
                   {tSum("lowStock")}
                 </CardTitle>
                 <Button variant="outline" size="sm" asChild>
@@ -127,12 +123,12 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
             </CardHeader>
             <CardContent>
               {lowStockProducts.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center">{tSum("inStock")}</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">{tSum("inStock")}</p>
               ) : (
                 <div className="space-y-1">
                   {lowStockProducts.slice(0, 10).map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded">
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{p.name}</span>
+                    <div key={p.id} className="flex items-center justify-between p-2 rounded bg-muted/30">
+                      <span className="text-sm font-medium text-foreground truncate">{p.name}</span>
                       <Badge variant="destructive" className="shrink-0">{tSum("units", { count: p.stock })}</Badge>
                     </div>
                   ))}
@@ -141,10 +137,10 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
             </CardContent>
           </Card>
 
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 dark:text-slate-100 text-base">
+                <CardTitle className="flex items-center gap-2 text-foreground text-base">
                   <ClipboardList className="h-5 w-5 text-primary" />
                   {tWh("recentGrns")}
                 </CardTitle>
@@ -155,16 +151,16 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
             </CardHeader>
             <CardContent>
               {recentGrns.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center">{tWh("noGrns")}</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">{tWh("noGrns")}</p>
               ) : (
                 <div className="space-y-2">
                   {recentGrns.map((grn) => (
-                    <div key={grn.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                    <div key={grn.id} className="flex items-center justify-between p-2 rounded bg-muted/30 hover:bg-accent/10 transition-colors">
                       <div className="flex items-center gap-3">
-                        <span className="font-medium text-sm text-slate-900 dark:text-slate-100">#{grn.id}</span>
-                        <span className="text-xs text-slate-500">{grn.supplier_name}</span>
+                        <span className="font-medium text-sm text-foreground">#{grn.id}</span>
+                        <span className="text-xs text-muted-foreground">{grn.supplier_name}</span>
                       </div>
-                      <span className="text-xs text-slate-400">{grn.receipt_date?.slice(0, 10)}</span>
+                      <span className="text-xs text-muted-foreground">{grn.receipt_date?.slice(0, 10)}</span>
                     </div>
                   ))}
                 </div>
@@ -172,11 +168,11 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
             </CardContent>
           </Card>
 
-          <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+          <Card className="dark:bg-card dark:border-border">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 dark:text-slate-100 text-base">
-                  <ArrowRightLeft className="h-5 w-5 text-purple-600" />
+                <CardTitle className="flex items-center gap-2 text-foreground text-base">
+                  <ArrowRightLeft className="h-5 w-5 text-primary" />
                   {tWh("recentMovements")}
                 </CardTitle>
                 <Link href="/admin/stock-movements">
@@ -186,18 +182,18 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
             </CardHeader>
             <CardContent>
               {recentMovements.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400 py-4 text-center">{tWh("noMovements")}</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">{tWh("noMovements")}</p>
               ) : (
                 <div className="space-y-2">
                   {recentMovements.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
+                    <div key={m.id} className="flex items-center justify-between p-2 rounded bg-muted/30 hover:bg-accent/10 transition-colors">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                        <span className="text-sm font-medium text-foreground truncate">
                           {m.from_warehouse_name || "?"} → {m.to_warehouse_name || "?"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-slate-500">{tSum("units", { count: m.quantity })}</span>
+                        <span className="text-xs text-muted-foreground">{tSum("units", { count: m.quantity })}</span>
                         <Badge variant="outline" className="text-xs">{m.type}</Badge>
                       </div>
                     </div>
@@ -208,15 +204,15 @@ export function WarehouseDashboard({ initialProducts }: WarehouseDashboardProps)
           </Card>
         </div>
 
-        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+        <Card className="dark:bg-card dark:border-border">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 dark:text-slate-100 text-base">
-              <LayoutDashboard className="h-5 w-5 text-emerald-600" />
+            <CardTitle className="flex items-center gap-2 text-foreground text-base">
+              <LayoutDashboard className="h-5 w-5 text-primary" />
                 {tSum("quickActions")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button asChild variant="default" className="w-full justify-start bg-orange-600 hover:bg-orange-700">
+            <Button asChild variant="default" className="w-full justify-start bg-accent-electric hover:bg-accent-electric/90">
               <Link href="/admin/goods-receipts"><PlusCircle className="h-4 w-4 mr-2" /> {tSum("createGrn")}</Link>
             </Button>
             <Button asChild variant="outline" className="w-full justify-start">

@@ -133,12 +133,12 @@ export function ProductTable({
   ], [t, tc, expandedId, isAdmin, onEdit, onDelete, onStockAdjust]);
 
   return (
-    <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+    <Card className="dark:bg-card dark:border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="dark:text-slate-100">{t("catalog")}</CardTitle>
-            <CardDescription className="dark:text-slate-400">{t("catalogDesc")}</CardDescription>
+            <CardTitle className="text-foreground">{t("catalog")}</CardTitle>
+            <CardDescription className="text-muted-foreground">{t("catalogDesc")}</CardDescription>
           </div>
           <div className="flex gap-2">
             {filterToggle}

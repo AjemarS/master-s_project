@@ -69,6 +69,7 @@ export function GoodsReceiptsClient() {
   const [editDate, setEditDate] = useState("");
   const [editRef, setEditRef] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editItems, setEditItems] = useState<GrnFormItem[]>([]);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const [formSupplier, setFormSupplier] = useState("");
@@ -80,16 +81,38 @@ export function GoodsReceiptsClient() {
     { product_id: "", quantity: "1", cost_price: "0" },
   ]);
 
-  const addItem = () => {
-    setFormItems([...formItems, { product_id: "", quantity: "1", cost_price: "0" }]);
-  };
-
   const removeItem = (i: number) => {
-    if (formItems.length > 1) setFormItems(formItems.filter((_, j) => j !== i));
+    setFormItems((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, j) => j !== i);
+    });
   };
 
   const updateItem = (i: number, field: keyof GrnFormItem, value: string) => {
-    setFormItems(formItems.map((item, j) => (j === i ? { ...item, [field]: value } : item)));
+    setFormItems((prev) => {
+      const newItems = prev.map((item, j) => (j === i ? { ...item, [field]: value } : item));
+      if (i === newItems.length - 1 && field === 'product_id' && value.trim() !== '') {
+        newItems.push({ product_id: "", quantity: "1", cost_price: "0" });
+      }
+      return newItems;
+    });
+  };
+
+  const removeEditItem = (i: number) => {
+    setEditItems((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, j) => j !== i);
+    });
+  };
+
+  const updateEditItem = (i: number, field: keyof GrnFormItem, value: string) => {
+    setEditItems((prev) => {
+      const newItems = prev.map((item, j) => (j === i ? { ...item, [field]: value } : item));
+      if (i === newItems.length - 1 && field === 'product_id' && value.trim() !== '') {
+        newItems.push({ product_id: "", quantity: "1", cost_price: "0" });
+      }
+      return newItems;
+    });
   };
 
   const handleCreate = async () => {
@@ -129,10 +152,27 @@ export function GoodsReceiptsClient() {
     setEditDate(grn.receipt_date.split("T")[0] || grn.receipt_date);
     setEditRef(grn.reference_number || "");
     setEditNotes(grn.notes || "");
+    const mappedItems = (grn.items || []).map((item) => ({
+      product_id: String(item.product_id),
+      quantity: String(item.quantity),
+      cost_price: String(item.cost_price),
+    }));
+    if (mappedItems.length === 0 || mappedItems[mappedItems.length - 1].product_id.trim() !== '') {
+      mappedItems.push({ product_id: "", quantity: "1", cost_price: "0" });
+    }
+    setEditItems(mappedItems);
   };
 
   const handleEdit = async () => {
     if (!editingReceipt) return;
+    const items = editItems
+      .filter((item) => item.product_id.trim() !== "")
+      .map((item) => ({
+        product_id: parseInt(item.product_id, 10),
+        quantity: parseInt(item.quantity, 10) || 1,
+        cost_price: parseFloat(item.cost_price) || 0,
+      }));
+    if (items.length === 0) return;
     try {
       await updateGrn({
         id: editingReceipt.id,
@@ -142,6 +182,7 @@ export function GoodsReceiptsClient() {
           receipt_date: editDate,
           reference_number: editRef,
           notes: editNotes,
+          items,
         },
       });
       toast.success(t("grnUpdated"));
@@ -167,7 +208,7 @@ export function GoodsReceiptsClient() {
   const colSpan = isAdmin ? 7 : 6;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
@@ -183,12 +224,12 @@ export function GoodsReceiptsClient() {
 
         <ErrorAlert message={grError?.message || null} />
 
-        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+        <Card className="dark:bg-card dark:border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="dark:text-slate-100">{t("title")}</CardTitle>
-                <CardDescription className="dark:text-slate-400">
+                <CardTitle className="text-foreground">{t("title")}</CardTitle>
+                <CardDescription className="text-muted-foreground">
                   {receipts.length > 0 ? tc("count", { count: receipts.length }) : t("noReceipts")}
                 </CardDescription>
               </div>
@@ -198,10 +239,10 @@ export function GoodsReceiptsClient() {
             {grLoading ? (
               <TableSkeleton rows={4} cols={colSpan} />
             ) : (
-              <div className="border rounded-lg dark:border-slate-700">
+              <div className="border rounded-lg dark:border-border">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                    <TableRow className="bg-muted/50 border-b dark:border-border">
                       <TableHead>{t("id")}</TableHead>
                       <TableHead>{t("supplier")}</TableHead>
                       <TableHead>{t("warehouse")}</TableHead>
@@ -254,7 +295,7 @@ export function GoodsReceiptsClient() {
           </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("supplier")} *</Label>
+              <Label className="text-right pr-2">{t("supplier")} *</Label>
               <div className="col-span-3">
                 <Select value={formSupplier} onValueChange={setFormSupplier}>
                   <SelectTrigger className="w-full"><SelectValue placeholder={t("selectSupplier")} /></SelectTrigger>
@@ -265,7 +306,7 @@ export function GoodsReceiptsClient() {
               </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("warehouse")} *</Label>
+              <Label className="text-right pr-2">{t("warehouse")} *</Label>
               <div className="col-span-3">
                 <Select value={formWarehouse} onValueChange={setFormWarehouse}>
                   <SelectTrigger className="w-full"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
@@ -276,42 +317,45 @@ export function GoodsReceiptsClient() {
               </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("date")}</Label>
+              <Label className="text-right pr-2">{t("date")}</Label>
               <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">{t("refNumber")}</Label>
+              <Label className="text-right pr-2">{t("refNumber")}</Label>
               <Input value={formRef} onChange={(e) => setFormRef(e.target.value)} placeholder={t("refPlaceholder")} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right pt-2">{tc("notes")}</Label>
+              <Label className="text-right pt-2 pr-2">{tc("notes")}</Label>
               <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} className="col-span-3" />
             </div>
 
             <div className="col-span-4 border-t pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="font-semibold">{t("positions")}</Label>
-                <Button variant="outline" size="sm" onClick={addItem} type="button"><Plus className="h-4 w-4 mr-1" /> {t("addItem")}</Button>
-              </div>
-              {formItems.map((item, i) => (
-                <div key={i} className="flex gap-2 mb-2 items-start">
-                  <div className="flex-1">
-                    <Label className="text-xs">{t("productId")}</Label>
-                    <Input value={item.product_id} onChange={(e) => updateItem(i, "product_id", e.target.value)} placeholder={t("productId")} />
+              <Label className="font-semibold mb-2 block">{t("positions")}</Label>
+              {formItems.map((item, i) => {
+                const isLastRow = i === formItems.length - 1;
+                const isEmpty = item.product_id.trim() === '';
+                return (
+                  <div key={i} className={`flex gap-2 mb-2 items-start ${isLastRow && isEmpty ? 'opacity-50' : ''}`}>
+                    <div className="flex-1">
+                      <Label className="text-xs">{t("productId")}</Label>
+                      <Input value={item.product_id} onChange={(e) => updateItem(i, "product_id", e.target.value)} placeholder={t("productId")} />
+                    </div>
+                    <div className="w-20">
+                      <Label className="text-xs">{t("qty")}</Label>
+                      <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, "quantity", e.target.value)} />
+                    </div>
+                    <div className="w-24">
+                      <Label className="text-xs">{t("costPrice")}</Label>
+                      <Input type="number" step="0.01" min="0" value={item.cost_price} onChange={(e) => updateItem(i, "cost_price", e.target.value)} />
+                    </div>
+                    {!isLastRow && (
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="mt-5 shrink-0" type="button">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  <div className="w-20">
-                    <Label className="text-xs">{t("qty")}</Label>
-                    <Input type="number" min="1" value={item.quantity} onChange={(e) => updateItem(i, "quantity", e.target.value)} />
-                  </div>
-                  <div className="w-24">
-                    <Label className="text-xs">{t("costPrice")}</Label>
-                    <Input type="number" step="0.01" min="0" value={item.cost_price} onChange={(e) => updateItem(i, "cost_price", e.target.value)} />
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeItem(i)} className="mt-5 shrink-0" type="button" disabled={formItems.length <= 1}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           <DialogFooter>
@@ -333,7 +377,7 @@ export function GoodsReceiptsClient() {
               </DialogHeader>
               <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">{t("supplier")} *</Label>
+                  <Label className="text-right pr-2">{t("supplier")} *</Label>
                   <div className="col-span-3">
                     <Select value={editSupplier} onValueChange={setEditSupplier}>
                       <SelectTrigger className="w-full"><SelectValue placeholder={t("selectSupplier")} /></SelectTrigger>
@@ -344,7 +388,7 @@ export function GoodsReceiptsClient() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">{t("warehouse")} *</Label>
+                  <Label className="text-right pr-2">{t("warehouse")} *</Label>
                   <div className="col-span-3">
                     <Select value={editWarehouse} onValueChange={setEditWarehouse}>
                       <SelectTrigger className="w-full"><SelectValue placeholder={t("selectWarehouse")} /></SelectTrigger>
@@ -355,16 +399,45 @@ export function GoodsReceiptsClient() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">{t("date")}</Label>
+                  <Label className="text-right pr-2">{t("date")}</Label>
                   <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="col-span-3" />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">{t("refNumber")}</Label>
+                  <Label className="text-right pr-2">{t("refNumber")}</Label>
                   <Input value={editRef} onChange={(e) => setEditRef(e.target.value)} placeholder={t("refPlaceholder")} className="col-span-3" />
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
-                  <Label className="text-right pt-2">{tc("notes")}</Label>
+                  <Label className="text-right pt-2 pr-2">{tc("notes")}</Label>
                   <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="col-span-3" />
+                </div>
+
+                <div className="col-span-4 border-t pt-4">
+                  <Label className="font-semibold mb-2 block">{t("positions")}</Label>
+                  {editItems.map((item, i) => {
+                    const isLastRow = i === editItems.length - 1;
+                    const isEmpty = item.product_id.trim() === '';
+                    return (
+                      <div key={i} className={`flex gap-2 mb-2 items-start ${isLastRow && isEmpty ? 'opacity-50' : ''}`}>
+                        <div className="flex-1">
+                          <Label className="text-xs">{t("productId")}</Label>
+                          <Input value={item.product_id} onChange={(e) => updateEditItem(i, "product_id", e.target.value)} placeholder={t("productId")} />
+                        </div>
+                        <div className="w-20">
+                          <Label className="text-xs">{t("qty")}</Label>
+                          <Input type="number" min="1" value={item.quantity} onChange={(e) => updateEditItem(i, "quantity", e.target.value)} />
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">{t("costPrice")}</Label>
+                          <Input type="number" step="0.01" min="0" value={item.cost_price} onChange={(e) => updateEditItem(i, "cost_price", e.target.value)} />
+                        </div>
+                        {!isLastRow && (
+                          <Button variant="ghost" size="icon" onClick={() => removeEditItem(i)} className="mt-5 shrink-0" type="button">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <DialogFooter>

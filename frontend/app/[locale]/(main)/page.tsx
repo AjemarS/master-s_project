@@ -10,7 +10,8 @@ import { Button } from "~/ui/primitives/button";
 import { CtaButtons } from "./cta-buttons";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { CategoryImage } from "~/ui/components/category-image";
-import { ProductCard } from "~/ui/components/product-card";
+import { NewArrivalsCartWrapper } from "~/ui/components/new-arrivals-cart-wrapper";
+import { WaveDivider } from "~/ui/components/wave-divider";
 
 import { getTestimonials } from "~/data/testimonials";
 import { Category, Product } from "../../lib/types";
@@ -73,33 +74,53 @@ export default async function HomePage() {
   ];
 
   return (
-    <main className="flex min-h-screen flex-col gap-y-16 bg-linear-to-b from-muted/50 via-muted/25 to-background">
+    <div className="flex min-h-screen flex-col bg-gradient-warm">
       {/* Hero */}
       <FadeIn direction="none" duration={0.6}>
       <section className="relative overflow-hidden py-24 md:py-32">
         {/* Decorative blobs */}
         <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent-electric/5 blur-3xl" />
-        <div className="bg-grid-black/[0.02] absolute inset-0 bg-size-[20px_20px]" />
+        {/* Scaled circles on hero */}
+        <div className="absolute inset-0 bg-circles-pattern" />
+        
         <div className="relative z-10 container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-12">
+            {/* LEFT: Image that bleeds (hidden on mobile) */}
+            <div className="relative hidden overflow-visible lg:block">
+              <FadeIn delay={0.1} direction="left" distance={60}>
+                <div className="relative -ml-[20%] w-[130%] aspect-[5/4] overflow-hidden rounded-2xl border shadow-xl shadow-primary/10">
+                  <div className="absolute inset-0 z-10 bg-linear-to-tr from-primary/20 via-transparent to-transparent" />
+                  <Image
+                    alt={t("heroTitle")}
+                    className="object-cover"
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop&q=60"
+                  />
+                </div>
+              </FadeIn>
+            </div>
+
+            {/* RIGHT: Text */}
             <div className="flex flex-col justify-center space-y-6">
               <div className="space-y-4">
-                <FadeIn delay={0.1} direction="up">
-                  <h1 className=" text-4xl leading-tight font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:leading-[1.1]">
+                <FadeIn delay={0.2} direction="up">
+                  <h1 className="text-4xl leading-tight font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:leading-[1.1]">
                     {t("heroTitle")}{" "}
                     <span className="bg-linear-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                       {t("heroTitleHighlight")}
                     </span>
                   </h1>
                 </FadeIn>
-                <FadeIn delay={0.2} direction="up">
+                <FadeIn delay={0.4} direction="up">
                   <p className="max-w-175 text-lg text-muted-foreground md:text-xl">
                     {t("heroSubtitle")}
                   </p>
                 </FadeIn>
               </div>
-              <FadeIn delay={0.3} direction="up">
+              <FadeIn delay={0.6} direction="up">
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button asChild className="h-12 gap-1.5 px-8 transition-colors duration-200" size="lg">
                     <Link href="/products">
@@ -108,7 +129,7 @@ export default async function HomePage() {
                   </Button>
                 </div>
               </FadeIn>
-              <FadeIn delay={0.4} direction="up">
+              <FadeIn delay={0.8} direction="up">
                 <div className="flex flex-wrap gap-5 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Truck className="h-5 w-5 text-primary/70" />
@@ -121,25 +142,12 @@ export default async function HomePage() {
                 </div>
               </FadeIn>
             </div>
-            <FadeIn delay={0.15} direction="right">
-              <div className="relative mx-auto hidden aspect-square w-full max-w-md overflow-hidden rounded-xl border shadow-xl shadow-primary/10 lg:block">
-              <div className="absolute inset-0 z-10 bg-linear-to-tr from-primary/20 via-transparent to-transparent" />
-              <Image
-                alt={t("heroTitle")}
-                className="object-cover"
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop&q=60"
-              />
-            </div>
-          </FadeIn>
           </div>
         </div>
-        <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-primary/30 to-transparent" />
-        <div className="absolute inset-x-0 -bottom-px h-px bg-linear-to-r from-transparent via-accent-electric/20 to-transparent" />
       </section>
       </FadeIn>
+
+      <WaveDivider />
 
       {/* Categories */}
       <FadeIn direction="up">
@@ -183,30 +191,29 @@ export default async function HomePage() {
       </section>
       </FadeIn>
 
+      <WaveDivider />
+
       {/* New Arrivals */}
       {latestProducts.length > 0 && (
-        <FadeIn direction="up">
-        <section className="py-12 md:py-16">
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 flex flex-col items-center text-center">
-              <h2 className=" text-3xl leading-tight font-bold tracking-tight md:text-4xl">
-                {t("newArrivalsTitle")}
-              </h2>
-              <div className="mt-2 h-1 w-12 rounded-full bg-primary shadow-xs shadow-primary/50" />
-              <p className="mt-4 max-w-2xl text-center text-muted-foreground">
-                {t("newArrivalsSubtitle")}
-              </p>
+        <>
+          <FadeIn direction="up">
+          <section className="py-12 md:py-16">
+            <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mb-8 flex flex-col items-center text-center">
+                <h2 className=" text-3xl leading-tight font-bold tracking-tight md:text-4xl">
+                  {t("newArrivalsTitle")}
+                </h2>
+                <div className="mt-2 h-1 w-12 rounded-full bg-primary shadow-xs shadow-primary/50" />
+                <p className="mt-4 max-w-2xl text-center text-muted-foreground">
+                  {t("newArrivalsSubtitle")}
+                </p>
+              </div>
+              <NewArrivalsCartWrapper products={latestProducts} />
             </div>
-            <StaggerContainer className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 md:gap-6">
-              {latestProducts.map((product) => (
-                <StaggerItem key={product.id}>
-                  <ProductCard product={product} variant="compact" />
-                </StaggerItem>
-              ))}
-            </StaggerContainer>
-          </div>
-        </section>
-        </FadeIn>
+          </section>
+          </FadeIn>
+          <WaveDivider />
+        </>
       )}
 
       {/* Features */}
@@ -239,6 +246,8 @@ export default async function HomePage() {
       </section>
       </FadeIn>
 
+      <WaveDivider />
+
       {/* Testimonials */}
       <FadeIn direction="up">
       <section className="bg-muted/50 py-12 md:py-16">
@@ -252,6 +261,8 @@ export default async function HomePage() {
         </div>
       </section>
       </FadeIn>
+
+      <WaveDivider />
 
       {/* CTA */}
       <FadeIn direction="up">
@@ -272,6 +283,6 @@ export default async function HomePage() {
         </div>
       </section>
       </FadeIn>
-    </main>
+    </div>
   );
 }

@@ -345,8 +345,7 @@ export function SettingsClient() {
   const handleRevokeSessions = async () => {
     setRevokingSessions(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (authClient as any).revokeOtherSessions?.();
+      await authClient.revokeOtherSessions();
       toast.success(t("sessionsRevoked"));
     } catch {
       toast.error(t("changesError"));
@@ -660,7 +659,7 @@ export function SettingsClient() {
                       <Button variant="outline" onClick={() => setAddressDialogOpen(false)}>
                         {tCommon("cancel")}
                       </Button>
-                      <Button disabled={savingAddress} onClick={handleSaveAddress}>
+                      <Button disabled={savingAddress || !addressLine1 || !addressCity || !addressCountry} onClick={handleSaveAddress}>
                         {savingAddress ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : null}
@@ -686,7 +685,7 @@ export function SettingsClient() {
             <Separator />
 
             <Button
-              disabled={savingProfile}
+              disabled={savingProfile || !firstName || !lastName}
               onClick={handleSaveProfile}
               className="w-full sm:w-auto"
             >
@@ -771,7 +770,7 @@ export function SettingsClient() {
             )}
 
             <Button
-              disabled={savingPassword}
+              disabled={savingPassword || !currentPassword || newPassword.length < 8 || !confirmPassword}
               onClick={handleUpdatePassword}
               className="w-full sm:w-auto"
             >
@@ -827,7 +826,7 @@ export function SettingsClient() {
                 </div>
                 <Button
                   variant="destructive"
-                  disabled={disabling2FA}
+                  disabled={disabling2FA || !twoFactorPassword}
                   onClick={handleDisable2FA}
                   size="sm"
                 >

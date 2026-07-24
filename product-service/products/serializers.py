@@ -104,9 +104,10 @@ class ProductSerializer(serializers.ModelSerializer):
             "price", "original_price",
             "image_url", "stock", "in_stock",
             "features", "specs", "rating",
+            "brand", "color", "is_on_sale",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["slug", "in_stock", "created_at", "updated_at"]
+        read_only_fields = ["slug", "in_stock", "is_on_sale", "created_at", "updated_at"]
         extra_kwargs = {
             "name": {"required": True, "allow_blank": False, "max_length": 200},
             "name_uk": {"required": False, "allow_blank": True},
@@ -120,6 +121,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "rating": {"required": False},
             "features": {"required": False},
             "specs": {"required": False},
+            "brand": {"required": False, "allow_blank": True},
+            "color": {"required": False, "allow_blank": True},
         }
 
     def get_image_url(self, obj):
@@ -213,8 +216,9 @@ class ProductListSerializer(serializers.ModelSerializer):
             "price", "original_price",
             "image_url", "stock", "in_stock",
             "rating",
+            "brand", "color", "is_on_sale",
         ]
-        read_only_fields = ["slug", "in_stock"]
+        read_only_fields = ["slug", "in_stock", "is_on_sale"]
 
     def get_image_url(self, obj):
         if obj.image:

@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
+import { NewsletterForm } from "~/ui/components/newsletter-form";
 
 export async function Footer({ className }: { className?: string }) {
   const t = await getTranslations("footer");
@@ -23,17 +24,20 @@ export async function Footer({ className }: { className?: string }) {
               {t("tagline")}
             </p>
             <div className="flex space-x-4">
-              <Button className="h-8 w-8 rounded-full" size="icon" variant="ghost">
-                <Facebook className="h-4 w-4" />
-                <span className="sr-only">Facebook</span>
+              <Button asChild className="h-8 w-8 rounded-full" size="icon" variant="ghost">
+                <Link href="https://facebook.com/techhub" target="_blank" rel="noopener noreferrer">
+                  <Facebook className="h-4 w-4" />
+                </Link>
               </Button>
-              <Button className="h-8 w-8 rounded-full" size="icon" variant="ghost">
-                <Twitter className="h-4 w-4" />
-                <span className="sr-only">Twitter</span>
+              <Button asChild className="h-8 w-8 rounded-full" size="icon" variant="ghost">
+                <Link href="https://twitter.com/techhub" target="_blank" rel="noopener noreferrer">
+                  <Twitter className="h-4 w-4" />
+                </Link>
               </Button>
-              <Button className="h-8 w-8 rounded-full" size="icon" variant="ghost">
-                <Instagram className="h-4 w-4" />
-                <span className="sr-only">Instagram</span>
+              <Button asChild className="h-8 w-8 rounded-full" size="icon" variant="ghost">
+                <Link href="https://instagram.com/techhub" target="_blank" rel="noopener noreferrer">
+                  <Instagram className="h-4 w-4" />
+                </Link>
               </Button>
             </div>
           </div>
@@ -50,20 +54,32 @@ export async function Footer({ className }: { className?: string }) {
           <div>
             <h3 className="mb-4 text-sm font-semibold">{t("information")}</h3>
             <ul className="space-y-2 text-sm">
-              <li><span className="text-muted-foreground">{t("about")}</span></li>
-              <li><span className="text-muted-foreground">{t("deliveryPayment")}</span></li>
-              <li><span className="text-muted-foreground">{t("warranty")}</span></li>
-              <li><span className="text-muted-foreground">{t("contacts")}</span></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/about">{t("about")}</Link></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/delivery-payment">{t("deliveryPayment")}</Link></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/warranty">{t("warranty")}</Link></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/contacts">{t("contacts")}</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="mb-4 text-sm font-semibold">{t("support")}</h3>
             <ul className="space-y-2 text-sm">
-              <li><span className="text-muted-foreground">{t("help")}</span></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/faq">{t("help")}</Link></li>
               <li><Link className="text-muted-foreground hover:text-foreground" href="/my/orders">{t("myOrders")}</Link></li>
-              <li><span className="text-muted-foreground">{t("privacy")}</span></li>
-              <li><span className="text-muted-foreground">{t("terms")}</span></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/privacy">{t("privacy")}</Link></li>
+              <li><Link className="text-muted-foreground hover:text-foreground" href="/terms">{t("terms")}</Link></li>
             </ul>
+          </div>
+        </div>
+        {/* Newsletter section */}
+        <div className="mt-12 border-t pt-8">
+          <div className="flex flex-col items-center text-center">
+            <h3 className="text-lg font-semibold">{t("newsletter")}</h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md">
+              {t("newsletterDesc")}
+            </p>
+            <div className="mt-4 w-full max-w-md">
+              <NewsletterForm />
+            </div>
           </div>
         </div>
         <div className="mt-12 border-t pt-8">
@@ -72,8 +88,8 @@ export async function Footer({ className }: { className?: string }) {
               {t("copyright", { year: currentYear })}
             </p>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="text-muted-foreground">{t("privacyShort")}</span>
-              <span className="text-muted-foreground">{t("termsShort")}</span>
+              <Link className="text-muted-foreground hover:text-foreground" href="/privacy">{t("privacyShort")}</Link>
+              <Link className="text-muted-foreground hover:text-foreground" href="/terms">{t("termsShort")}</Link>
             </div>
           </div>
         </div>

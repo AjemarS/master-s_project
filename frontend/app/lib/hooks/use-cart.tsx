@@ -4,6 +4,7 @@ import * as React from "react";
 import { cartApi } from "../api/client";
 import { useCurrentUser } from "../auth-client";
 import { getImageUrl } from "../utils/image-url";
+import { getSessionId } from "../session-id";
 import type { CartResponse } from "../types";
 
 export interface CartItem {
@@ -46,8 +47,8 @@ export function CartProvider({ children }: React.PropsWithChildren) {
 
   // Load cart from server on mount and on login change
   React.useEffect(() => {
-    // Ensure session_id exists in localStorage before fetching
-    cartApi.getSessionId();
+    // Ensure session_id exists before fetching
+    getSessionId();
     cartApi.get().then((res) => {
       if (res.data) {
         setItems(cartResponseToItems(res.data));
@@ -59,7 +60,7 @@ export function CartProvider({ children }: React.PropsWithChildren) {
   React.useEffect(() => {
     if (!user?.id) return;
     // Check if session cart exists and has items before merging
-    const sessionId = localStorage.getItem("techhub_session_id");
+    const sessionId = getSessionId();
     if (!sessionId) return;
     cartApi.merge().then((res) => {
       if (res.data) {

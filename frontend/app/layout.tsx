@@ -34,10 +34,8 @@ export default function RootLayout({
         className={`
           ${geistSans.variable}
           ${geistMono.variable}
-          min-h-screen bg-linear-to-br from-white to-slate-100
-          text-neutral-900 antialiased
+          min-h-screen antialiased
           selection:bg-primary/80
-          dark:from-neutral-950 dark:to-neutral-900 dark:text-neutral-100
         `}
       >
         <ThemeProvider

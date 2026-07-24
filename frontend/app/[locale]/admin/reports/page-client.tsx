@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
+import { toast } from "sonner";
 import { TrendingUp, DollarSign, BarChart3, PieChart, ShoppingCart, Package, Calendar } from "lucide-react";
 import { AdminPageHeader } from "../components";
 import { useApiGet } from "~/lib/hooks/use-api";
@@ -31,6 +32,16 @@ export function ReportsClient() {
 
   const [dateInput, setDateInput] = useState({ from: "", to: "" });
   const [appliedFilter, setAppliedFilter] = useState({ from: "", to: "" });
+
+  const dateRangeError = dateInput.from && dateInput.to && dateInput.from > dateInput.to;
+
+  const handleApplyFilter = () => {
+    if (dateRangeError) {
+      toast.error("Date from cannot be after date to");
+      return;
+    }
+    setAppliedFilter({ from: dateInput.from, to: dateInput.to });
+  };
 
   const filterKey = `${appliedFilter.from}|${appliedFilter.to}`;
 
@@ -59,16 +70,16 @@ export function ReportsClient() {
 
   const dailySalesData = dailySales?.daily ?? [];
 
-  const COLORS = ["#7c3aed", "#10b981", "#f59e0b", "#22c55e"];
+  const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
           subtitle={t("subtitle")}
           icon={BarChart3}
-          backLabel={tc("backToStore")}
+          backLabel={tc("back")}
         />
 
         <ErrorAlert message={error?.message || null} />
@@ -78,19 +89,19 @@ export function ReportsClient() {
         ) : (
           <div className="space-y-6">
             {/* Date range */}
-            <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+            <Card className="dark:bg-card dark:border-border">
               <CardContent className="pt-6">
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-slate-500" />
-                    <Label className="text-xs text-slate-500">{t("dateFrom")}</Label>
-                    <Input type="date" value={dateInput.from} onChange={(e) => setDateInput((prev) => ({ ...prev, from: e.target.value }))} className="w-40" />
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Label className="text-xs text-muted-foreground">{t("dateFrom")}</Label>
+                    <Input type="date" value={dateInput.from} onChange={(e) => setDateInput((prev) => ({ ...prev, from: e.target.value }))} className={`w-40 ${dateRangeError ? "border-red-500" : ""}`} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-slate-500">{t("dateTo")}</Label>
-                    <Input type="date" value={dateInput.to} onChange={(e) => setDateInput((prev) => ({ ...prev, to: e.target.value }))} className="w-40" />
+                    <Label className="text-xs text-muted-foreground">{t("dateTo")}</Label>
+                    <Input type="date" value={dateInput.to} onChange={(e) => setDateInput((prev) => ({ ...prev, to: e.target.value }))} className={`w-40 ${dateRangeError ? "border-red-500" : ""}`} />
                   </div>
-                  <Button size="sm" onClick={() => setAppliedFilter({ from: dateInput.from, to: dateInput.to })}>
+                  <Button size="sm" onClick={handleApplyFilter}>
                     {t("update")}
                   </Button>
                   {(dateInput.from || dateInput.to) && (
@@ -102,88 +113,88 @@ export function ReportsClient() {
               </CardContent>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-blue-500">
+              <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <ShoppingCart className="h-4 w-4 text-primary" />
                     {t("totalOrders")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                  <div className="text-3xl font-bold text-foreground">
                     {sales?.total_orders ?? revenue?.order_count ?? 0}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-green-500">
+              <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
                     {t("totalRevenue")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-green-600">
+                  <div className="text-3xl font-bold text-primary">
                     {formatCurrency(revenue?.total_revenue ?? sales?.total_revenue ?? 0)}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-orange-500">
+              <Card className="dark:bg-card dark:border-border border-t-4 border-t-accent-electric">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-orange-600" />
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-accent-electric" />
                     {t("totalCost")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-orange-600">
+                  <div className="text-3xl font-bold text-accent-electric">
                     {formatCurrency(revenue?.total_cost ?? sales?.total_cost ?? 0)}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-purple-500">
+              <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-purple-600" />
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
                     {t("grossProfit")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-purple-600">
+                  <div className="text-3xl font-bold text-primary">
                     {formatCurrency(revenue?.gross_margin ?? sales?.total_margin ?? 0)}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-emerald-500">
+              <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <PieChart className="h-4 w-4 text-emerald-600" />
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <PieChart className="h-4 w-4 text-primary" />
                     {t("marginPercent")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-emerald-600">
+                  <div className="text-3xl font-bold text-primary">
                     {Number(revenue?.margin_percent ?? sales?.margin_percent ?? 0).toFixed(1)}%
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700 border-l-4 border-l-cyan-500">
+              <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <Package className="h-4 w-4 text-cyan-600" />
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Package className="h-4 w-4 text-primary" />
                     {t("inventoryValue")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-cyan-600">
+                  <div className="text-3xl font-bold text-primary">
                     {formatCurrency(inventoryValue?.total_value ?? 0)}
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {t("inventoryItems", { count: inventoryValue?.item_count ?? 0 })}
                   </p>
                 </CardContent>
@@ -192,19 +203,19 @@ export function ReportsClient() {
 
             {/* Revenue over time (bar chart) */}
             {dailySalesData.length > 0 && (
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+              <Card className="dark:bg-card dark:border-border">
                 <CardHeader>
-                  <CardTitle className="dark:text-slate-100">{t("revenue30days")}</CardTitle>
-                  <CardDescription className="dark:text-slate-400">{t("dailyRevenue")}</CardDescription>
+                  <CardTitle className="text-foreground">{t("revenue30days")}</CardTitle>
+                  <CardDescription className="text-muted-foreground">{t("dailyRevenue")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={dailySalesData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="date" tickFormatter={(d: string) => new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v) => `${Number(v || 0).toLocaleString(locale)} ₴`} />
-                      <Bar dataKey="revenue" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="revenue" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -213,19 +224,19 @@ export function ReportsClient() {
 
             {/* Margin trend (line chart) */}
             {dailySalesData.length > 0 && (
-              <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+              <Card className="dark:bg-card dark:border-border">
                 <CardHeader>
-                  <CardTitle className="dark:text-slate-100">{t("dailyOrders")}</CardTitle>
-                  <CardDescription className="dark:text-slate-400">{t("dailyOrders")}</CardDescription>
+                  <CardTitle className="text-foreground">{t("dailyOrders")}</CardTitle>
+                  <CardDescription className="text-muted-foreground">{t("dailyOrders")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
                     <LineChart data={dailySalesData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="date" tickFormatter={(d: string) => new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="orders" stroke="var(--chart-2)" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -234,18 +245,18 @@ export function ReportsClient() {
 
             {sales?.by_channel && sales.by_channel.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+                <Card className="dark:bg-card dark:border-border">
                   <CardHeader>
-                    <CardTitle className="dark:text-slate-100">{t("channelDistribution")}</CardTitle>
-                    <CardDescription className="dark:text-slate-400">
+                    <CardTitle className="text-foreground">{t("channelDistribution")}</CardTitle>
+                    <CardDescription className="text-muted-foreground">
                       {t("channelDesc")}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="border rounded-lg dark:border-slate-700">
+                    <div className="border rounded-lg dark:border-border">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                          <TableRow className="bg-muted/50 border-b dark:border-border">
                             <TableHead>{tc("channel")}</TableHead>
                             <TableHead>{t("totalOrders")}</TableHead>
                             <TableHead>{t("totalRevenue")}</TableHead>
@@ -267,10 +278,10 @@ export function ReportsClient() {
                   </CardContent>
                 </Card>
 
-                <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+                <Card className="dark:bg-card dark:border-border">
                   <CardHeader>
-                    <CardTitle className="dark:text-slate-100">{t("revenueByChannel")}</CardTitle>
-                    <CardDescription className="dark:text-slate-400">{t("channelDistribution")}</CardDescription>
+                    <CardTitle className="text-foreground">{t("revenueByChannel")}</CardTitle>
+                    <CardDescription className="text-muted-foreground">{t("channelDistribution")}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={260}>

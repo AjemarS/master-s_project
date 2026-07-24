@@ -18,6 +18,7 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Separator } from "~/ui/primitives/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/ui/primitives/tabs";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "~/ui/primitives/input-otp";
 
 export function SignInPageClient() {
   const router = useRouter();
@@ -103,8 +104,8 @@ export function SignInPageClient() {
   };
 
   const handleResendVerification = async () => {
-    setResendingVerification(true);
     if (!email) return;
+    setResendingVerification(true);
     try {
       await authClient.sendVerificationEmail({
         email,
@@ -230,37 +231,10 @@ export function SignInPageClient() {
           </div>
 
           {justRegistered && (
-            <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+            <div className="rounded-md border border-primary/20 bg-primary/10 p-4 text-sm text-primary">
               {t("successRegistered")}
             </div>
           )}
-
-          {/* Continue as guest */}
-          <div className="text-center">
-            <Button
-              variant="outline"
-              className="w-full mb-4"
-              onClick={async () => {
-                const result = await authClient.signIn.anonymous();
-                if (result?.error) {
-                  setError(t("errorGeneric"));
-                }
-                router.push("/");
-              }}
-            >
-              {tCommon("continueAsGuest")}
-            </Button>
-            <div className="relative mb-4">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  {t("orContinueWith")}
-                </span>
-              </div>
-            </div>
-          </div>
 
           <Tabs defaultValue="password" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -334,7 +308,7 @@ export function SignInPageClient() {
                     )}
                     <Button
                       className="w-full"
-                      disabled={loading}
+                      disabled={loading || !email || !password}
                       type="submit"
                       aria-label="Sign in"
                     >
@@ -393,20 +367,22 @@ export function SignInPageClient() {
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="otp-code">{t("otpLabel")}</Label>
-                          <Input
+                          <InputOTP
                             id="otp-code"
-                            type="text"
-                            inputMode="numeric"
                             maxLength={6}
                             value={otpCode}
-                            onChange={(e) =>
-                              setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                            }
-                            placeholder={t("otpPlaceholder")}
-                            className="text-center text-lg tracking-widest"
-                            required
+                            onChange={(value) => setOtpCode(value)}
                             autoFocus
-                          />
+                          >
+                            <InputOTPGroup className="w-full justify-center">
+                              <InputOTPSlot index={0} />
+                              <InputOTPSlot index={1} />
+                              <InputOTPSlot index={2} />
+                              <InputOTPSlot index={3} />
+                              <InputOTPSlot index={4} />
+                              <InputOTPSlot index={5} />
+                            </InputOTPGroup>
+                          </InputOTP>
                         </div>
                         {otpError && (
                           <div className="text-sm font-medium text-destructive">{otpError}</div>

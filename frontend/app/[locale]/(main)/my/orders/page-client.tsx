@@ -171,14 +171,14 @@ export function MyOrdersClient() {
     const isExpanded = expandedId === order.id;
 
     return (
-      <Card key={order.id} className="dark:bg-slate-800/60 dark:border-slate-700">
+      <Card key={order.id} className="dark:bg-card dark:border-border">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Link
                   href={`/my/orders/${order.id}`}
-                  className="font-semibold text-base hover:text-purple-600 dark:text-slate-100 dark:hover:text-purple-400 transition-colors"
+                  className="font-semibold text-base hover:text-primary dark:text-foreground dark:hover:text-primary transition-colors"
                 >
                   {t("orderNumber", { id: order.order_number })}
                 </Link>
@@ -197,7 +197,7 @@ export function MyOrdersClient() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                  className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
                   disabled={cancellingId === order.id}
                   onClick={(e) => { e.preventDefault(); handleCancel(order.id); }}
                 >

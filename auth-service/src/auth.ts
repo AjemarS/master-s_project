@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { admin, anonymous, emailOTP, twoFactor } from "better-auth/plugins";
+import { admin, emailOTP, twoFactor } from "better-auth/plugins";
 import { Pool } from "pg";
 import { sendOtpEmail, sendResetPasswordEmail, sendVerificationEmail } from "./email/sender";
 
@@ -42,34 +42,6 @@ export const auth = betterAuth({
   }),
 
   plugins: [
-    anonymous({
-      emailDomainName: "techhub.guest",
-      onLinkAccount: async ({ anonymousUser, newUser }) => {
-        const orderServiceUrl = process.env.ORDER_SERVICE_URL ?? "http://order-service:8002";
-        try {
-          const response = await fetch(`${orderServiceUrl}/api/orders/reassign/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Service-API-Key": process.env.SERVICE_API_KEY || "",
-            },
-            body: JSON.stringify({
-              anonymous_user_id: anonymousUser.user.id,
-              new_user_id: newUser.user.id,
-            }),
-            signal: AbortSignal.timeout(5000),
-          });
-          if (!response.ok) {
-            console.error(`[anonymous] Order reassign failed: ${response.status} ${response.statusText}`);
-            return;
-          }
-          const data = (await response.json()) as { reassigned: number };
-          console.log(`[anonymous] Reassigned ${data.reassigned} orders: ${anonymousUser.user.id} → ${newUser.user.id}`);
-        } catch (error) {
-          console.error(`[anonymous] Order reassign error: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      },
-    }),
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
         // Don't await to prevent timing attacks
@@ -78,6 +50,8 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 300, // 5 minutes
       resendStrategy: "reuse", // Reuse same OTP code on resend
+      sendVerificationOnSignUp: true,
+      overrideDefaultEmailVerification: true,
     }),
     admin({
       adminUserIds: [],

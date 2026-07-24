@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "~/ui/primitives/dialog";
 import { Input } from "~/ui/primitives/input";
+import { Label } from "~/ui/primitives/label";
 import { Button } from "~/ui/primitives/button";
 import type { UserWithRole } from "better-auth/plugins/admin";
 
@@ -22,6 +23,18 @@ interface BanDialogProps {
 
 export function BanDialog({ open, onOpenChange, user, onConfirm }: BanDialogProps) {
   const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!user || !reason.trim()) return;
+    setSubmitting(true);
+    try {
+      await onConfirm(user.id, reason);
+    } finally {
+      setSubmitting(false);
+      setReason("");
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,11 +46,14 @@ export function BanDialog({ open, onOpenChange, user, onConfirm }: BanDialogProp
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
+          <Label htmlFor="ban-reason">Reason for ban</Label>
           <Input
+            id="ban-reason"
             placeholder="Reason for ban (required)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             autoFocus
+            className="mt-2"
           />
         </div>
         <DialogFooter>
@@ -52,13 +68,8 @@ export function BanDialog({ open, onOpenChange, user, onConfirm }: BanDialogProp
           </Button>
           <Button
             variant="destructive"
-            disabled={!reason.trim()}
-            onClick={async () => {
-              if (user && reason.trim()) {
-                await onConfirm(user.id, reason);
-                setReason("");
-              }
-            }}
+            disabled={submitting || !reason.trim()}
+            onClick={handleConfirm}
           >
             Ban User
           </Button>

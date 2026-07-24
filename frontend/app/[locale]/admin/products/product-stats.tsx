@@ -18,28 +18,28 @@ export function ProductStatsCards({ stats }: ProductStatsCardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+      <Card className="dark:bg-card dark:border-border">
         <CardContent className="pt-6">
-          <div className="text-sm text-slate-600 dark:text-slate-400">{t("totalProducts")}</div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</div>
+          <div className="text-sm text-muted-foreground">{t("totalProducts")}</div>
+          <div className="text-3xl font-bold text-foreground">{stats.total}</div>
         </CardContent>
       </Card>
-      <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+      <Card className="dark:bg-card dark:border-border">
         <CardContent className="pt-6">
-          <div className="text-sm text-slate-600 dark:text-slate-400">{t("inStockCount")}</div>
-          <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+          <div className="text-sm text-muted-foreground">{t("inStockCount")}</div>
+          <div className="text-3xl font-bold text-primary">{stats.active}</div>
         </CardContent>
       </Card>
-      <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+      <Card className="dark:bg-card dark:border-border">
         <CardContent className="pt-6">
-          <div className="text-sm text-slate-600 dark:text-slate-400">{t("lowStockCount")}</div>
-          <div className="text-2xl font-bold text-orange-600">{stats.lowStock}</div>
+          <div className="text-sm text-muted-foreground">{t("lowStockCount")}</div>
+          <div className="text-3xl font-bold text-accent-electric">{stats.lowStock}</div>
         </CardContent>
       </Card>
-      <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+      <Card className="dark:bg-card dark:border-border">
         <CardContent className="pt-6">
-          <div className="text-sm text-slate-600 dark:text-slate-400">{t("totalValue")}</div>
-          <div className="text-2xl font-bold text-primary">{formatCurrency(stats.totalValue)}</div>
+          <div className="text-sm text-muted-foreground">{t("totalValue")}</div>
+          <div className="text-3xl font-bold text-primary">{formatCurrency(stats.totalValue)}</div>
         </CardContent>
       </Card>
     </div>

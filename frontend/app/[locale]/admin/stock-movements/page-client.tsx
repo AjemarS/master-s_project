@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, startTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Badge } from "~/ui/primitives/badge";
@@ -75,30 +75,73 @@ export function StockMovementsClient() {
   const [productResults, setProductResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [stockedWarehouses, setStockedWarehouses] = useState<Set<number> | null>(null);
+  const stockedLoading = !!adjustProductId && stockedWarehouses === null;
 
   useEffect(() => {
     if (productSearch.length < 2) {
+      startTransition(() => setProductResults([]));
       return;
     }
+
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     let cancelled = false;
     searchTimeoutRef.current = setTimeout(async () => {
-      setSearching(true);
-      setProductResults([]);
+      const idMatch = productSearch.match(/^#(\d+)$/);
+      if (idMatch) {
+        const id = parseInt(idMatch[1], 10);
+        startTransition(() => setSearching(true));
+        try {
+          const res = await productApi.getById(id);
+          if (cancelled) return;
+          startTransition(() => setProductResults(res.data ? [res.data] : []));
+        } catch {
+          if (!cancelled) startTransition(() => setProductResults([]));
+        }
+        if (!cancelled) setSearching(false);
+        return;
+      }
+
+      startTransition(() => setSearching(true));
+      startTransition(() => setProductResults([]));
       try {
         const res = await productApi.getAll({ search: productSearch, pageSize: 10 });
         if (cancelled) return;
         if (!res.error && res.data?.results) {
-          setProductResults(res.data.results);
+          const results = res.data.results;
+          startTransition(() => setProductResults(results));
         }
       } catch { /* ignore */ }
       if (!cancelled) setSearching(false);
-    }, 300);
+    }, 150);
     return () => {
       cancelled = true;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [productSearch]);
+
+  // Fetch which warehouses stock the selected product
+  useEffect(() => {
+    const pid = adjustProductId ? parseInt(adjustProductId, 10) : NaN;
+    if (isNaN(pid)) {
+      return;
+    }
+    startTransition(() => setStockedWarehouses(null));
+    let cancelled = false;
+    stockApi.getAll({ product_id: pid })
+      .then(res => {
+        if (cancelled) return;
+        if (res.error) { setStockedWarehouses(new Set()); return; }
+        const warehouseIds = new Set<number>(res.data?.map(s => s.warehouse) ?? []);
+        setStockedWarehouses(warehouseIds);
+        const currentWid = parseInt(adjustWarehouseId, 10);
+        if (!isNaN(currentWid) && warehouseIds.size > 0 && !warehouseIds.has(currentWid)) {
+          setAdjustWarehouseId("");
+        }
+      })
+      .catch(() => { if (!cancelled) setStockedWarehouses(new Set()); });
+    return () => { cancelled = true; };
+  }, [adjustProductId]);
 
   // Derive loading from ID mismatch — avoids synchronous setState in effect body
   const pid = parseInt(adjustProductId, 10);
@@ -119,15 +162,17 @@ export function StockMovementsClient() {
       .then(res => {
         if (cancelled) return;
         if (res.error) return;
-        const stocks = res.data?.results || [];
+        const stocks = res.data || [];
         const match = stocks.find(s => s.product_id === currentPid && s.warehouse === currentWid);
+        const qty = match ? match.quantity : 0;
         setStockData({
           productId: currentPid,
           warehouseId: currentWid,
           ...match
-            ? { quantity: match.quantity, reserved: match.reserved, available: match.available }
+            ? { quantity: qty, reserved: match.reserved, available: match.available }
             : { quantity: 0, reserved: 0, available: 0 },
         });
+        setAdjustNewQty(String(qty));
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -154,6 +199,8 @@ export function StockMovementsClient() {
     const wh = warehouses?.find(w => w.id === wid);
     return wh?.name || null;
   }, [adjustWarehouseId, warehouses]);
+
+  const dateRangeError = filterDateFrom && filterDateTo && filterDateFrom > filterDateTo;
 
   const newQtyNum = parseInt(adjustNewQty, 10);
   const available = stockData?.available ?? 0;
@@ -202,7 +249,7 @@ export function StockMovementsClient() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-8">
+    <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={tSM("title")}
@@ -246,7 +293,7 @@ export function StockMovementsClient() {
                         </div>
                       )}
                       {productSearch.length >= 2 && productResults.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-800 border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        <div className="absolute z-10 mt-1 w-full bg-background dark:bg-card border rounded-md shadow-lg max-h-48 overflow-y-auto">
                           {productResults.map(p => (
                             <button
                               key={p.id}
@@ -269,12 +316,40 @@ export function StockMovementsClient() {
                   <div className="grid gap-2">
                     <Label htmlFor="adjust-warehouse">{tSM("adjustStockWarehouse")}</Label>
                     <Select value={adjustWarehouseId} onValueChange={setAdjustWarehouseId} disabled={showConfirm}>
-                      <SelectTrigger id="adjust-warehouse"><SelectValue placeholder={tSM("adjustStockWarehouse")} /></SelectTrigger>
+                      <SelectTrigger id="adjust-warehouse">
+                        <SelectValue placeholder={stockedLoading ? "Loading…" : tSM("adjustStockWarehouse")} />
+                        {stockedLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                      </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
+                        {(stockedWarehouses && stockedWarehouses.size > 0
+                          ? warehouses.filter(w => stockedWarehouses.has(w.id))
+                          : warehouses
+                        ).map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
+                  {adjustProductId && adjustWarehouseId && (
+                    <div className="grid gap-2">
+                      <Label>{tSM("currentQty")}</Label>
+                      <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30 min-h-[40px] text-sm">
+                        {stockLoading ? (
+                          <span className="flex items-center gap-2 text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {tCommon("loading")}
+                          </span>
+                        ) : stockData ? (
+                          <span>
+                            <span className="font-semibold">{stockData.available}</span>
+                            <span className="text-muted-foreground text-xs ml-1">
+                              ({stockData.quantity} — {stockData.reserved} = {stockData.available})
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid gap-2">
                     <Label htmlFor="adjust-qty">{tSM("adjustStockNewQty")}</Label>
                     <Input id="adjust-qty" type="number" min="0" placeholder="0" value={adjustNewQty} onChange={(e) => setAdjustNewQty(e.target.value)} disabled={showConfirm} />
@@ -285,7 +360,7 @@ export function StockMovementsClient() {
                   </div>
 
                   {showConfirm && (
-                    <div className="space-y-3 border rounded-lg p-4 bg-slate-50 dark:bg-slate-800">
+                    <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
                       <h4 className="font-semibold text-sm">{tSM("confirmAdjustTitle")}</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <span className="text-muted-foreground">{tSM("adjustStockProductPlaceholder")}:</span>
@@ -310,18 +385,18 @@ export function StockMovementsClient() {
                         <span className="text-muted-foreground">{tSM("newQty")}:</span>
                         <span className="font-medium">{adjustNewQty}</span>
                         <span className="text-muted-foreground">{tSM("difference")}:</span>
-                        <span className={`font-medium ${diff > 0 ? "text-green-600" : diff < 0 ? "text-red-600" : ""}`}>
+                        <span className={`font-medium ${diff > 0 ? "text-primary" : diff < 0 ? "text-destructive" : ""}`}>
                           {diff > 0 ? "+" : ""}{diff}
                         </span>
                       </div>
                       {newQtyNum === 0 && (
-                        <div className="text-amber-600 text-sm flex items-center gap-2">
+                        <div className="text-accent-electric text-sm flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 shrink-0" />
                           <span>{tSM("writeOffWarning")}</span>
                         </div>
                       )}
                       {stockData && diffPercent > 20 && (
-                        <div className="text-amber-600 text-sm flex items-center gap-2">
+                        <div className="text-accent-electric text-sm flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 shrink-0" />
                           <span>{tSM("largeAdjustWarning")}</span>
                         </div>
@@ -353,12 +428,12 @@ export function StockMovementsClient() {
 
         <ErrorAlert message={movementsError?.message || null} />
 
-        <Card className="dark:bg-slate-800/80 dark:border-slate-700">
+        <Card className="dark:bg-card dark:border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="dark:text-slate-100">{tSM("title")}</CardTitle>
-                <CardDescription className="dark:text-slate-400">
+                <CardTitle className="text-foreground">{tSM("title")}</CardTitle>
+                <CardDescription className="text-muted-foreground">
                   {totalCount > 0 ? tCommon("count", { count: totalCount }) : tSM("noMovements")}
                 </CardDescription>
               </div>
@@ -370,10 +445,10 @@ export function StockMovementsClient() {
           </CardHeader>
           <CardContent>
             {showFilters && (
-              <div className="mb-6 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
+              <div className="mb-6 p-4 border rounded-lg bg-muted/50 dark:border-border">
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">{tSM("type")}</Label>
+                    <Label className="text-xs text-muted-foreground">{tSM("type")}</Label>
                     <Select value={filterType} onValueChange={setFilterType}>
                       <SelectTrigger className="w-44"><SelectValue placeholder={tSM("allTypes")} /></SelectTrigger>
                       <SelectContent>
@@ -382,11 +457,11 @@ export function StockMovementsClient() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">{tSM("productId")}</Label>
+                    <Label className="text-xs text-muted-foreground">{tSM("productId")}</Label>
                     <Input type="number" placeholder="ID" value={filterProductId} onChange={(e) => setFilterProductId(e.target.value)} className="w-28" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">{tSM("from")}</Label>
+                    <Label className="text-xs text-muted-foreground">{tSM("from")}</Label>
                     <Select value={filterFromWarehouse} onValueChange={setFilterFromWarehouse}>
                       <SelectTrigger className="w-44"><SelectValue placeholder={tSM("all")} /></SelectTrigger>
                       <SelectContent>
@@ -395,7 +470,7 @@ export function StockMovementsClient() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">{tSM("to")}</Label>
+                    <Label className="text-xs text-muted-foreground">{tSM("to")}</Label>
                     <Select value={filterToWarehouse} onValueChange={setFilterToWarehouse}>
                       <SelectTrigger className="w-44"><SelectValue placeholder={tSM("all")} /></SelectTrigger>
                       <SelectContent>
@@ -404,12 +479,19 @@ export function StockMovementsClient() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">{tCommon("dateFrom")}</Label>
-                    <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-40" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-slate-500">{tCommon("dateTo")}</Label>
-                    <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-40" />
+                    <div className="flex items-end gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <Label className="text-xs text-muted-foreground">{tCommon("dateFrom")}</Label>
+                        <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)}
+                          className={`w-40 ${dateRangeError ? "border-red-500" : ""}`} />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <Label className="text-xs text-muted-foreground">{tCommon("dateTo")}</Label>
+                        <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)}
+                          className={`w-40 ${dateRangeError ? "border-red-500" : ""}`} />
+                      </div>
+                    </div>
+                    {dateRangeError && <p className="text-xs text-red-500">Date from cannot be after date to</p>}
                   </div>
                   <Button size="sm" onClick={() => setPage(1)}>{tCommon("apply")}</Button>
                   <Button size="sm" variant="outline" onClick={() => { setFilterType(""); setFilterProductId(""); setFilterFromWarehouse(""); setFilterToWarehouse(""); setFilterDateFrom(""); setFilterDateTo(""); setPage(1); }}>
@@ -422,10 +504,10 @@ export function StockMovementsClient() {
             {movementsLoading ? (
               <TableSkeleton rows={8} cols={8} />
             ) : (
-              <div className="border rounded-lg dark:border-slate-700">
+              <div className="border rounded-lg dark:border-border">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+                    <TableRow className="bg-muted/50 border-b dark:border-border">
                       <TableHead>{tSM("id")}</TableHead>
                       <TableHead>{tSM("type")}</TableHead>
                       <TableHead>{tSM("productId")}</TableHead>
@@ -466,7 +548,6 @@ export function StockMovementsClient() {
         <Pagination
           currentPage={page}
           totalPages={Math.ceil(totalCount / 20)}
-          totalCount={totalCount}
           loading={movementsLoading}
           onPageChange={setPage}
         />

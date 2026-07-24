@@ -65,6 +65,11 @@ export function Breadcrumbs() {
   const pathname = usePathname();
   const { segments: overrideSegments } = useBreadcrumbSegments();
 
+  // Hide breadcrumbs on account/settings/auth pages
+  if (pathname.includes("/my/") || pathname.includes("/sign-in") || 
+      pathname.includes("/sign-up") || pathname.includes("/forgot-password") ||
+      pathname.includes("/reset-password") || pathname.includes("/mfa")) return null;
+
   const items = overrideSegments ?? autoGenerate(pathname, t);
 
   if (items.length <= 1) return null;

@@ -15,7 +15,7 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { adminService } from "./actions";
 import type { UserWithRole } from "better-auth/plugins/admin";
 
@@ -28,10 +28,13 @@ interface UserDialogProps {
 }
 
 export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDialogProps) {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const [email, setEmail] = useState(mode === "edit" && user ? user.email ?? "" : "");
+  const [name, setName] = useState(mode === "edit" && user ? user.name ?? "" : "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"admin" | "user" | "cashier" | "warehouse_worker">("user");
+  const [role, setRole] = useState<"admin" | "user" | "cashier" | "warehouse_worker">(
+    mode === "edit" && user ? (user.role as "admin" | "user" | "cashier" | "warehouse_worker") ?? "user" : "user"
+  );
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -46,11 +49,12 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
       if (!name.trim()) { setFormError("Name is required."); return; }
       if (!email.trim()) { setFormError("Email is required."); return; }
       if (!password) { setFormError("Password is required."); return; }
-      if (!email.includes("@")) { setFormError("Invalid email address."); return; }
+      if (password.length < 8) { setFormError("Password must be at least 8 characters."); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setFormError("Invalid email address."); return; }
     } else {
       if (!name.trim()) { setFormError("Name is required."); return; }
       if (!email.trim()) { setFormError("Email is required."); return; }
-      if (!email.includes("@")) { setFormError("Invalid email address."); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setFormError("Invalid email address."); return; }
     }
 
     setFormError(null);
@@ -129,15 +133,41 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
           </div>
 
           {mode === "create" && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="ud-password" className="text-right">Password *</Label>
-              <Input
-                id="ud-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="col-span-3"
-              />
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="ud-password" className="text-right pt-1.5">Password *</Label>
+              <div className="col-span-3 space-y-1.5">
+                <div className="relative">
+                  <Input
+                    id="ud-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {password.length > 0 && (
+                  <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        password.length < 6
+                          ? "bg-red-500 w-1/3"
+                          : password.length < 10
+                            ? "bg-yellow-500 w-2/3"
+                            : "bg-green-500 w-full"
+                      }`}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

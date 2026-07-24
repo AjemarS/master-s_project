@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Switch } from "~/ui/primitives/switch";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "~/ui/primitives/input-otp";
 
 export function TwoFactorPageClient() {
   const t = useTranslations("mfa");
@@ -69,27 +70,33 @@ export function TwoFactorPageClient() {
                 <Label htmlFor="code">
                   {isUsingBackupCode ? t("backupCodeLabel") : t("totpLabel")}
                 </Label>
-                <Input
-                  className={
-                    isUsingBackupCode
-                      ? undefined
-                      : "text-center text-lg tracking-widest"
-                  }
-                  id="code"
-                  inputMode={isUsingBackupCode ? undefined : "numeric"}
-                  maxLength={isUsingBackupCode ? undefined : 6}
-                  onChange={(e) => {
-                    setCode(e.target.value);
-                  }}
-                  placeholder={
-                    isUsingBackupCode
-                      ? t("backupCodePlaceholder")
-                      : t("totpPlaceholder")
-                  }
-                  required
-                  type="text"
-                  value={code}
-                />
+                {isUsingBackupCode ? (
+                  <Input
+                    id="code"
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder={t("backupCodePlaceholder")}
+                    required
+                    type="text"
+                    value={code}
+                  />
+                ) : (
+                  <InputOTP
+                    id="code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(value) => setCode(value)}
+                    autoFocus
+                  >
+                    <InputOTPGroup className="w-full justify-center">
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                )}
               </div>
 
               {!isUsingBackupCode && (
@@ -106,7 +113,7 @@ export function TwoFactorPageClient() {
               )}
 
               <div className="flex flex-col gap-3">
-                <Button disabled={loading} type="submit">
+                <Button disabled={loading || (isUsingBackupCode ? !code : code.length !== 6)} type="submit">
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {loading ? t("verifying") : t("verify")}
                 </Button>

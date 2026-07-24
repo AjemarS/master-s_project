@@ -3,7 +3,6 @@ API views for order management.
 Thin layer that validates input, delegates to order_service, and formats HTTP responses.
 """
 import logging
-import os
 
 import stripe
 from django.conf import settings
@@ -132,8 +131,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         if self.action == "pos":
             return [IsAdminOrCashier()]
-        if self.action == "reassign":
-            return [AllowAny()]  # Internal endpoint — see docstring
         return [IsAdminUser()]
 
     def get_queryset(self):
@@ -367,35 +364,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
-
-    @action(detail=False, methods=["post"])
-    def reassign(self, request):
-        """Reassign orders from anonymous user to permanent user on account upgrade.
-        Called internally by auth-service on onLinkAccount.
-        """
-        # Validate service API key
-        service_key = request.META.get("HTTP_X_SERVICE_API_KEY", "")
-        expected_key = os.environ.get("SERVICE_API_KEY", "")
-        if expected_key and service_key != expected_key:
-            return Response(
-                {"error": "Invalid service API key"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        anonymous_user_id = request.data.get("anonymous_user_id")
-        new_user_id = request.data.get("new_user_id")
-
-        if not anonymous_user_id or not new_user_id:
-            return Response(
-                {"error": "Both anonymous_user_id and new_user_id are required"},
-                status=400,
-            )
-
-        updated = Order.objects.filter(created_by=anonymous_user_id).update(
-            created_by=new_user_id
-        )
-
-        return Response({"reassigned": updated})
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):

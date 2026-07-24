@@ -35,11 +35,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return createElement(
         "div",
         { className: "flex flex-col items-center justify-center min-h-[400px] p-8 text-center" },
-        createElement(AlertTriangle, { className: "h-12 w-12 text-red-500 mb-4" }),
-        createElement("h2", { className: "text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2" },
+        createElement(AlertTriangle, { className: "h-12 w-12 text-destructive mb-4" }),
+        createElement("h2", { className: "text-xl font-semibold text-foreground mb-2" },
           "Щось пішло не так"
         ),
-        createElement("p", { className: "text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-md" },
+        createElement("p", { className: "text-sm text-muted-foreground mb-4 max-w-md" },
           this.state.error?.message || "Сталася неочікувана помилка"
         ),
         createElement(

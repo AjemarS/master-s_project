@@ -5,7 +5,7 @@ import createIntlMiddleware from "next-intl/middleware";
 const intlMiddleware = createIntlMiddleware({
   locales: ["ua", "en"],
   defaultLocale: "ua",
-  localePrefix: "as-needed",
+  localePrefix: "always",
   localeDetection: false,
 });
 

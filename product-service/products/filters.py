@@ -14,7 +14,11 @@ class ProductFilter(filters.FilterSet):
     created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
     created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
     min_rating = filters.NumberFilter(field_name="rating", lookup_expr="gte")
+    on_sale = filters.BooleanFilter(field_name="is_on_sale")
+    brand = filters.CharFilter(lookup_expr="icontains")
+    color = filters.CharFilter(lookup_expr="icontains")
+    id = filters.NumberFilter(field_name="id")
 
     class Meta:
         model = Product
-        fields = ["name", "category", "in_stock"]
+        fields = ["name", "category", "in_stock", "brand", "color"]

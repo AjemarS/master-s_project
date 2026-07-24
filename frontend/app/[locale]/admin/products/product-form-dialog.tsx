@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,8 +16,9 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { Textarea } from "~/ui/primitives/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/ui/primitives/collapsible";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle, Plus, X, Upload } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Plus, X, Upload } from "lucide-react";
 import { productApi, categoryApi } from "~/lib/api/admin-api";
 import { API_URL } from "~/lib/api/client";
 import type { Product, Category } from "~/lib/types";
@@ -102,6 +104,8 @@ function CategoryCreateDialog({
   onOpenChange: (o: boolean) => void;
   onCreated: (cat: Category) => void;
 }) {
+  const t = useTranslations("categories");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [nameUk, setNameUk] = useState("");
   const [nameEn, setNameEn] = useState("");
@@ -124,7 +128,7 @@ function CategoryCreateDialog({
         setName("");
         setNameUk("");
         setNameEn("");
-        toast.success("Категорію створено", { description: `Категорію "${name.trim()}" створено.` });
+        toast.success(t("createdSuccess"), { description: t("createdDesc", { name: name.trim() }) });
       }
     } catch (err) {
       toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
@@ -137,31 +141,48 @@ function CategoryCreateDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onOpenChange(false); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Додати категорію</DialogTitle>
-          <DialogDescription>Створіть нову категорію товарів.</DialogDescription>
+          <DialogTitle>{t("addCategory")}</DialogTitle>
+          <DialogDescription>{t("createDialogDesc")}</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-3">
           <div>
-            <Label htmlFor="cat-name">Назва (основна)</Label>
-            <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Назва категорії" className="mt-2" autoFocus />
+            <Label htmlFor="cat-name">{t("namePrimary")}</Label>
+            <Input id="cat-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePrimaryPlaceholder")} className="mt-2" autoFocus />
           </div>
           <div>
-            <Label htmlFor="cat-name-uk">Назва (укр.)</Label>
-            <Input id="cat-name-uk" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="Назва українською" className="mt-2" />
+            <Label htmlFor="cat-name-uk">{t("nameUa")}</Label>
+            <Input id="cat-name-uk" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder={t("nameUkPlaceholder")} className="mt-2" />
           </div>
           <div>
-            <Label htmlFor="cat-name-en">Назва (англ.)</Label>
-            <Input id="cat-name-en" value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Назва англійською" className="mt-2" />
+            <Label htmlFor="cat-name-en">{t("nameEn")}</Label>
+            <Input id="cat-name-en" value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder={t("nameEnPlaceholder")} className="mt-2" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating} type="button">Скасувати</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creating} type="button">{tc("cancel")}</Button>
           <Button onClick={handleCreate} disabled={creating || !name.trim()} type="button">
-            {creating ? "Створення..." : "Створити"}
+            {creating ? t("creatingButton") : t("createButton")}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function FormSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="border border-border rounded-lg p-4">
+      <CollapsibleTrigger className="flex w-full items-center justify-between text-sm font-medium cursor-pointer">
+        <span className="text-foreground">{title}</span>
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-4">
+        <div className="space-y-4">
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -338,123 +359,147 @@ export function ProductFormDialog({
           </DialogHeader>
 
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-            {/* Name */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-name" className="text-right">Name *</Label>
-              <Input id="pd-name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-2">
-              <Label className="text-right text-xs text-slate-500">UK</Label>
-              <Input value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="Назва українською" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-2">
-              <Label className="text-right text-xs text-slate-500">EN</Label>
-              <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Name in English" className="col-span-3" />
-            </div>
-
-            {/* Description */}
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="pd-description" className="text-right pt-2">Description *</Label>
-              <Textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3 min-h-20" />
-            </div>
-            <div className="grid grid-cols-4 items-start gap-2">
-              <Label className="text-right text-xs text-slate-500 pt-1">UK</Label>
-              <Textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською" className="col-span-3 min-h-15" />
-            </div>
-            <div className="grid grid-cols-4 items-start gap-2">
-              <Label className="text-right text-xs text-slate-500 pt-1">EN</Label>
-              <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English" className="col-span-3 min-h-15" />
-            </div>
-
-            {/* Category */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-category" className="text-right">Category *</Label>
-              <div className="col-span-3 flex gap-2">
-                <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger id="pd-category" className="flex-1"><SelectValue placeholder="Select category..." /></SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="sm" onClick={() => setShowCategoryDialog(true)} type="button" className="shrink-0">
-                  <Plus className="h-4 w-4 mr-1" /> New
-                </Button>
-              </div>
-            </div>
-
-            {/* Price */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-price" className="text-right">Price *</Label>
-              <Input id="pd-price" type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className="col-span-3" />
-            </div>
-
-            {/* Original Price */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-original-price" className="text-right">Orig. Price *</Label>
-              <Input id="pd-original-price" type="number" step="0.01" min="0" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)} className="col-span-3" />
-            </div>
-
-            {/* Stock */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-stock" className="text-right">Stock</Label>
-              <Input id="pd-stock" type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="col-span-3" />
-            </div>
-
-            {/* Rating */}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-rating" className="text-right">Rating</Label>
-              <Input id="pd-rating" type="number" step="0.1" min="0" max="5" value={rating} onChange={(e) => setRating(e.target.value)} className="col-span-3" />
-            </div>
-
-            {/* Features */}
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right pt-1">Features</Label>
-              <FeaturesInput features={features} onChange={setFeatures} />
-            </div>
-
-            {/* Specifications */}
-            <div className="grid grid-cols-4 items-start gap-4">
-              <Label className="text-right pt-1">Specs</Label>
-              <SpecsEditor specs={specs} onChange={setSpecs} />
-            </div>
-
-            {/* Image */}
+            <FormSection title="Localized Names" defaultOpen={true}>
               <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="pd-image" className="text-right">Image</Label>
-              <div className="col-span-3 flex items-center gap-3">
-                <Button variant="outline" size="sm" onClick={() => document.getElementById("pd-image")?.click()} type="button">
-                  <Upload className="h-4 w-4 mr-1" /> {image ? "Change" : "Upload"}
-                </Button>
-                {image && <span className="text-sm text-muted-foreground truncate max-w-50">{image.name}</span>}
-                {imageError && <span className="text-sm text-destructive">{imageError}</span>}
-                <input
-                  id="pd-image"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    setImageError(null);
-                    if (file) {
-                      const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-                      if (!allowed.includes(file.type)) {
-                        setImageError("Only JPEG, PNG, WebP, GIF allowed");
-                        setImage(null);
-                        return;
-                      }
-                      if (file.size > 5 * 1024 * 1024) {
-                        setImageError("Image must not exceed 5 MB");
-                        setImage(null);
-                        return;
-                      }
-                    }
-                    setImage(file);
-                  }}
-                />
+                <Label htmlFor="pd-name" className="text-right">Name *</Label>
+                <Input id="pd-name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" />
               </div>
-            </div>
+              <div className="grid grid-cols-4 items-center gap-2">
+                <Label className="text-right text-xs text-muted-foreground">UK</Label>
+                <Input value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="Назва українською" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-2">
+                <Label className="text-right text-xs text-muted-foreground">EN</Label>
+                <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Name in English" className="col-span-3" />
+              </div>
+            </FormSection>
+
+            <FormSection title="Descriptions">
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="pd-description" className="text-right pt-2">Description *</Label>
+                <Textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3 min-h-20" />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-2">
+                <Label className="text-right text-xs text-muted-foreground pt-1">UK</Label>
+                <Textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською" className="col-span-3 min-h-15" />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-2">
+                <Label className="text-right text-xs text-muted-foreground pt-1">EN</Label>
+                <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English" className="col-span-3 min-h-15" />
+              </div>
+            </FormSection>
+
+            <FormSection title="Pricing &amp; Stock">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-category" className="text-right">Category *</Label>
+                <div className="col-span-3 flex gap-2">
+                  <Select value={categoryId} onValueChange={setCategoryId}>
+                    <SelectTrigger id="pd-category" className="flex-1"><SelectValue placeholder="Select category..." /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={() => setShowCategoryDialog(true)} type="button" className="shrink-0">
+                    <Plus className="h-4 w-4 mr-1" /> New
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-price" className="text-right">Price *</Label>
+                <div className="col-span-3">
+                  <Input id="pd-price" type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)}
+                    onBlur={() => {
+                      const num = parseFloat(price);
+                      if (!isNaN(num)) setPrice(num.toFixed(2));
+                    }}
+                  />
+                  {price && !isNaN(parseFloat(price)) && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Current price: {parseFloat(price).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-original-price" className="text-right">Orig. Price *</Label>
+                <div className="col-span-3">
+                  <Input id="pd-original-price" type="number" step="0.01" min="0" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)}
+                    onBlur={() => {
+                      const num = parseFloat(originalPrice);
+                      if (!isNaN(num)) setOriginalPrice(num.toFixed(2));
+                    }}
+                  />
+                  {originalPrice && !isNaN(parseFloat(originalPrice)) && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Original price: {parseFloat(originalPrice).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-stock" className="text-right">Stock</Label>
+                <Input id="pd-stock" type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="col-span-3" />
+              </div>
+            </FormSection>
+
+            <FormSection title="Metadata">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-rating" className="text-right">Rating</Label>
+                <Input id="pd-rating" type="number" step="0.1" min="0" max="5" value={rating} onChange={(e) => setRating(e.target.value)} className="col-span-3" />
+              </div>
+
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right pt-1">Features</Label>
+                <FeaturesInput features={features} onChange={setFeatures} />
+              </div>
+
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right pt-1">Specs</Label>
+                <SpecsEditor specs={specs} onChange={setSpecs} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Media">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-image" className="text-right">Image</Label>
+                <div className="col-span-3 flex items-center gap-3">
+                  <Button variant="outline" size="sm" onClick={() => document.getElementById("pd-image")?.click()} type="button">
+                    <Upload className="h-4 w-4 mr-1" /> {image ? "Change" : "Upload"}
+                  </Button>
+                  {image && <span className="text-sm text-muted-foreground truncate max-w-50">{image.name}</span>}
+                  {imageError && <span className="text-sm text-destructive">{imageError}</span>}
+                  <input
+                    id="pd-image"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setImageError(null);
+                      if (file) {
+                        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+                        if (!allowed.includes(file.type)) {
+                          setImageError("Only JPEG, PNG, WebP, GIF allowed");
+                          setImage(null);
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          setImageError("Image must not exceed 5 MB");
+                          setImage(null);
+                          return;
+                        }
+                      }
+                      setImage(file);
+                    }}
+                  />
+                </div>
+              </div>
+            </FormSection>
           </div>
 
           {formError && (

@@ -80,11 +80,12 @@ export function useDeleteWarehouse() {
   return useApiMutation<void, number>("warehouses-delete", (id) => warehouseApi.delete(id));
 }
 
-export function useStock(params?: { warehouse_id?: number; product_id?: number }) {
+export function useStock(params?: { warehouse_id?: number; product_id?: number; pageSize?: number }) {
   const q = new URLSearchParams();
   if (params?.warehouse_id) q.append("warehouse_id", String(params.warehouse_id));
   if (params?.product_id) q.append("product_id", String(params.product_id));
-  return useApiGet<{ results: Stock[]; count: number }>(`/stock/?${q}`, () => stockApi.getAll(params));
+  if (params?.pageSize) q.append("page_size", String(params.pageSize));
+  return useApiGet<Stock[]>(`/stock/?${q}`, () => stockApi.getAll(params));
 }
 
 export function useSuppliers() {

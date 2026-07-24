@@ -17,6 +17,8 @@ export interface Product {
   stock: number;
   in_stock: boolean;
   rating: number;
+  brand?: string;
+  color?: string;
   features?: string[];
   specs?: Record<string, unknown>;
   created_at?: string;

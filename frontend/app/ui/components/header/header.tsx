@@ -2,13 +2,15 @@
 
 import { useLocale } from "next-intl";
 import { memo, useState } from "react";
-import { Globe, Search, X } from "lucide-react";
+import { Globe, Heart, Search, X } from "lucide-react";
 
 import { Cart } from "~/ui/components/cart/cart";
 
 import { NotificationsWidget } from "../notifications/notifications-widget";
 import { ThemeToggle } from "../theme-toggle";
 import { useCurrentUser } from "~/lib/auth-client";
+import { useWishlist } from "~/lib/hooks/use-wishlist";
+import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import {
   DropdownMenu,
@@ -82,6 +84,7 @@ export function Header({ showAuth = true }: HeaderProps) {
     }
   }
 
+  const { itemCount: wishlistCount } = useWishlist();
   const currentLocale = useLocale();
 
   return (
@@ -121,7 +124,26 @@ export function Header({ showAuth = true }: HeaderProps) {
               {mobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
             </button>
 
-            {whereAmI !== "admin" && <Cart />}
+            {whereAmI !== "admin" && (
+              <>
+                <Link href="/wishlist" className="relative">
+                  <Button
+                    aria-label="Обрані товари"
+                    className="relative h-9 w-9 rounded-full"
+                    size="icon"
+                    variant="outline"
+                  >
+                    <Heart className="h-4 w-4" />
+                    {wishlistCount > 0 && (
+                      <Badge className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full p-0 text-[10px]">
+                        {wishlistCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+                <Cart />
+              </>
+            )}
 
             <NotificationsWidget />
 

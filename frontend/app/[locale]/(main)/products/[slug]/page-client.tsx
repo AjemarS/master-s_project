@@ -1,18 +1,19 @@
 "use client";
 
-import { Minus, Plus, ShoppingCart, Star } from "lucide-react";
+import { Heart, Minus, Plus, ShoppingCart, Star } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
 import * as React from "react";
 import { toast } from "sonner";
 
 import { useCart } from "~/lib/hooks/use-cart";
+import { useWishlist } from "~/lib/hooks/use-wishlist";
 import { getImageUrl } from "~/lib/utils/image-url";
 import { formatPrice } from "~/lib/utils/format";
 import { ProductDetail, Product } from "~/lib/types";
 import { Button } from "~/ui/primitives/button";
 import { Separator } from "~/ui/primitives/separator";
 import { ProductCard } from "~/ui/components/product-card";
-import { ProductImage } from "~/ui/components/product-image";
+import { ProductGallery } from "~/ui/components/product-gallery";
 import { productApi } from "~/lib/api/admin-api";
 import { useBreadcrumbSegments } from "~/ui/components/breadcrumbs";
 
@@ -30,6 +31,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   const tCommon = useTranslations();
   const locale = useLocale();
   const { addItem } = useCart();
+  const { isInWishlist, toggleItem } = useWishlist();
   const { setSegments } = useBreadcrumbSegments();
   const [similar, setSimilar] = React.useState<Product[]>([]);
   const priceInfo = React.useMemo(() => formatPrice(product, locale), [product, locale]);
@@ -89,21 +91,12 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       <main className="flex-1 py-10">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div className="relative aspect-square overflow-hidden rounded-xl shadow-md bg-muted/30">
-              <ProductImage
-                className="object-cover"
-                fill
-                imageUrl={product.image_url}
-                productId={product.id}
-                productName={product.name}
-                priority
-              />
-              {discountPercentage > 0 && (
-                <div className="absolute top-2 left-2 rounded-full bg-destructive px-2 py-1 text-xs font-bold text-white">
-                  -{discountPercentage}%
-                </div>
-              )}
-            </div>
+            <ProductGallery
+              imageUrl={product.image_url}
+              productId={product.id}
+              productName={product.name}
+              discountPercentage={discountPercentage}
+            />
 
             <div className="flex flex-col">
               <div className="mb-6">
@@ -177,6 +170,25 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   {isAdding ? t("adding") : t("addToCart")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-12 w-12 shrink-0"
+                  onClick={() => toggleItem(product.id)}
+                  aria-label={
+                    isInWishlist(product.id)
+                      ? "Видалити з обраного"
+                      : "Додати до обраного"
+                  }
+                >
+                  <Heart
+                    className={`h-5 w-5 ${
+                      isInWishlist(product.id)
+                        ? "fill-red-500 text-red-500"
+                        : ""
+                    }`}
+                  />
                 </Button>
               </div>
             </div>
