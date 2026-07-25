@@ -8,12 +8,8 @@ import { Button } from "~/ui/primitives/button";
 import { AdminPageHeader, ConfirmDialog, TableSkeleton } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { useCurrentUser } from "~/lib/auth-client";
-import {
-  useSuppliers,
-  useCreateSupplier,
-  useUpdateSupplier,
-  useDeleteSupplier,
-} from "~/lib/hooks/use-api-data";
+import { useSuppliers } from "~/lib/hooks/use-api-data";
+import { supplierService } from "./actions";
 import { SupplierDialog } from "./supplier-dialog";
 import { SupplierTable } from "./supplier-table";
 import type { Supplier } from "~/lib/types";
@@ -24,11 +20,8 @@ export function SuppliersClient() {
 
   const { data, error, isLoading, mutate } = useSuppliers();
   const suppliers = data?.results || [];
-  const { trigger: createSupplier, isMutating: creating } = useCreateSupplier();
-  const { trigger: updateSupplier, isMutating: updating } = useUpdateSupplier();
-  const { trigger: deleteSupplier, isMutating: deleting } = useDeleteSupplier();
 
-  const [formError, setFormError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [dialogSupplier, setDialogSupplier] = useState<Supplier | null>(null);
@@ -38,35 +31,7 @@ export function SuppliersClient() {
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
 
-  const handleSave = async (data: Partial<Supplier>) => {
-    if (dialogMode === "create") {
-      try {
-        await createSupplier(data);
-        toast.success(t("createDialogTitle"));
-        setDialogOpen(false);
-        mutate();
-      } catch (err) {
-        toast.error(tc("error"), {
-          description: err instanceof Error ? err.message : tc("error"),
-        });
-      }
-    } else {
-      if (!dialogSupplier) return;
-      try {
-        await updateSupplier({ id: dialogSupplier.id, data });
-        toast.success(t("supplierUpdated"));
-        setDialogOpen(false);
-        mutate();
-      } catch (err) {
-        toast.error(tc("error"), {
-          description: err instanceof Error ? err.message : tc("error"),
-        });
-      }
-    }
-  };
-
   const openCreate = () => {
-    setFormError(null);
     setDialogMode("create");
     setDialogSupplier(null);
     setDialogKey((k) => k + 1);
@@ -74,7 +39,6 @@ export function SuppliersClient() {
   };
 
   const openEdit = (supplier: Supplier) => {
-    setFormError(null);
     setDialogMode("edit");
     setDialogSupplier(supplier);
     setDialogKey((k) => k + 1);
@@ -83,21 +47,26 @@ export function SuppliersClient() {
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
+    setDeleting(true);
     try {
-      await deleteSupplier(deleteConfirmId);
-      toast.success(t("supplierDeleted"));
-      setDeleteConfirmId(null);
-      mutate();
+      const res = await supplierService.remove(deleteConfirmId);
+      if (res.error) {
+        toast.error(tc("error"), { description: res.error.message });
+      } else {
+        toast.success(t("supplierDeleted"));
+        setDeleteConfirmId(null);
+        mutate();
+      }
     } catch (err) {
       toast.error(t("deleteError"), {
         description: err instanceof Error ? err.message : tc("error"),
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
   const colSpan = isAdmin ? 6 : 5;
-
-  const saving = dialogMode === "create" ? creating : updating;
 
   return (
     <div className="min-h-screen bg-muted/50 p-8">
@@ -133,17 +102,10 @@ export function SuppliersClient() {
         <SupplierDialog
           key={dialogKey}
           open={dialogOpen}
-          onOpenChange={(open) => {
-            if (!open) {
-              setFormError(null);
-              setDialogOpen(false);
-            }
-          }}
+          onOpenChange={(open) => { if (!open) setDialogOpen(false); }}
           mode={dialogMode}
           supplier={dialogSupplier}
-          onSave={handleSave}
-          saving={saving}
-          formError={formError}
+          onSuccess={() => mutate()}
         />
 
         <ConfirmDialog

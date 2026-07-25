@@ -7,8 +7,8 @@ import { ShoppingCart } from "lucide-react";
 import { AdminPageHeader, ConfirmDialog } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
-import { orderApi } from "~/lib/api/admin-api";
-import { useOrders, useUpdateOrderStatus } from "~/lib/hooks/use-api-data";
+import { useOrders } from "~/lib/hooks/use-api-data";
+import { orderService } from "./actions";
 import type { Order, OrderDetail } from "~/lib/types";
 import { OrderFilters } from "./order-filters";
 import { OrderTable } from "./order-table";
@@ -42,8 +42,6 @@ export function AdminOrdersClient() {
     ordering,
   });
 
-  const { trigger: updateOrderStatus } = useUpdateOrderStatus();
-
   const orders = pageData?.results || [];
   const totalCount = pageData?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -64,7 +62,7 @@ export function AdminOrdersClient() {
     setExpandedOrderId(orderId);
     if (!orderDetails[orderId]) {
       try {
-        const response = await orderApi.getById(orderId);
+        const response = await orderService.getById(orderId);
         if (response.data) {
           setOrderDetails((prev) => ({ ...prev, [orderId]: response.data! }));
         }
@@ -85,7 +83,8 @@ export function AdminOrdersClient() {
     setPendingStatus((prev) => ({ ...prev, open: false }));
     setUpdatingOrderId(orderId);
     try {
-      await updateOrderStatus({ id: orderId, status: newStatus });
+      const res = await orderService.updateStatus(orderId, newStatus);
+      if (res.error) throw new Error(res.error.message);
       toast.success(t("statusUpdated"), {
         description: t("statusChanged", { id: orderId, status: t(newStatus) }),
       });

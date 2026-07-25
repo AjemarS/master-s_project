@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -15,6 +16,7 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle } from "lucide-react";
+import { supplierService } from "./actions";
 import type { Supplier } from "~/lib/types";
 
 interface SupplierDialogProps {
@@ -22,64 +24,67 @@ interface SupplierDialogProps {
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
   supplier: Supplier | null;
-  onSave: (data: Partial<Supplier>) => Promise<void>;
-  saving: boolean;
-  formError: string | null;
+  onSuccess: () => void;
 }
 
 export function SupplierDialog({
-  open,
-  onOpenChange,
-  mode,
-  supplier,
-  onSave,
-  saving,
-  formError,
+  open, onOpenChange, mode, supplier, onSuccess,
 }: SupplierDialogProps) {
   const t = useTranslations("suppliers");
   const tc = useTranslations("common");
 
-  const [name, setName] = useState(
-    mode === "edit" && supplier ? supplier.name : ""
-  );
-  const [contact, setContact] = useState(
-    mode === "edit" && supplier ? supplier.contact_person : ""
-  );
-  const [phone, setPhone] = useState(
-    mode === "edit" && supplier ? supplier.phone : ""
-  );
-  const [email, setEmail] = useState(
-    mode === "edit" && supplier ? supplier.email : ""
-  );
-  const [address, setAddress] = useState(
-    mode === "edit" && supplier ? supplier.address : ""
-  );
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [name, setName] = useState(mode === "edit" && supplier ? supplier.name : "");
+  const [contact, setContact] = useState(mode === "edit" && supplier ? supplier.contact_person : "");
+  const [phone, setPhone] = useState(mode === "edit" && supplier ? supplier.phone : "");
+  const [email, setEmail] = useState(mode === "edit" && supplier ? supplier.email : "");
+  const [address, setAddress] = useState(mode === "edit" && supplier ? supplier.address : "");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const displayError = localError || formError;
+  const resetAndClose = () => {
+    setFormError(null);
+    setSaving(false);
+    onOpenChange(false);
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      setLocalError(tc("required"));
+      setFormError(tc("required"));
       return;
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setLocalError("Invalid email format.");
+      setFormError("Invalid email format.");
       return;
     }
-    setLocalError(null);
-    await onSave({
-      name: name.trim(),
-      contact_person: contact.trim(),
-      phone: phone.trim(),
-      email: email.trim(),
-      address: address.trim(),
-    });
-  };
+    setFormError(null);
+    setSaving(true);
 
-  const resetAndClose = () => {
-    setLocalError(null);
-    onOpenChange(false);
+    try {
+      const payload: Partial<Supplier> = {
+        name: name.trim(),
+        contact_person: contact.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        address: address.trim(),
+      };
+      const res = mode === "create"
+        ? await supplierService.create(payload)
+        : await supplierService.update(supplier!.id!, payload);
+
+      if (res.error) {
+        toast.error(tc("error"), { description: res.error.message });
+      } else {
+        toast.success(mode === "create" ? t("createDialogTitle") : t("supplierUpdated"));
+        resetAndClose();
+        onSuccess();
+      }
+    } catch (err) {
+      toast.error(tc("error"), {
+        description: err instanceof Error ? err.message : tc("error"),
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -152,10 +157,10 @@ export function SupplierDialog({
           </div>
         </div>
 
-        {displayError && (
+        {formError && (
           <Alert variant="destructive" className="mb-2 mx-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{displayError}</AlertDescription>
+            <AlertDescription>{formError}</AlertDescription>
           </Alert>
         )}
 

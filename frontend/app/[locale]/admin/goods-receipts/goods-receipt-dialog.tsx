@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Textarea } from "~/ui/primitives/textarea";
 import { X } from "lucide-react";
 import { useState } from "react";
-import { useCreateGoodsReceipt, useUpdateGoodsReceipt } from "~/lib/hooks/use-api-data";
+import { goodsReceiptService } from "./actions";
 import type { GoodsReceiptNote, Supplier, Warehouse } from "~/lib/types";
 
 interface GrnFormItem {
@@ -59,9 +59,7 @@ export function GoodsReceiptDialog({
   const t = useTranslations("goodsReceipts");
   const tc = useTranslations("common");
 
-  const { trigger: createTrigger, isMutating: creating } = useCreateGoodsReceipt();
-  const { trigger: updateTrigger, isMutating: updating } = useUpdateGoodsReceipt();
-  const saving = mode === "create" ? creating : updating;
+  const [saving, setSaving] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const [supplier, setSupplier] = useState(
@@ -117,9 +115,10 @@ export function GoodsReceiptDialog({
 
     if (filteredItems.length === 0) return;
 
+    setSaving(true);
     try {
       if (mode === "create") {
-        await createTrigger({
+        const res = await goodsReceiptService.create({
           supplier: parseInt(supplier, 10),
           warehouse: parseInt(warehouse, 10),
           receipt_date: date,
@@ -127,19 +126,18 @@ export function GoodsReceiptDialog({
           notes,
           items: filteredItems,
         });
+        if (res.error) throw new Error(res.error.message);
         toast.success(t("createGrn"));
       } else if (receipt) {
-        await updateTrigger({
-          id: receipt.id,
-          data: {
-            supplier: parseInt(supplier, 10),
-            warehouse: parseInt(warehouse, 10),
-            receipt_date: date,
-            reference_number: ref,
-            notes,
-            items: filteredItems,
-          },
+        const res = await goodsReceiptService.update(receipt.id, {
+          supplier: parseInt(supplier, 10),
+          warehouse: parseInt(warehouse, 10),
+          receipt_date: date,
+          reference_number: ref,
+          notes,
+          items: filteredItems,
         });
+        if (res.error) throw new Error(res.error.message);
         toast.success(t("grnUpdated"));
       }
       resetAndClose();
@@ -148,6 +146,8 @@ export function GoodsReceiptDialog({
       toast.error(tc("error"), {
         description: err instanceof Error ? err.message : tc("error"),
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -297,7 +297,7 @@ export function GoodsReceiptDialog({
             disabled={saving || !supplier || !warehouse}
             type="button"
           >
-            {mode === "create" ? tc("create") : tc("save")}
+            {saving ? tc("saving") : mode === "create" ? tc("create") : tc("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

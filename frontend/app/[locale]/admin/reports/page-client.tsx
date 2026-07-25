@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { BarChart3 } from "lucide-react";
 import { AdminPageHeader } from "../components";
 import { useApiGet } from "~/lib/hooks/use-api";
-import { reportApi } from "~/lib/api/admin-api";
+import { reportService } from "./actions";
 import type { SalesReport, RevenueReport } from "~/lib/types";
 import { StatsGridSkeleton } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
@@ -45,22 +45,22 @@ export function ReportsClient() {
 
   const { data: sales, error: salesErr, isLoading: salesLoading } = useApiGet<SalesReport>(
     `/reports/sales?${filterKey}`,
-    () => reportApi.sales(appliedFilter.from || undefined, appliedFilter.to || undefined)
+    () => reportService.sales(appliedFilter.from || undefined, appliedFilter.to || undefined)
   );
 
   const { data: revenue, error: revErr, isLoading: revLoading } = useApiGet<RevenueReport>(
     `/reports/revenue?${filterKey}`,
-    () => reportApi.revenue(appliedFilter.from || undefined, appliedFilter.to || undefined)
+    () => reportService.revenue(appliedFilter.from || undefined, appliedFilter.to || undefined)
   );
 
   const { data: inventoryValue, error: invErr, isLoading: invLoading } = useApiGet<{ total_value: string; item_count: number }>(
     "/reports/inventory-value",
-    () => reportApi.inventoryValue()
+    () => reportService.inventoryValue()
   );
 
   const { data: dailySales, error: dailyErr, isLoading: dailyLoading } = useApiGet<{ daily: { date: string; revenue: number; orders: number }[] }>(
     "/reports/daily-sales",
-    () => reportApi.dailySales()
+    () => reportService.dailySales()
   );
 
   const loading = salesLoading || revLoading || invLoading || dailyLoading;

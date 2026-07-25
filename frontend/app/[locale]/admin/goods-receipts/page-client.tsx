@@ -7,9 +7,9 @@ import { Button } from "~/ui/primitives/button";
 import { ClipboardList, Plus } from "lucide-react";
 import { AdminPageHeader, ConfirmDialog } from "../components";
 import {
-  useGoodsReceipts, useDeleteGoodsReceipt,
-  useSuppliers, useWarehouses,
+  useGoodsReceipts, useSuppliers, useWarehouses,
 } from "~/lib/hooks/use-api-data";
+import { goodsReceiptService } from "./actions";
 import { useCurrentUser } from "~/lib/auth-client";
 import type { GoodsReceiptNote } from "~/lib/types";
 import { ErrorAlert } from "~/ui/components/error-alert";
@@ -23,7 +23,6 @@ export function GoodsReceiptsClient() {
   const { data: grData, error: grError, isLoading: grLoading, mutate: grMutate } = useGoodsReceipts();
   const { data: supData } = useSuppliers();
   const { data: whData } = useWarehouses();
-  const { trigger: deleteGrn, isMutating: deleting } = useDeleteGoodsReceipt();
 
   const receipts = grData?.results || [];
   const suppliers = supData?.results || [];
@@ -32,6 +31,7 @@ export function GoodsReceiptsClient() {
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
 
+  const [deleting, setDeleting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [editingReceipt, setEditingReceipt] = useState<GoodsReceiptNote | null>(null);
@@ -42,8 +42,10 @@ export function GoodsReceiptsClient() {
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
+    setDeleting(true);
     try {
-      await deleteGrn(deleteConfirmId);
+      const res = await goodsReceiptService.remove(deleteConfirmId);
+      if (res.error) throw new Error(res.error.message);
       toast.success(t("grnDeleted"));
       setDeleteConfirmId(null);
       grMutate();
@@ -51,6 +53,8 @@ export function GoodsReceiptsClient() {
       toast.error(t("deleteError"), {
         description: err instanceof Error ? err.message : "",
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
