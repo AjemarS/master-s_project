@@ -98,11 +98,11 @@ export function DataTable<T>({
           {data.length === 0 ? (
             <EmptyState icon={emptyIcon} message={emptyMessage} colSpan={colSpan ?? columns.length} />
           ) : (
-            data.map((row) => {
+            data.map((row, index) => {
               const id = keyExtractor(row);
               const isExpanded = expandedId === id;
               return (
-                <Fragment key={id}>
+                <Fragment key={`${id}-${index}`}>
                   <TableRow
                     className={onToggleExpand ? "cursor-pointer" : undefined}
                     onClick={onToggleExpand ? () => onToggleExpand(id) : undefined}

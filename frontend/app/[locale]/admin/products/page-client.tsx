@@ -4,9 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "~/ui/primitives/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "~/ui/primitives/dialog";
-import { Input } from "~/ui/primitives/input";
-import { Label } from "~/ui/primitives/label";
 import {
   Package,
   Plus,
@@ -19,7 +16,7 @@ import { useDebounce } from "~/lib/hooks/use-debounce";
 import { useRecentProducts } from "~/lib/hooks/use-recent-products";
 import { useCurrentUser } from "~/lib/auth-client";
 import { ProductFormDialog } from "./product-form-dialog";
-import { productApi } from "~/lib/api/admin-api";
+import { StockAdjustDialog } from "./stock-adjust-dialog";
 import { useProducts, useCategories, useDeleteProduct } from "~/lib/hooks/use-api-data";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
@@ -29,7 +26,7 @@ import { ProductTable } from "./product-table";
 
 const PAGE_SIZE = 20;
 
-export default function AdminProductsClient({
+export function AdminProductsClient({
   initialProducts,
   initialTotalCount,
 }: {
@@ -62,10 +59,9 @@ export default function AdminProductsClient({
   const [formDialogProduct, setFormDialogProduct] = useState<Product | null>(null);
   const [formDialogKey, setFormDialogKey] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [stockDialog, setStockDialog] = useState<{ open: boolean; product: Product | null }>({ open: false, product: null });
-  const [stockDelta, setStockDelta] = useState("");
-  const [stockAdjusting, setStockAdjusting] = useState(false);
-  const [stockConfirmStep, setStockConfirmStep] = useState(false);
+  const [stockDialogProduct, setStockDialogProduct] = useState<Product | null>(null);
+  const [stockDialogOpen, setStockDialogOpen] = useState(false);
+  const [stockDialogKey, setStockDialogKey] = useState(0);
   const t = useTranslations("products");
   const tc = useTranslations("common");
 
@@ -137,40 +133,11 @@ export default function AdminProductsClient({
   };
 
   const handleStockClick = (product: Product) => {
-    setStockDialog({ open: true, product });
-    setStockDelta("");
-    setStockConfirmStep(false);
+    setStockDialogProduct(product);
+    setStockDialogOpen(true);
+    setStockDialogKey(k => k + 1);
   };
 
-  const handleStockConfirm = () => {
-    const product = stockDialog.product;
-    if (!product) return;
-    const delta = parseInt(stockDelta, 10);
-    if (isNaN(delta) || delta === 0) {
-      toast.error("Enter a valid quantity change");
-      return;
-    }
-    setStockConfirmStep(true);
-  };
-
-  const handleStockExecute = async () => {
-    const product = stockDialog.product;
-    if (!product) return;
-    const delta = parseInt(stockDelta, 10);
-    if (isNaN(delta) || delta === 0) return;
-    setStockAdjusting(true);
-    try {
-      await productApi.updateStock(product.id, delta);
-      toast.success("Stock updated", { description: `${product.name}: ${product.stock} → ${product.stock + delta}` });
-      setStockDialog({ open: false, product: null });
-      setStockConfirmStep(false);
-      mutate();
-    } catch (err) {
-      toast.error("Failed to update stock", { description: err instanceof Error ? err.message : "Error" });
-    } finally {
-      setStockAdjusting(false);
-    }
-  };
 
   const handleEditClick = (product: Product) => {
     setFormDialogMode("edit");
@@ -354,72 +321,13 @@ export default function AdminProductsClient({
           loading={deleting}
         />
 
-        <Dialog open={stockDialog.open} onOpenChange={(o) => { setStockDialog({ ...stockDialog, open: o }); if (!o) setStockConfirmStep(false); }}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>
-                {stockConfirmStep ? t("confirmTitle", { name: stockDialog.product?.name ?? "" }) : `${t("stock")} — ${stockDialog.product?.name}`}
-              </DialogTitle>
-              <DialogDescription>
-                {stockConfirmStep
-                  ? t("confirmDesc")
-                  : `${t("stock")}: ${t("units", { count: stockDialog.product?.stock ?? 0 })}`}
-              </DialogDescription>
-            </DialogHeader>
-            {stockConfirmStep ? (
-              <div className="py-4 space-y-4">
-                <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("currentStock")}</span>
-                    <span className="font-medium">{stockDialog.product?.stock ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("adjustment")}</span>
-                    <span className={`font-medium ${parseInt(stockDelta, 10) > 0 ? "text-primary" : "text-destructive"}`}>
-                      {parseInt(stockDelta, 10) > 0 ? "+" : ""}{stockDelta}
-                    </span>
-                  </div>
-                  <div className="border-t pt-2 flex justify-between text-sm font-semibold">
-                    <span>{t("newStock")}</span>
-                    <span>{(stockDialog.product?.stock ?? 0) + parseInt(stockDelta, 10)}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{t("confirmPrompt")}</p>
-              </div>
-            ) : (
-              <div className="py-4 space-y-3">
-                <Label htmlFor="stock-delta">{t("stock")}</Label>
-                <Input
-                  id="stock-delta"
-                  onChange={(e) => setStockDelta(e.target.value)}
-                  placeholder={t("stockPlaceholder")}
-                  type="number"
-                  value={stockDelta}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t("stockHint")}
-                </p>
-              </div>
-            )}
-            <DialogFooter>
-              {stockConfirmStep ? (
-                <>
-                  <Button variant="outline" onClick={() => setStockConfirmStep(false)} type="button">{t("back")}</Button>
-                  <Button onClick={handleStockExecute} disabled={stockAdjusting} type="button">
-                    {stockAdjusting ? tc("loading") : tc("confirm")}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={() => { setStockDialog({ open: false, product: null }); setStockConfirmStep(false); }} type="button">{tc("cancel")}</Button>
-                  <Button onClick={handleStockConfirm} disabled={!stockDelta} type="button">
-                    {t("continue")}
-                  </Button>
-                </>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <StockAdjustDialog
+          key={stockDialogKey}
+          open={stockDialogOpen}
+          onOpenChange={setStockDialogOpen}
+          product={stockDialogProduct}
+          onSuccess={() => mutate()}
+        />
 
         <ProductFormDialog
           key={formDialogKey}

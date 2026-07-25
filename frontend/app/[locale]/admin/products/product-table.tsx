@@ -188,7 +188,7 @@ export function ProductTable({
                     <div className="font-medium text-muted-foreground">{t("features")}:</div>
                     <div className="flex flex-wrap gap-1">
                       {product.features.map((f, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">{f}</Badge>
+                        <Badge key={`feature-${i}`} variant="outline" className="text-xs">{f}</Badge>
                       ))}
                     </div>
                   </>

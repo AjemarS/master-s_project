@@ -527,6 +527,7 @@
     "parent": "Parent Category",
     "noParent": "— None —",
     "noCategories": "No categories",
+    "nameRequired": "Name is required",
     "products": "Products",
     "nameUa": "Name (UA)",
     "nameEn": "Name (EN)",

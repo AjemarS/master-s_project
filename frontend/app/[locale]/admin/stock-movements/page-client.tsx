@@ -1,32 +1,17 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { useState, useEffect, useMemo, useRef, startTransition } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
-import { Badge } from "~/ui/primitives/badge";
-import { Label } from "~/ui/primitives/label";
-import { Input } from "~/ui/primitives/input";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "~/ui/primitives/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
-import { ArrowRightLeft, Filter, X, Pencil, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowRightLeft, Filter, X, Pencil } from "lucide-react";
 import { AdminPageHeader } from "../components";
-import { useStockMovements, useAdjustStock, useWarehouses } from "~/lib/hooks/use-api-data";
-import { stockApi, productApi } from "~/lib/api/admin-api";
-import type { Product } from "~/lib/types";
+import { useStockMovements, useWarehouses } from "~/lib/hooks/use-api-data";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "~/ui/primitives/table";
-import { TableSkeleton, EmptyState } from "../components";
+import { StockMovementFilters } from "./stock-movement-filters";
+import { StockMovementTable } from "./stock-movement-table";
+import { StockAdjustDialog } from "./stock-adjust-dialog";
 
 export function StockMovementsClient() {
   const tSM = useTranslations("stockMovements");
@@ -60,123 +45,6 @@ export function StockMovementsClient() {
   const [filterDateTo, setFilterDateTo] = useState("");
 
   const [adjustOpen, setAdjustOpen] = useState(false);
-  const [adjustProductId, setAdjustProductId] = useState("");
-  const [adjustWarehouseId, setAdjustWarehouseId] = useState("");
-  const [adjustNewQty, setAdjustNewQty] = useState("");
-  const [adjustReason, setAdjustReason] = useState("");
-  const [adjustError, setAdjustError] = useState("");
-
-  const [stockData, setStockData] = useState<{
-    productId: number; warehouseId: number;
-    quantity: number; reserved: number; available: number;
-  } | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [productSearch, setProductSearch] = useState("");
-  const [productResults, setProductResults] = useState<Product[]>([]);
-  const [searching, setSearching] = useState(false);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [stockedWarehouses, setStockedWarehouses] = useState<Set<number> | null>(null);
-  const stockedLoading = !!adjustProductId && stockedWarehouses === null;
-
-  useEffect(() => {
-    if (productSearch.length < 2) {
-      startTransition(() => setProductResults([]));
-      return;
-    }
-
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    let cancelled = false;
-    searchTimeoutRef.current = setTimeout(async () => {
-      const idMatch = productSearch.match(/^#(\d+)$/);
-      if (idMatch) {
-        const id = parseInt(idMatch[1], 10);
-        startTransition(() => setSearching(true));
-        try {
-          const res = await productApi.getById(id);
-          if (cancelled) return;
-          startTransition(() => setProductResults(res.data ? [res.data] : []));
-        } catch {
-          if (!cancelled) startTransition(() => setProductResults([]));
-        }
-        if (!cancelled) setSearching(false);
-        return;
-      }
-
-      startTransition(() => setSearching(true));
-      startTransition(() => setProductResults([]));
-      try {
-        const res = await productApi.getAll({ search: productSearch, pageSize: 10 });
-        if (cancelled) return;
-        if (!res.error && res.data?.results) {
-          const results = res.data.results;
-          startTransition(() => setProductResults(results));
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setSearching(false);
-    }, 150);
-    return () => {
-      cancelled = true;
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    };
-  }, [productSearch]);
-
-  // Fetch which warehouses stock the selected product
-  useEffect(() => {
-    const pid = adjustProductId ? parseInt(adjustProductId, 10) : NaN;
-    if (isNaN(pid)) {
-      return;
-    }
-    startTransition(() => setStockedWarehouses(null));
-    let cancelled = false;
-    stockApi.getAll({ product_id: pid })
-      .then(res => {
-        if (cancelled) return;
-        if (res.error) { setStockedWarehouses(new Set()); return; }
-        const warehouseIds = new Set<number>(res.data?.map(s => s.warehouse) ?? []);
-        setStockedWarehouses(warehouseIds);
-        const currentWid = parseInt(adjustWarehouseId, 10);
-        if (!isNaN(currentWid) && warehouseIds.size > 0 && !warehouseIds.has(currentWid)) {
-          setAdjustWarehouseId("");
-        }
-      })
-      .catch(() => { if (!cancelled) setStockedWarehouses(new Set()); });
-    return () => { cancelled = true; };
-  }, [adjustProductId]);
-
-  // Derive loading from ID mismatch — avoids synchronous setState in effect body
-  const pid = parseInt(adjustProductId, 10);
-  const wid = parseInt(adjustWarehouseId, 10);
-  const hasValidIds = !isNaN(pid) && !isNaN(wid);
-  const stockLoading = hasValidIds && (
-    stockData === null ||
-    stockData.productId !== pid ||
-    stockData.warehouseId !== wid
-  );
-
-  useEffect(() => {
-    const currentPid = parseInt(adjustProductId, 10);
-    const currentWid = parseInt(adjustWarehouseId, 10);
-    if (isNaN(currentPid) || isNaN(currentWid)) return;
-    let cancelled = false;
-    stockApi.getAll({ product_id: currentPid, warehouse_id: currentWid })
-      .then(res => {
-        if (cancelled) return;
-        if (res.error) return;
-        const stocks = res.data || [];
-        const match = stocks.find(s => s.product_id === currentPid && s.warehouse === currentWid);
-        const qty = match ? match.quantity : 0;
-        setStockData({
-          productId: currentPid,
-          warehouseId: currentWid,
-          ...match
-            ? { quantity: qty, reserved: match.reserved, available: match.available }
-            : { quantity: 0, reserved: 0, available: 0 },
-        });
-        setAdjustNewQty(String(qty));
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [adjustProductId, adjustWarehouseId]);
 
   const params: Record<string, string | number | undefined> = { page };
   if (filterType) params.type = filterType;
@@ -188,64 +56,23 @@ export function StockMovementsClient() {
 
   const { data: movementsData, error: movementsError, isLoading: movementsLoading, mutate: movementsMutate } = useStockMovements(params);
   const { data: warehousesData } = useWarehouses();
-  const { trigger: adjustStock, isMutating: adjustSubmitting } = useAdjustStock();
 
   const movements = useMemo(() => movementsData?.results || [], [movementsData?.results]);
   const warehouses = useMemo(() => warehousesData?.results || [], [warehousesData?.results]);
   const totalCount = movementsData?.count || 0;
 
-  const warehouseName = useMemo(() => {
-    const wid = parseInt(adjustWarehouseId, 10);
-    const wh = warehouses?.find(w => w.id === wid);
-    return wh?.name || null;
-  }, [adjustWarehouseId, warehouses]);
+  const dateRangeError = !!(filterDateFrom && filterDateTo && filterDateFrom > filterDateTo);
 
-  const dateRangeError = filterDateFrom && filterDateTo && filterDateFrom > filterDateTo;
+  const handleApplyFilters = () => setPage(1);
 
-  const newQtyNum = parseInt(adjustNewQty, 10);
-  const available = stockData?.available ?? 0;
-  const diff = !isNaN(newQtyNum) ? newQtyNum - available : 0;
-  const diffPercent = available > 0 ? (Math.abs(diff) / available) * 100 : 0;
-
-  const handleContinue = () => {
-    const productId = parseInt(adjustProductId, 10);
-    const warehouseId = parseInt(adjustWarehouseId, 10);
-    const newQty = parseInt(adjustNewQty, 10);
-    if (isNaN(productId) || isNaN(warehouseId) || isNaN(newQty) || newQty < 0) {
-      setAdjustError(tSM("adjustStockError"));
-      return;
-    }
-    setAdjustError("");
-    setShowConfirm(true);
-  };
-
-  const handleAdjust = async () => {
-    const productId = parseInt(adjustProductId, 10);
-    const warehouseId = parseInt(adjustWarehouseId, 10);
-    const newQty = parseInt(adjustNewQty, 10);
-    if (isNaN(productId) || isNaN(warehouseId) || isNaN(newQty) || newQty < 0) {
-      setAdjustError(tSM("adjustStockError"));
-      return;
-    }
-    setAdjustError("");
-    try {
-      await adjustStock({
-        product_id: productId,
-        warehouse_id: warehouseId,
-        new_quantity: newQty,
-        reason: adjustReason,
-      });
-      setAdjustOpen(false);
-      setAdjustProductId("");
-      setAdjustWarehouseId("");
-      setAdjustNewQty("");
-      setAdjustReason("");
-      setShowConfirm(false);
-      setStockData(null);
-      movementsMutate();
-    } catch (err) {
-      setAdjustError(err instanceof Error ? err.message : tSM("adjustStockError"));
-    }
+  const handleResetFilters = () => {
+    setFilterType("");
+    setFilterProductId("");
+    setFilterFromWarehouse("");
+    setFilterToWarehouse("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setPage(1);
   };
 
   return (
@@ -257,172 +84,9 @@ export function StockMovementsClient() {
           icon={ArrowRightLeft}
           backLabel={tCommon("back")}
           actions={
-            <Dialog open={adjustOpen} onOpenChange={(open) => {
-              setAdjustOpen(open);
-              if (!open) {
-                setShowConfirm(false);
-                setStockData(null);
-                setAdjustError("");
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <Pencil className="h-4 w-4" /> {tSM("adjustStockTitle")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{showConfirm ? tSM("confirmAdjustTitle") : tSM("adjustStockTitle")}</DialogTitle>
-                  <DialogDescription>{showConfirm ? tSM("adjustStockDesc") : tSM("adjustStockDesc")}</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <ErrorAlert message={adjustError} className="mb-0" />
-                  <div className="grid gap-2">
-                    <Label htmlFor="adjust-product">{tSM("adjustStockProductPlaceholder")}</Label>
-                    <div className="relative">
-                      <Input
-                        id="adjust-product"
-                        placeholder={tCommon("searchProducts")}
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
-                        disabled={showConfirm}
-                      />
-                      {searching && (
-                        <div className="absolute right-3 top-2.5">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      )}
-                      {productSearch.length >= 2 && productResults.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-background dark:bg-card border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                          {productResults.map(p => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm"
-                              onClick={() => {
-                                setProductSearch(`${p.name} (#${p.id})`);
-                                setAdjustProductId(String(p.id));
-                                setProductResults([]);
-                              }}
-                            >
-                              <span className="font-medium">{p.name}</span>
-                              <span className="text-muted-foreground ml-2">#{p.id}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="adjust-warehouse">{tSM("adjustStockWarehouse")}</Label>
-                    <Select value={adjustWarehouseId} onValueChange={setAdjustWarehouseId} disabled={showConfirm}>
-                      <SelectTrigger id="adjust-warehouse">
-                        <SelectValue placeholder={stockedLoading ? "Loading…" : tSM("adjustStockWarehouse")} />
-                        {stockedLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(stockedWarehouses && stockedWarehouses.size > 0
-                          ? warehouses.filter(w => stockedWarehouses.has(w.id))
-                          : warehouses
-                        ).map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {adjustProductId && adjustWarehouseId && (
-                    <div className="grid gap-2">
-                      <Label>{tSM("currentQty")}</Label>
-                      <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30 min-h-[40px] text-sm">
-                        {stockLoading ? (
-                          <span className="flex items-center gap-2 text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            {tCommon("loading")}
-                          </span>
-                        ) : stockData ? (
-                          <span>
-                            <span className="font-semibold">{stockData.available}</span>
-                            <span className="text-muted-foreground text-xs ml-1">
-                              ({stockData.quantity} — {stockData.reserved} = {stockData.available})
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <div className="grid gap-2">
-                    <Label htmlFor="adjust-qty">{tSM("adjustStockNewQty")}</Label>
-                    <Input id="adjust-qty" type="number" min="0" placeholder="0" value={adjustNewQty} onChange={(e) => setAdjustNewQty(e.target.value)} disabled={showConfirm} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="adjust-reason">{tSM("adjustStockReason")}</Label>
-                    <Input id="adjust-reason" placeholder={tSM("adjustStockReasonPlaceholder")} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} disabled={showConfirm} />
-                  </div>
-
-                  {showConfirm && (
-                    <div className="space-y-3 border rounded-lg p-4 bg-muted/50">
-                      <h4 className="font-semibold text-sm">{tSM("confirmAdjustTitle")}</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <span className="text-muted-foreground">{tSM("adjustStockProductPlaceholder")}:</span>
-                        <span className="font-medium">#{parseInt(adjustProductId, 10)}</span>
-                        <span className="text-muted-foreground">{tSM("adjustStockWarehouse")}:</span>
-                        <span className="font-medium">{warehouseName || adjustWarehouseId}</span>
-                        <span className="text-muted-foreground">{tSM("currentQty")}:</span>
-                        <span className="font-medium">
-                          {stockLoading ? (
-                            <span className="text-muted-foreground">...</span>
-                          ) : stockData ? (
-                            <span>
-                              {stockData.available}
-                              <span className="text-muted-foreground text-xs ml-1">
-                                ({stockData.quantity} - {stockData.reserved} = {stockData.available})
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">{tSM("stockFetchError")}</span>
-                          )}
-                        </span>
-                        <span className="text-muted-foreground">{tSM("newQty")}:</span>
-                        <span className="font-medium">{adjustNewQty}</span>
-                        <span className="text-muted-foreground">{tSM("difference")}:</span>
-                        <span className={`font-medium ${diff > 0 ? "text-primary" : diff < 0 ? "text-destructive" : ""}`}>
-                          {diff > 0 ? "+" : ""}{diff}
-                        </span>
-                      </div>
-                      {newQtyNum === 0 && (
-                        <div className="text-accent-electric text-sm flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>{tSM("writeOffWarning")}</span>
-                        </div>
-                      )}
-                      {stockData && diffPercent > 20 && (
-                        <div className="text-accent-electric text-sm flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>{tSM("largeAdjustWarning")}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <DialogFooter className="sm:justify-between">
-                  {showConfirm ? (
-                    <>
-                      <Button variant="outline" onClick={() => setShowConfirm(false)}>{tSM("back")}</Button>
-                      <Button onClick={handleAdjust} disabled={adjustSubmitting}>
-                        {adjustSubmitting ? tSM("adjustStockSubmitting") : tSM("confirmAdjust")}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="outline" onClick={() => setAdjustOpen(false)}>{tCommon("cancel")}</Button>
-                      <Button onClick={handleContinue} disabled={!adjustProductId || !adjustWarehouseId || !adjustNewQty || stockLoading}>
-                        {tSM("continue")}
-                      </Button>
-                    </>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button className="flex items-center gap-2" onClick={() => setAdjustOpen(true)}>
+              <Pencil className="h-4 w-4" /> {tSM("adjustStockTitle")}
+            </Button>
           }
         />
 
@@ -444,104 +108,33 @@ export function StockMovementsClient() {
             </div>
           </CardHeader>
           <CardContent>
-            {showFilters && (
-              <div className="mb-6 p-4 border rounded-lg bg-muted/50 dark:border-border">
-                <div className="flex flex-wrap items-end gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">{tSM("type")}</Label>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-44"><SelectValue placeholder={tSM("allTypes")} /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(MOVEMENT_TYPES).map(([val, info]) => <SelectItem key={val} value={val}>{info.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">{tSM("productId")}</Label>
-                    <Input type="number" placeholder="ID" value={filterProductId} onChange={(e) => setFilterProductId(e.target.value)} className="w-28" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">{tSM("from")}</Label>
-                    <Select value={filterFromWarehouse} onValueChange={setFilterFromWarehouse}>
-                      <SelectTrigger className="w-44"><SelectValue placeholder={tSM("all")} /></SelectTrigger>
-                      <SelectContent>
-                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground">{tSM("to")}</Label>
-                    <Select value={filterToWarehouse} onValueChange={setFilterToWarehouse}>
-                      <SelectTrigger className="w-44"><SelectValue placeholder={tSM("all")} /></SelectTrigger>
-                      <SelectContent>
-                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-end gap-4">
-                      <div className="flex flex-col gap-1.5">
-                        <Label className="text-xs text-muted-foreground">{tCommon("dateFrom")}</Label>
-                        <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)}
-                          className={`w-40 ${dateRangeError ? "border-red-500" : ""}`} />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <Label className="text-xs text-muted-foreground">{tCommon("dateTo")}</Label>
-                        <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)}
-                          className={`w-40 ${dateRangeError ? "border-red-500" : ""}`} />
-                      </div>
-                    </div>
-                    {dateRangeError && <p className="text-xs text-red-500">Date from cannot be after date to</p>}
-                  </div>
-                  <Button size="sm" onClick={() => setPage(1)}>{tCommon("apply")}</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setFilterType(""); setFilterProductId(""); setFilterFromWarehouse(""); setFilterToWarehouse(""); setFilterDateFrom(""); setFilterDateTo(""); setPage(1); }}>
-                    {tCommon("reset")}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <StockMovementFilters
+              showFilters={showFilters}
+              filterType={filterType}
+              filterProductId={filterProductId}
+              filterFromWarehouse={filterFromWarehouse}
+              filterToWarehouse={filterToWarehouse}
+              filterDateFrom={filterDateFrom}
+              filterDateTo={filterDateTo}
+              warehouses={warehouses}
+              movementTypes={MOVEMENT_TYPES}
+              dateRangeError={dateRangeError}
+              onFilterTypeChange={setFilterType}
+              onFilterProductIdChange={setFilterProductId}
+              onFilterFromWarehouseChange={setFilterFromWarehouse}
+              onFilterToWarehouseChange={setFilterToWarehouse}
+              onFilterDateFromChange={setFilterDateFrom}
+              onFilterDateToChange={setFilterDateTo}
+              onApply={handleApplyFilters}
+              onReset={handleResetFilters}
+            />
 
-            {movementsLoading ? (
-              <TableSkeleton rows={8} cols={8} />
-            ) : (
-              <div className="border rounded-lg dark:border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 border-b dark:border-border">
-                      <TableHead>{tSM("id")}</TableHead>
-                      <TableHead>{tSM("type")}</TableHead>
-                      <TableHead>{tSM("productId")}</TableHead>
-                      <TableHead>{tSM("from")}</TableHead>
-                      <TableHead>{tSM("to")}</TableHead>
-                      <TableHead>{tSM("quantity")}</TableHead>
-                      <TableHead>{tSM("date")}</TableHead>
-                      <TableHead>{tSM("user")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {movements.length === 0 ? (
-                      <EmptyState icon={ArrowRightLeft} message={tSM("noMovements")} colSpan={8} />
-                    ) : (
-                      movements.map((m) => {
-                        const typeInfo = MOVEMENT_TYPES[m.type] || { label: m.type, variant: "outline" as const };
-                        return (
-                          <TableRow key={m.id}>
-                            <TableCell className="font-medium">#{m.id}</TableCell>
-                            <TableCell><Badge variant={typeInfo.variant}>{typeInfo.label}</Badge></TableCell>
-                            <TableCell className="font-mono text-sm text-muted-foreground">#{m.product_id}</TableCell>
-                            <TableCell className="text-muted-foreground">{m.from_warehouse_name || "—"}</TableCell>
-                            <TableCell className="text-muted-foreground">{m.to_warehouse_name || "—"}</TableCell>
-                            <TableCell className="font-semibold">{m.quantity}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{formatDate(m.created_at)}</TableCell>
-                            <TableCell className="text-muted-foreground">{m.created_by || "—"}</TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <StockMovementTable
+              movements={movements}
+              isLoading={movementsLoading}
+              movementTypes={MOVEMENT_TYPES}
+              formatDate={formatDate}
+            />
           </CardContent>
         </Card>
 
@@ -550,6 +143,12 @@ export function StockMovementsClient() {
           totalPages={Math.ceil(totalCount / 20)}
           loading={movementsLoading}
           onPageChange={setPage}
+        />
+
+        <StockAdjustDialog
+          open={adjustOpen}
+          onOpenChange={setAdjustOpen}
+          onSuccess={() => movementsMutate()}
         />
       </div>
     </div>

@@ -53,7 +53,7 @@ function FeaturesInput({ features, onChange }: { features: string[]; onChange: (
     <div className="col-span-3">
       <div className="flex flex-wrap gap-1.5 mb-2">
         {features.map((f, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+          <span key={`feature-${f}-${i}`} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
             {f}
             <button type="button" onClick={() => onChange(features.filter((_, j) => j !== i))} className="hover:text-destructive">
               <X className="h-3 w-3" />
@@ -80,7 +80,7 @@ function SpecsEditor({ specs, onChange }: { specs: SpecRow[]; onChange: (s: Spec
   return (
     <div className="col-span-3 space-y-2">
       {specs.map((spec, i) => (
-        <div key={i} className="flex gap-2">
+        <div key={`spec-${i}`} className="flex gap-2">
           <Input placeholder="Key" value={spec.key} onChange={(e) => updateRow(i, "key", e.target.value)} className="flex-1" />
           <Input placeholder="Value" value={spec.value} onChange={(e) => updateRow(i, "value", e.target.value)} className="flex-1" />
           <Button variant="ghost" size="icon" onClick={() => removeRow(i)} className="shrink-0" type="button">

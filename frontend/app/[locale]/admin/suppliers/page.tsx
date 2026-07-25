@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { SWRConfig } from "swr";
 import { cookies } from "next/headers";
 import { SuppliersClient } from "./page-client";
+import AdminSuppliersLoading from "./loading";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 
@@ -26,7 +27,7 @@ export default async function SuppliersPage() {
 
   return (
     <SWRConfig value={{ fallback }}>
-      <Suspense fallback={<div className="p-8 space-y-4"><div className="h-8 w-48 bg-muted animate-pulse rounded" /><div className="h-64 bg-muted animate-pulse rounded" /></div>}>
+      <Suspense fallback={<AdminSuppliersLoading />}>
         <SuppliersClient />
       </Suspense>
     </SWRConfig>
