@@ -69,7 +69,8 @@
     "saveOrder": "Зберегти замовлення",
     "saveOrderDesc": "Введіть email, щоб відстежувати це та всі майбутні замовлення",
     "searchProducts": "Пошук товарів...",
-    "sendCode": "Надіслати код"
+    "sendCode": "Надіслати код",
+    "lastUpdated": "Оновлено: {time}"
   },
   "signUp": {
     "pageTitle": "Реєстрація",

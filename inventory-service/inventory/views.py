@@ -14,9 +14,10 @@ from rest_framework.response import Response
 
 from .eventbus import publish_event, _check_and_publish_low_stock
 from .filters import StockFilter, StockMovementFilter
-from .models import GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
+from .models import ActivityEvent, GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
 from shared_auth.permissions import IsAdminOrWarehouseWorker
 from .serializers import (
+    ActivityEventSerializer,
     AdjustStockSerializer,
     DeductStockSerializer,
     GoodsReceiptNoteCreateSerializer,
@@ -490,6 +491,22 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             instance.delete()
 
         logger.info("GRN deleted | id=%s", instance.pk)
+
+
+class ActivityEventViewSet(viewsets.ModelViewSet):
+    queryset = ActivityEvent.objects.all()[:50]
+    serializer_class = ActivityEventSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    pagination_class = None
+    http_method_names = ["get", "post", "head", "options"]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        user_name = (
+            getattr(user, "name", "") or user.get_full_name() or getattr(user, "email", "")
+        )
+        user_email = getattr(user, "email", "")
+        serializer.save(user_name=user_name, user_email=user_email)
 
 
 @api_view(["GET"])

@@ -12,6 +12,7 @@ import { categoryService } from "./actions";
 import { CategoryDialog } from "./category-dialog";
 import { CategoryTable } from "./category-table";
 import type { Category } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 export function CategoriesClient() {
   const t = useTranslations("categories");
@@ -31,6 +32,7 @@ export function CategoriesClient() {
     name: string;
   }>({ open: false, id: null, name: "" });
   const [deleting, setDeleting] = useState(false);
+  const { pushEvent } = useActivityFeed();
 
   const openCreate = () => {
     setDialogMode("create");
@@ -55,6 +57,7 @@ export function CategoriesClient() {
         toast.error(tc("error"), { description: res.error.message });
       } else {
         toast.success(tc("delete"));
+        pushEvent({ type: "delete", message: `Deleted category "${deleteDialog.name}"`, entityType: "category" });
         setDeleteDialog({ open: false, id: null, name: "" });
         mutate();
       }

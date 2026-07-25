@@ -19,6 +19,7 @@ import { ErrorAlert } from "~/ui/components/error-alert";
 import { useAdjustStock, useWarehouses } from "~/lib/hooks/use-api-data";
 import { stockMovementService } from "./actions";
 import type { Product } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface StockAdjustDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ interface StockAdjustDialogProps {
 }
 
 export function StockAdjustDialog({ open, onOpenChange, onSuccess }: StockAdjustDialogProps) {
+  const { pushEvent } = useActivityFeed();
   const tSM = useTranslations("stockMovements");
   const tCommon = useTranslations("common");
 
@@ -200,6 +202,7 @@ export function StockAdjustDialog({ open, onOpenChange, onSuccess }: StockAdjust
         new_quantity: parsedNewQty,
         reason,
       });
+      pushEvent({ type: "info", message: `Adjusted stock in stock-movements panel`, entityType: "stock_movement" });
       handleClose();
       onSuccess();
     } catch (err) {

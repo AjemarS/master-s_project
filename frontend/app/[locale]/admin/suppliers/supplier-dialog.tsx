@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle } from "lucide-react";
 import { supplierService } from "./actions";
 import type { Supplier } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface SupplierDialogProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function SupplierDialog({
   const [address, setAddress] = useState(mode === "edit" && supplier ? supplier.address : "");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { pushEvent } = useActivityFeed();
 
   const resetAndClose = () => {
     setFormError(null);
@@ -75,6 +77,7 @@ export function SupplierDialog({
         toast.error(tc("error"), { description: res.error.message });
       } else {
         toast.success(mode === "create" ? t("createDialogTitle") : t("supplierUpdated"));
+        pushEvent({ type: mode === "create" ? "create" : "update", message: `${mode === "create" ? "Created" : "Updated"} supplier "${name.trim()}"`, entityType: "supplier" });
         resetAndClose();
         onSuccess();
       }

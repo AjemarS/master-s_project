@@ -13,6 +13,7 @@ import { supplierService } from "./actions";
 import { SupplierDialog } from "./supplier-dialog";
 import { SupplierTable } from "./supplier-table";
 import type { Supplier } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 export function SuppliersClient() {
   const t = useTranslations("suppliers");
@@ -30,6 +31,7 @@ export function SuppliersClient() {
 
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
+  const { pushEvent } = useActivityFeed();
 
   const openCreate = () => {
     setDialogMode("create");
@@ -54,6 +56,7 @@ export function SuppliersClient() {
         toast.error(tc("error"), { description: res.error.message });
       } else {
         toast.success(t("supplierDeleted"));
+        pushEvent({ type: "delete", message: `Deleted supplier #${deleteConfirmId}`, entityType: "supplier" });
         setDeleteConfirmId(null);
         mutate();
       }

@@ -16,6 +16,7 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { productService } from "./actions";
 import type { Product } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface StockAdjustDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ interface StockAdjustDialogProps {
 }
 
 export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: StockAdjustDialogProps) {
+  const { pushEvent } = useActivityFeed();
   const t = useTranslations("products");
   const tc = useTranslations("common");
 
@@ -61,6 +63,7 @@ export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: St
       toast.success("Stock updated", {
         description: `${product.name}: ${product.stock} → ${product.stock + delta}`,
       });
+      pushEvent({ type: "update", message: `Adjusted stock for "${product.name}": ${product.stock} → ${product.stock + delta}`, entityType: "product" });
       handleClose();
       onSuccess();
     } catch (err) {

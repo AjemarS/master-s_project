@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from .models import (
+    ActivityEvent,
     GoodsReceiptItem,
     GoodsReceiptNote,
     Stock,
@@ -306,3 +307,77 @@ class GoodsReceiptAPITest(APITestCase):
         self.assertEqual(stock1.quantity, 10)
         stock2 = Stock.objects.get(product_id=2, warehouse=self.warehouse)
         self.assertEqual(stock2.quantity, 5)
+
+
+class ActivityEventModelTest(TestCase):
+    def test_string_representation(self):
+        event = ActivityEvent.objects.create(
+            event_type="create",
+            message="Test activity event message",
+            entity_type="product",
+            entity_id="42",
+            user_name="Admin User",
+            user_email="admin@test.com",
+        )
+        expected = f"[create] {event.message[:50]}"
+        self.assertEqual(str(event), expected)
+
+    def test_ordering_most_recent_first(self):
+        ActivityEvent.objects.create(
+            event_type="info", message="First", entity_type="test",
+            user_name="User", user_email="u@test.com",
+        )
+        ActivityEvent.objects.create(
+            event_type="info", message="Second", entity_type="test",
+            user_name="User", user_email="u@test.com",
+        )
+        events = list(ActivityEvent.objects.all())
+        self.assertEqual(events[0].message, "Second")
+        self.assertEqual(events[1].message, "First")
+
+
+class ActivityEventAPITest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.list_url = "/api/activity/events/"
+
+    def test_post_without_auth_returns_401(self):
+        response = self.client.post(
+            self.list_url,
+            {"event_type": "info", "message": "test", "entity_type": "test"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_with_auth_creates_event_with_correct_user(self):
+        user = _create_regular_user()
+        user.name = "Regular User"
+        user.save()
+        self.client.force_authenticate(user=user)
+        response = self.client.post(
+            self.list_url,
+            {"event_type": "create", "message": "Created a product", "entity_type": "product", "entity_id": "99"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(ActivityEvent.objects.count(), 1)
+        event = ActivityEvent.objects.first()
+        self.assertEqual(event.user_name, "Regular User")
+        self.assertEqual(event.user_email, "user@test.com")
+        self.assertEqual(event.event_type, "create")
+        self.assertEqual(event.message, "Created a product")
+
+    def test_get_returns_list_not_paginated(self):
+        ActivityEvent.objects.create(
+            event_type="info", message="Event 1", entity_type="test",
+            user_name="User", user_email="u@test.com",
+        )
+        ActivityEvent.objects.create(
+            event_type="info", message="Event 2", entity_type="test",
+            user_name="User", user_email="u@test.com",
+        )
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Response is a bare list, not a paginated {count, results} object
+        self.assertIsInstance(response.data, list)
+        self.assertEqual(len(response.data), 2)

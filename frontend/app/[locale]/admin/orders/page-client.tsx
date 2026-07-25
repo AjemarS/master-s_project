@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ShoppingCart } from "lucide-react";
-import { AdminPageHeader, ConfirmDialog } from "../components";
+import { RefreshCw, ShoppingCart } from "lucide-react";
+import { Button } from "~/ui/primitives/button";
+import { AdminPageHeader, ConfirmDialog, LastUpdated } from "../components";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
 import { useOrders } from "~/lib/hooks/use-api-data";
 import { orderService } from "./actions";
 import type { Order, OrderDetail } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 import { OrderFilters } from "./order-filters";
 import { OrderTable } from "./order-table";
 
@@ -27,6 +29,8 @@ export function AdminOrdersClient() {
   const [ordering, setOrdering] = useState("-created_at");
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
+  const { pushEvent } = useActivityFeed();
+
   const [pendingStatus, setPendingStatus] = useState<{
     open: boolean;
     orderId: number | null;
@@ -34,17 +38,25 @@ export function AdminOrdersClient() {
     label: string;
   }>({ open: false, orderId: null, status: null, label: "" });
 
-  const { data: pageData, error, isLoading, isValidating, mutate } = useOrders({
-    page: currentPage,
-    status: statusFilter || undefined,
-    channel: channelFilter || undefined,
-    search: searchTerm || undefined,
-    ordering,
-  });
+  const { data: pageData, error, isLoading, isValidating, mutate } = useOrders(
+    {
+      page: currentPage,
+      status: statusFilter || undefined,
+      channel: channelFilter || undefined,
+      search: searchTerm || undefined,
+      ordering,
+    },
+    { refreshInterval: 15000 },
+  );
 
   const orders = pageData?.results || [];
   const totalCount = pageData?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  useEffect(() => {
+    if (pageData) setLastUpdated(new Date());
+  }, [pageData]);
 
   const handleFilterChange = useCallback(
     (setter: (v: string) => void) => (value: string) => {
@@ -88,6 +100,7 @@ export function AdminOrdersClient() {
       toast.success(t("statusUpdated"), {
         description: t("statusChanged", { id: orderId, status: t(newStatus) }),
       });
+      pushEvent({ type: "update", message: `Order #${orderId} status changed to ${newStatus}`, entityType: "order" });
       mutate();
     } catch (err) {
       toast.error(tc("error"), {
@@ -109,6 +122,14 @@ export function AdminOrdersClient() {
         />
 
         <ErrorAlert message={error?.message || null} />
+
+        <div className="mb-4 flex items-center gap-2">
+          <LastUpdated timestamp={lastUpdated} loading={isLoading} />
+          <Button variant="outline" size="sm" onClick={() => mutate()} disabled={isValidating} className="h-7 text-xs">
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
 
         <OrderFilters
           currentStatus={statusFilter}

@@ -213,3 +213,28 @@ class ProcessedEvent(models.Model):
 
     def __str__(self):
         return self.event_id
+
+
+class ActivityEvent(models.Model):
+    EVENT_TYPES = [
+        ("create", "Create"),
+        ("update", "Update"),
+        ("delete", "Delete"),
+        ("info", "Info"),
+    ]
+
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES, verbose_name="Тип події")
+    message = models.TextField(verbose_name="Повідомлення")
+    entity_type = models.CharField(max_length=50, verbose_name="Тип сутності")
+    entity_id = models.CharField(max_length=50, blank=True, default="", verbose_name="ID сутності")
+    user_name = models.CharField(max_length=255, verbose_name="Ім'я користувача")
+    user_email = models.EmailField(verbose_name="Email користувача")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Створено")
+
+    class Meta:
+        verbose_name = "Подія активності"
+        verbose_name_plural = "Події активності"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"[{self.event_type}] {self.message[:50]}"

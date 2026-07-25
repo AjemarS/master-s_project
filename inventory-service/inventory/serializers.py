@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
+    ActivityEvent,
     GoodsReceiptItem,
     GoodsReceiptNote,
     Stock,
@@ -210,3 +211,24 @@ class AdjustStockSerializer(serializers.Serializer):
     def validate_product_id(self, value):
         validate_product_exists(value)
         return value
+
+
+class ActivityEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityEvent
+        fields = [
+            "id",
+            "event_type",
+            "message",
+            "entity_type",
+            "entity_id",
+            "user_name",
+            "user_email",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "user_name",
+            "user_email",
+            "created_at",
+        ]

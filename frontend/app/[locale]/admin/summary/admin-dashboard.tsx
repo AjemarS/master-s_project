@@ -11,6 +11,7 @@ import { useApiGet } from "~/lib/hooks/use-api";
 import { reportApi } from "~/lib/api/admin-api";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { formatCurrency } from "~/lib/utils/format";
+import { LastUpdated } from "../components";
 import {
   Users,
   Package,
@@ -98,20 +99,26 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
     rabbitmq: { status: "loading", label: "RabbitMQ" },
   });
 
-  const { data: lowStockData } = useLowStock(10);
-  const { data: ordersData, isLoading: ordersLoading } = useOrders();
-  const { data: unpaidData, isLoading: unpaidLoading } = useOrders({ status: "unpaid" });
-  const { data: warehousesData, isLoading: warehousesLoading } = useWarehouses();
-  const { data: stockData, isLoading: stockLoading } = useStock();
+  const { data: lowStockData } = useLowStock(10, { refreshInterval: 15000 });
+  const { data: ordersData, isLoading: ordersLoading } = useOrders(undefined, { refreshInterval: 15000 });
+  const { data: unpaidData, isLoading: unpaidLoading } = useOrders({ status: "unpaid" }, { refreshInterval: 15000 });
+  const { data: warehousesData, isLoading: warehousesLoading } = useWarehouses(undefined, { refreshInterval: 15000 });
+  const { data: stockData, isLoading: stockLoading } = useStock(undefined, { refreshInterval: 15000 });
   const { data: revenue, isLoading: revenueLoading } = useApiGet<RevenueReport>("/revenue", () =>
-    reportApi.revenue(),
+    reportApi.revenue(), { refreshInterval: 15000 },
   );
   const { data: dailySalesData, isLoading: dailySalesLoading } = useApiGet<{
     daily: { date: string; revenue: number }[];
-  }>("/daily-sales", () => reportApi.dailySales());
+  }>("/daily-sales", () => reportApi.dailySales(), { refreshInterval: 15000 });
   const { data: salesData, isLoading: salesLoading } = useApiGet<SalesReport>("/sales", () =>
-    reportApi.sales(),
+    reportApi.sales(), { refreshInterval: 15000 },
   );
+
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  useEffect(() => {
+    const hasData = lowStockData || ordersData || unpaidData || warehousesData || stockData || revenue || dailySalesData || salesData;
+    if (hasData) setLastUpdated(new Date());
+  }, [lowStockData, ordersData, unpaidData, warehousesData, stockData, revenue, dailySalesData, salesData]);
 
   const [staleUnpaidCount, setStaleUnpaidCount] = useState(0);
   useEffect(() => {
@@ -251,6 +258,10 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
     <div className="min-h-screen bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <DashboardHeader tSum={tSum} />
+
+        <div className="mb-4">
+          <LastUpdated timestamp={lastUpdated} loading={isLoading} />
+        </div>
 
         <ErrorAlert message={null} />
 

@@ -11,8 +11,10 @@ import { POSProductGrid } from "./pos-product-grid";
 import { POSReceiptPanel } from "./pos-receipt-panel";
 import { POSSaleConfirmDialog } from "./pos-sale-confirm-dialog";
 import { posService, type ReceiptItem } from "./actions";
+import { useActivityFeed } from "../components/activity-feed";
 
 export function POSClient() {
+  const { pushEvent } = useActivityFeed();
   const t = useTranslations("pos");
   const tc = useTranslations("common");
   const [products, setProducts] = useState<Product[]>([]);
@@ -178,6 +180,7 @@ export function POSClient() {
       });
       if (res.error) throw new Error(res.error.message);
       toast.success(t("saleComplete"));
+      pushEvent({ type: "create", message: `POS sale completed${customerName ? ` for ${customerName}` : ""}`, entityType: "order" });
       setReceipt([]);
       setCustomerName("");
       setCustomerPhone("");

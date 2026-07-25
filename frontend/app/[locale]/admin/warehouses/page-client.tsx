@@ -15,6 +15,7 @@ import {
 } from "~/lib/hooks/use-api-data";
 import { useCurrentUser } from "~/lib/auth-client";
 import type { Warehouse } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 import { WarehouseTable } from "./warehouse-table";
 import { WarehouseStatsCards } from "./warehouse-stats-cards";
 import { WarehouseDialog } from "./warehouse-dialog";
@@ -46,6 +47,7 @@ export function WarehousesClient() {
 
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
+  const { pushEvent } = useActivityFeed();
 
   const productNames = useMemo(() => {
     const map = new Map<number, string>();
@@ -78,6 +80,7 @@ export function WarehousesClient() {
     try {
       await deleteWarehouse(deleteConfirmId);
       toast.success(t("warehouseDeleted"));
+      pushEvent({ type: "delete", message: `Deleted warehouse #${deleteConfirmId}`, entityType: "warehouse" });
       setDeleteConfirmId(null);
       revalidate();
     } catch (err) {

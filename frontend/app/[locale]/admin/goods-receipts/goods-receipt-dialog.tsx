@@ -15,6 +15,7 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import { goodsReceiptService } from "./actions";
 import type { GoodsReceiptNote, Supplier, Warehouse } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface GrnFormItem {
   _key: number;
@@ -60,6 +61,7 @@ export function GoodsReceiptDialog({
   const tc = useTranslations("common");
 
   const [saving, setSaving] = useState(false);
+  const { pushEvent } = useActivityFeed();
 
   const today = new Date().toISOString().split("T")[0];
   const [supplier, setSupplier] = useState(
@@ -128,6 +130,7 @@ export function GoodsReceiptDialog({
         });
         if (res.error) throw new Error(res.error.message);
         toast.success(t("createGrn"));
+        pushEvent({ type: "create", message: `Created goods receipt (supplier #${supplier})`, entityType: "goods_receipt" });
       } else if (receipt) {
         const res = await goodsReceiptService.update(receipt.id, {
           supplier: parseInt(supplier, 10),
@@ -139,6 +142,7 @@ export function GoodsReceiptDialog({
         });
         if (res.error) throw new Error(res.error.message);
         toast.success(t("grnUpdated"));
+        pushEvent({ type: "update", message: `Updated goods receipt #${receipt.id}`, entityType: "goods_receipt" });
       }
       resetAndClose();
       onSuccess();

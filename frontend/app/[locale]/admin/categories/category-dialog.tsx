@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle } from "lucide-react";
 import { categoryService } from "./actions";
 import type { Category } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface CategoryDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
   );
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { pushEvent } = useActivityFeed();
 
   const resetAndClose = () => {
     setFormError(null);
@@ -73,6 +75,7 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
         toast.error(tc("error"), { description: res.error.message });
       } else {
         toast.success(mode === "create" ? tc("create") : tc("save"));
+        pushEvent({ type: mode === "create" ? "create" : "update", message: `${mode === "create" ? "Created" : "Updated"} category "${formName.trim()}"`, entityType: "category" });
         resetAndClose();
         onSuccess();
       }

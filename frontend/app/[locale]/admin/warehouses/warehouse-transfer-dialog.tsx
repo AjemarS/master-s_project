@@ -18,6 +18,7 @@ import { Label } from "~/ui/primitives/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
 import { warehouseService } from "./actions";
 import type { Warehouse, Product } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface WarehouseTransferDialogProps {
   open: boolean;
@@ -44,6 +45,7 @@ export function WarehouseTransferDialog({ open, onOpenChange, warehouses, onSucc
   const [stockedWarehouseIds, setStockedWarehouseIds] = useState<Set<number> | null>(null);
   const [availableQuantity, setAvailableQuantity] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const { pushEvent } = useActivityFeed();
 
   const stockedLoading = !!productId && stockedWarehouseIds === null;
 
@@ -155,6 +157,7 @@ export function WarehouseTransferDialog({ open, onOpenChange, warehouses, onSucc
       });
       if (res.error) throw new Error(res.error.message);
       toast.success(t("transferStock"), { description: `#${pid} — ${qty} ${t("qty")}` });
+      pushEvent({ type: "info", message: `Transferred ${qty} units of product #${pid} between warehouses`, entityType: "stock_transfer" });
       onOpenChange(false);
       onSuccess();
     } catch (err) {

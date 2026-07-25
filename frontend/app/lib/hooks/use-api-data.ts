@@ -1,4 +1,5 @@
 import useSWR, { useSWRConfig } from "swr";
+import type { SWRConfiguration } from "swr";
 import { useApiGet, useApiMutation } from "./use-api";
 import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
 import { authClient } from "~/lib/auth-client";
@@ -19,8 +20,8 @@ export function useProduct(id: number) {
   return useApiGet<Product>(`/products/${id}`, () => productApi.getById(id));
 }
 
-export function useLowStock(threshold = 10) {
-  return useApiGet<Product[]>(`/products/low_stock?threshold=${threshold}`, () => productApi.getLowStock(threshold));
+export function useLowStock(threshold = 10, config?: SWRConfiguration<Product[]>) {
+  return useApiGet<Product[]>(`/products/low_stock?threshold=${threshold}`, () => productApi.getLowStock(threshold), config);
 }
 
 export function useCreateProduct() {
@@ -39,7 +40,7 @@ export function useCategories() {
   return useApiGet<{ results: Category[]; count: number }>("/categories", () => categoryApi.getAll());
 }
 
-export function useOrders(params?: { page?: number; status?: string; channel?: string; search?: string; ordering?: string }) {
+export function useOrders(params?: { page?: number; status?: string; channel?: string; search?: string; ordering?: string }, config?: SWRConfiguration<{ results: Order[]; count: number; next: string | null; previous: string | null }>) {
   const q = new URLSearchParams();
   if (params?.page) q.append("page", String(params.page));
   if (params?.status) q.append("status", params.status);
@@ -47,7 +48,7 @@ export function useOrders(params?: { page?: number; status?: string; channel?: s
   if (params?.search) q.append("search", params.search);
   if (params?.ordering) q.append("ordering", params.ordering);
   return useApiGet<{ results: Order[]; count: number; next: string | null; previous: string | null }>(
-    `/orders/?${q}`, () => orderApi.getAll(params)
+    `/orders/?${q}`, () => orderApi.getAll(params), config
   );
 }
 
@@ -62,8 +63,8 @@ export function useUpdateOrderStatus() {
   );
 }
 
-export function useWarehouses() {
-  return useApiGet<{ results: Warehouse[]; count: number }>("/warehouses", () => warehouseApi.getAll());
+export function useWarehouses(params?: undefined, config?: SWRConfiguration<{ results: Warehouse[]; count: number }>) {
+  return useApiGet<{ results: Warehouse[]; count: number }>("/warehouses", () => warehouseApi.getAll(), config);
 }
 
 export function useCreateWarehouse() {
@@ -80,12 +81,12 @@ export function useDeleteWarehouse() {
   return useApiMutation<void, number>("warehouses-delete", (id) => warehouseApi.delete(id));
 }
 
-export function useStock(params?: { warehouse_id?: number; product_id?: number; pageSize?: number }) {
+export function useStock(params?: { warehouse_id?: number; product_id?: number; pageSize?: number }, config?: SWRConfiguration<Stock[]>) {
   const q = new URLSearchParams();
   if (params?.warehouse_id) q.append("warehouse_id", String(params.warehouse_id));
   if (params?.product_id) q.append("product_id", String(params.product_id));
   if (params?.pageSize) q.append("page_size", String(params.pageSize));
-  return useApiGet<Stock[]>(`/stock/?${q}`, () => stockApi.getAll(params));
+  return useApiGet<Stock[]>(`/stock/?${q}`, () => stockApi.getAll(params), config);
 }
 
 export function useSuppliers() {
@@ -139,7 +140,7 @@ export function useAdjustStock() {
   }>("stock-adjust", (d) => stockAdjustApi.adjust(d));
 }
 
-export function useStockMovements(params?: Record<string, string | number | undefined>) {
+export function useStockMovements(params?: Record<string, string | number | undefined>, config?: SWRConfiguration<{ results: StockMovement[]; count: number }>) {
   const q = new URLSearchParams();
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -147,7 +148,7 @@ export function useStockMovements(params?: Record<string, string | number | unde
     }
   }
   return useApiGet<{ results: StockMovement[]; count: number }>(
-    `/stock/movements/?${q}`, () => stockMovementApi.getAll(params as Record<string, string | number | undefined>)
+    `/stock/movements/?${q}`, () => stockMovementApi.getAll(params as Record<string, string | number | undefined>), config
   );
 }
 

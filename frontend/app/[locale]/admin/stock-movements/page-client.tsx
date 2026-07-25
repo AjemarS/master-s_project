@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
-import { ArrowRightLeft, Filter, X, Pencil } from "lucide-react";
-import { AdminPageHeader } from "../components";
+import { ArrowRightLeft, Filter, RefreshCw, X, Pencil } from "lucide-react";
+import { AdminPageHeader, LastUpdated } from "../components";
 import { useStockMovements, useWarehouses } from "~/lib/hooks/use-api-data";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
@@ -54,12 +54,18 @@ export function StockMovementsClient() {
   if (filterDateFrom) params.created_after = filterDateFrom;
   if (filterDateTo) params.created_before = filterDateTo;
 
-  const { data: movementsData, error: movementsError, isLoading: movementsLoading, mutate: movementsMutate } = useStockMovements(params);
+  const { data: movementsData, error: movementsError, isLoading: movementsLoading, mutate: movementsMutate } = useStockMovements(params, { refreshInterval: 15000 });
   const { data: warehousesData } = useWarehouses();
 
   const movements = useMemo(() => movementsData?.results || [], [movementsData?.results]);
   const warehouses = useMemo(() => warehousesData?.results || [], [warehousesData?.results]);
   const totalCount = movementsData?.count || 0;
+
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  useEffect(() => {
+    if (movementsData) setLastUpdated(new Date());
+  }, [movementsData]);
 
   const dateRangeError = !!(filterDateFrom && filterDateTo && filterDateFrom > filterDateTo);
 
@@ -91,6 +97,14 @@ export function StockMovementsClient() {
         />
 
         <ErrorAlert message={movementsError?.message || null} />
+
+        <div className="mb-4 flex items-center gap-2">
+          <LastUpdated timestamp={lastUpdated} loading={movementsLoading} />
+          <Button variant="outline" size="sm" onClick={() => movementsMutate()} disabled={movementsLoading} className="h-7 text-xs">
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Refresh
+          </Button>
+        </div>
 
         <Card className="dark:bg-card dark:border-border">
           <CardHeader>

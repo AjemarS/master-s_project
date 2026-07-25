@@ -63,8 +63,13 @@ export function DataTable<T>({
   return (
     <div className="border rounded-lg dark:border-border relative">
       {isValidating && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/20 dark:bg-primary/10 overflow-hidden rounded-t-lg">
-          <div className="h-full w-1/3 bg-primary animate-pulse rounded-full" />
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border">
+          <div className="flex items-center justify-between px-4 py-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              <span>Updating...</span>
+            </div>
+          </div>
         </div>
       )}
       <Table>

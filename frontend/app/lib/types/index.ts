@@ -216,3 +216,14 @@ export interface RevenueReport {
   margin_percent: number;
   order_count: number;
 }
+
+export interface ActivityEvent {
+  id: number;
+  event_type: "create" | "update" | "delete" | "info";
+  message: string;
+  entity_type: string;
+  entity_id: string;
+  user_name: string;
+  user_email: string;
+  created_at: string;
+}

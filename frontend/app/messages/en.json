@@ -69,7 +69,8 @@
     "saveOrder": "Save your order",
     "saveOrderDesc": "Enter your email to track this order and all future orders",
     "searchProducts": "Search products...",
-    "sendCode": "Send code"
+    "sendCode": "Send code",
+    "lastUpdated": "Last updated: {time}"
   },
   "signUp": {
     "pageTitle": "Sign Up",

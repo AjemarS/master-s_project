@@ -8,6 +8,7 @@ import {
   Package,
   Plus,
   Filter,
+  RefreshCw,
   X,
 } from "lucide-react";
 import type { Product, Category } from "~/lib/types";
@@ -15,6 +16,7 @@ import { ConfirmDialog, StatsGridSkeleton, AdminPageHeader } from "../components
 import { useDebounce } from "~/lib/hooks/use-debounce";
 import { useRecentProducts } from "~/lib/hooks/use-recent-products";
 import { useCurrentUser } from "~/lib/auth-client";
+import { useActivityFeed } from "../components/activity-feed";
 import { ProductFormDialog } from "./product-form-dialog";
 import { StockAdjustDialog } from "./stock-adjust-dialog";
 import { useProducts, useCategories, useDeleteProduct } from "~/lib/hooks/use-api-data";
@@ -67,6 +69,7 @@ export function AdminProductsClient({
 
   const { addProduct: addRecentProduct } = useRecentProducts();
   const { user } = useCurrentUser();
+  const { pushEvent } = useActivityFeed();
   const isAdmin = user?.role === "admin";
 
   const params = {
@@ -114,6 +117,7 @@ export function AdminProductsClient({
       toast.success(t("deleteTitle"), {
         description: deleteDialog.productName,
       });
+      pushEvent({ type: "delete", message: `Deleted product "${deleteDialog.productName}"`, entityType: "product" });
       setDeleteDialog({ open: false, productId: null, productName: "" });
       mutate();
     } catch (err) {
@@ -254,6 +258,13 @@ export function AdminProductsClient({
         />
 
         <ErrorAlert message={error?.message || null} />
+
+        <div className="mb-4 flex items-center justify-end">
+          <Button variant="outline" size="sm" onClick={() => mutate()} disabled={isValidating} className="h-7 text-xs">
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
 
         {isLoading ? (
           <StatsGridSkeleton count={4} />

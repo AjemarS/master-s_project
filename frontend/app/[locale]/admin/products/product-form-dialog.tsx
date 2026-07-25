@@ -22,6 +22,7 @@ import { AlertCircle, ChevronDown, ChevronRight, Plus, X, Upload } from "lucide-
 import { productApi, categoryApi } from "~/lib/api/admin-api";
 import { API_URL } from "~/lib/api/client";
 import type { Product, Category } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface SpecRow {
   key: string;
@@ -224,6 +225,7 @@ export function ProductFormDialog({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const { pushEvent } = useActivityFeed();
 
   const resetForm = () => {
     if (mode === "create") {
@@ -333,6 +335,7 @@ export function ProductFormDialog({
         toast.success(mode === "create" ? "Product created" : "Product updated", {
           description: `${name.trim()} has been ${mode === "create" ? "created" : "updated"}.`,
         });
+        pushEvent({ type: mode === "create" ? "create" : "update", message: `${mode === "create" ? "Created" : "Updated"} product "${name.trim()}"`, entityType: "product" });
         handleOpenChange(false);
         onSuccess();
       }

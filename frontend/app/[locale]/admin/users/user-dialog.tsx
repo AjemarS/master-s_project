@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { adminService } from "./actions";
 import type { UserWithRole } from "better-auth/plugins/admin";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface UserDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ interface UserDialogProps {
 }
 
 export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDialogProps) {
+  const { pushEvent } = useActivityFeed();
   const [email, setEmail] = useState(mode === "edit" && user ? user.email ?? "" : "");
   const [name, setName] = useState(mode === "edit" && user ? user.name ?? "" : "");
   const [password, setPassword] = useState("");
@@ -86,6 +88,7 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
         toast.success(mode === "create" ? "User created" : "User updated", {
           description: `${name.trim()} has been ${mode === "create" ? "created" : "updated"}.`,
         });
+        pushEvent({ type: mode === "create" ? "create" : "update", message: `${mode === "create" ? "Created" : "Updated"} user "${name.trim()}"`, entityType: "user" });
         resetAndClose();
         onSuccess();
       }

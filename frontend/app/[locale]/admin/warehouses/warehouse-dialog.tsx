@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Checkbox } from "~/ui/primitives/checkbox";
 import { warehouseService } from "./actions";
 import type { Warehouse } from "~/lib/types";
+import { useActivityFeed } from "../components/activity-feed";
 
 interface WarehouseDialogProps {
   open: boolean;
@@ -38,6 +39,7 @@ export function WarehouseDialog({ open, onOpenChange, mode, warehouse, onSuccess
   const [address, setAddress] = useState(mode === "edit" && warehouse ? warehouse.address || "" : "");
   const [isActive, setIsActive] = useState(mode === "edit" && warehouse ? warehouse.is_active : true);
   const [saving, setSaving] = useState(false);
+  const { pushEvent } = useActivityFeed();
 
   const handleCancel = () => {
     if (!saving) onOpenChange(false);
@@ -57,6 +59,7 @@ export function WarehouseDialog({ open, onOpenChange, mode, warehouse, onSuccess
         });
         if (res.error) throw new Error(res.error.message);
         toast.success(t("createWarehouse"), { description: `${name.trim()} — ${t("createDialogDesc")}` });
+        pushEvent({ type: "create", message: `Created warehouse "${name.trim()}"`, entityType: "warehouse" });
       } else {
         if (!warehouse) return;
         const res = await warehouseService.update(warehouse.id, {
@@ -67,6 +70,7 @@ export function WarehouseDialog({ open, onOpenChange, mode, warehouse, onSuccess
         });
         if (res.error) throw new Error(res.error.message);
         toast.success(t("warehouseUpdated"));
+        pushEvent({ type: "update", message: `Updated warehouse "${name.trim()}"`, entityType: "warehouse" });
       }
       onOpenChange(false);
       onSuccess();

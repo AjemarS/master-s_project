@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -301,5 +301,23 @@ export const reportApi = {
 
   async dailySales(): Promise<ApiResponse<{ daily: { date: string; revenue: number; orders: number }[] }>> {
     return apiCall(`${API_URL}/reports/daily-sales/`);
+  },
+};
+
+export const activityEventApi = {
+  async list(): Promise<ApiResponse<ActivityEvent[]>> {
+    return apiCall(`${INVENTORY_API_URL}/activity/events/`);
+  },
+
+  async create(data: {
+    event_type: string;
+    message: string;
+    entity_type: string;
+    entity_id?: string;
+  }): Promise<ApiResponse<ActivityEvent>> {
+    return apiCall(`${INVENTORY_API_URL}/activity/events/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 };

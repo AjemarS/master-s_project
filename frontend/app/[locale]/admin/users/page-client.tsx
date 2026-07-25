@@ -17,12 +17,14 @@ import { UserTable } from "./user-table";
 import type { UserWithRole } from "better-auth/plugins/admin";
 import { useUsers, useBanUser, useUnbanUser, useDeleteUser } from "~/lib/hooks/use-api-data";
 import { authClient } from "~/lib/auth-client";
+import { useActivityFeed } from "../components/activity-feed";
 
 export default function UsersPageClient() {
   const t = useTranslations("users");
   const tc = useTranslations("common");
   const ti = useTranslations("impersonation");
   const PAGE_SIZE = 20;
+  const { pushEvent } = useActivityFeed();
 
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -51,6 +53,7 @@ export default function UsersPageClient() {
       toast.success("User removed", {
         description: `${user?.name || user?.email || userId} has been removed.`,
       });
+      pushEvent({ type: "delete", message: `Deleted user "${user?.name || user?.email || userId}"`, entityType: "user" });
     } catch (err) {
       toast.error("Failed to remove user", {
         description: err instanceof Error ? err.message : "An unexpected error occurred.",
@@ -59,12 +62,14 @@ export default function UsersPageClient() {
   };
 
   const handleBan = async (userId: string, reason: string) => {
+    const userToBan = users.find((u) => u.id === userId);
     try {
       await banTrigger(userId, reason);
       mutate();
       toast.success("User banned", {
         description: `User has been banned. Reason: ${reason}`,
       });
+      pushEvent({ type: "info", message: `Banned user "${userToBan?.name || userToBan?.email || userId}"`, entityType: "user" });
     } catch (err) {
       toast.error("Failed to ban user", {
         description: err instanceof Error ? err.message : "An unexpected error occurred.",
@@ -80,6 +85,7 @@ export default function UsersPageClient() {
       toast.success("User unbanned", {
         description: `${user?.name || user?.email || userId} has been unbanned.`,
       });
+      pushEvent({ type: "info", message: `Unbanned user "${user?.name || user?.email || userId}"`, entityType: "user" });
     } catch (err) {
       toast.error("Failed to unban user", {
         description: err instanceof Error ? err.message : "An unexpected error occurred.",

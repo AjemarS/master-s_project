@@ -13,6 +13,7 @@ import { goodsReceiptService } from "./actions";
 import { useCurrentUser } from "~/lib/auth-client";
 import type { GoodsReceiptNote } from "~/lib/types";
 import { ErrorAlert } from "~/ui/components/error-alert";
+import { useActivityFeed } from "../components/activity-feed";
 import { GoodsReceiptDialog } from "./goods-receipt-dialog";
 import { GoodsReceiptTable } from "./goods-receipt-table";
 
@@ -30,6 +31,7 @@ export function GoodsReceiptsClient() {
 
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
+  const { pushEvent } = useActivityFeed();
 
   const [deleting, setDeleting] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
@@ -47,6 +49,7 @@ export function GoodsReceiptsClient() {
       const res = await goodsReceiptService.remove(deleteConfirmId);
       if (res.error) throw new Error(res.error.message);
       toast.success(t("grnDeleted"));
+      pushEvent({ type: "delete", message: `Deleted goods receipt #${deleteConfirmId}`, entityType: "goods_receipt" });
       setDeleteConfirmId(null);
       grMutate();
     } catch (err) {
