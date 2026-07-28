@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, Eye } from "lucide-react";
 import { Badge } from "~/ui/primitives/badge";
+import { Button } from "~/ui/primitives/button";
 import {
   Table,
   TableHeader,
@@ -19,13 +20,14 @@ interface StockMovementTableProps {
   isLoading: boolean;
   movementTypes: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }>;
   formatDate: (dateStr: string) => string;
+  onView: (movement: StockMovement) => void;
 }
 
-export function StockMovementTable({ movements, isLoading, movementTypes, formatDate }: StockMovementTableProps) {
+export function StockMovementTable({ movements, isLoading, movementTypes, formatDate, onView }: StockMovementTableProps) {
   const tSM = useTranslations("stockMovements");
 
   if (isLoading) {
-    return <TableSkeleton rows={8} cols={8} />;
+    return <TableSkeleton rows={8} cols={9} />;
   }
 
   return (
@@ -41,11 +43,12 @@ export function StockMovementTable({ movements, isLoading, movementTypes, format
             <TableHead>{tSM("quantity")}</TableHead>
             <TableHead>{tSM("date")}</TableHead>
             <TableHead>{tSM("user")}</TableHead>
+            <TableHead className="text-right">{tSM("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {movements.length === 0 ? (
-            <EmptyState icon={ArrowRightLeft} message={tSM("noMovements")} colSpan={8} />
+            <EmptyState icon={ArrowRightLeft} message={tSM("noMovements")} colSpan={9} />
           ) : (
             movements.map((m) => {
               const typeInfo = movementTypes[m.type] || { label: m.type, variant: "outline" as const };
@@ -59,6 +62,11 @@ export function StockMovementTable({ movements, isLoading, movementTypes, format
                   <TableCell className="font-semibold">{m.quantity}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(m.created_at)}</TableCell>
                   <TableCell className="text-muted-foreground">{m.created_by || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="outline" onClick={() => onView(m)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               );
             })

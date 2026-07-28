@@ -27,6 +27,7 @@ export default function MyOrderDetailPage() {
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       if (!id || isNaN(id)) {
         setError(t("notFound"));
@@ -37,15 +38,18 @@ export default function MyOrderDetailPage() {
       setError(null);
       try {
         const res = await orderApi.getById(id);
+        if (cancelled) return;
         if (res.error) throw new Error(res.error.message);
         setOrder(res.data ?? null);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : t("notFound"));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     load();
+    return () => { cancelled = true; };
   }, [id, t]);
 
   const handleCancel = async () => {

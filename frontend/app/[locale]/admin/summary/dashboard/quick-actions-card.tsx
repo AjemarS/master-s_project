@@ -11,7 +11,6 @@ interface QuickActionsCardProps {
   isWhWorker: boolean;
   dailyRevenue: Array<{ date: string; revenue: number }>;
   tSum: (key: string, values?: Record<string, string | number | Date>) => string;
-  tc: (key: string, values?: Record<string, string | number | Date>) => string;
 }
 
 export default function QuickActionsCard({
@@ -19,7 +18,6 @@ export default function QuickActionsCard({
   isWhWorker,
   dailyRevenue,
   tSum,
-  tc,
 }: QuickActionsCardProps) {
   return (
     <Card className="dark:bg-card dark:border-border">

@@ -157,9 +157,11 @@ export function SettingsClient() {
   // ── Load notification preferences ──────────────────────────────
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     (async () => {
       setNotifLoading(true);
       const res = await notificationsApi.getPreferences(user.id);
+      if (cancelled) return;
       if (res.data) {
         const p: Record<string, boolean> = {};
         const d = res.data;
@@ -182,6 +184,7 @@ export function SettingsClient() {
       }
       setNotifLoading(false);
     })();
+    return () => { cancelled = true; };
   }, [user]);
 
   // ── Helpers ────────────────────────────────────────────────────

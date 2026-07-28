@@ -8,6 +8,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 from products.models import Category, Product
 
+from django.utils import timezone
+from datetime import timedelta
+import random
+
 
 class Command(BaseCommand):
     help = "Seed database with household appliances data"
@@ -146,6 +150,53 @@ class Command(BaseCommand):
             self._set_placeholder_image(product, name_en, cat_name)
             if created:
                 self.stdout.write(f"  Created product: {product.name}")
+
+        # ── Spread timestamps across past 90 days ──
+        now = timezone.now()
+        product_names = [p["name"] for p in products_data]
+        all_products = list(Product.objects.filter(name__in=product_names))
+        if not all_products:
+            return
+
+        # 1. Assign each product a random created_at over the past 90 days
+        for product in all_products:
+            days_ago = random.randint(0, 90)
+            created_at = now - timedelta(days=days_ago, hours=random.randint(0, 23))
+            Product.objects.filter(pk=product.pk).update(created_at=created_at)
+
+        # 2. Mark 3-5 products as "new arrivals" (created within last 7 days)
+        new_count = min(random.randint(3, 5), len(all_products))
+        new_arrivals = random.sample(all_products, new_count)
+        for product in new_arrivals:
+            days_ago = random.randint(0, 6)
+            created_at = now - timedelta(days=days_ago, hours=random.randint(0, 23))
+            features = list(product.features or [])
+            if not any(isinstance(f, dict) and "badge" in f for f in features):
+                features.append({"badge": "new"})
+            Product.objects.filter(pk=product.pk).update(created_at=created_at, features=features)
+
+        # Re-query to pick up updated created_at values
+        all_products = list(Product.objects.filter(name__in=product_names))
+
+        # 3. Set updated_at a few days after created_at for all products
+        for product in all_products:
+            if product.created_at:
+                days_after = random.randint(1, 14)
+                updated_at = product.created_at + timedelta(days=days_after, hours=random.randint(0, 23))
+                if updated_at > now:
+                    updated_at = now
+                Product.objects.filter(pk=product.pk).update(updated_at=updated_at)
+
+        # 4. Simulate restock events for 5-8 products (recent updated_at)
+        restock_count = min(random.randint(5, 8), len(all_products))
+        restock_products = random.sample(all_products, restock_count)
+        for product in restock_products:
+            days_ago = random.randint(0, 14)
+            updated_at = now - timedelta(days=days_ago, hours=random.randint(0, 23))
+            features = list(product.features or [])
+            if not any(isinstance(f, dict) and f.get("restocked") for f in features):
+                features.append({"restocked": True})
+            Product.objects.filter(pk=product.pk).update(updated_at=updated_at, features=features)
 
     def _set_placeholder_image(self, product, name_en, cat_name):
         cat_palette = {

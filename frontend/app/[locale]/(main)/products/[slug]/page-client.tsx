@@ -37,11 +37,14 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   const priceInfo = React.useMemo(() => formatPrice(product, locale), [product, locale]);
 
   React.useEffect(() => {
+    let cancelled = false;
     productApi.getSimilar(product.id).then((res) => {
+      if (cancelled) return;
       if (res.data) {
         setSimilar(res.data.filter((p) => p.id !== product.id).slice(0, 4));
       }
     }).catch((err) => console.error("Failed to fetch similar products:", err));
+    return () => { cancelled = true; };
   }, [product.id]);
 
   React.useEffect(() => {

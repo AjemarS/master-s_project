@@ -2,11 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
-import { Button } from "~/ui/primitives/button";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "~/ui/primitives/table";
-import { ClipboardList, Pencil, Trash2 } from "lucide-react";
+import { ClipboardList, Eye } from "lucide-react";
+import { Button } from "~/ui/primitives/button";
 import { formatCurrency } from "~/lib/utils/format";
 import { TableSkeleton, EmptyState } from "../components";
 import type { GoodsReceiptNote } from "~/lib/types";
@@ -14,10 +14,8 @@ import type { GoodsReceiptNote } from "~/lib/types";
 interface GoodsReceiptTableProps {
   receipts: GoodsReceiptNote[];
   isLoading: boolean;
-  isAdmin: boolean;
   colSpan: number;
-  onEdit: (receipt: GoodsReceiptNote) => void;
-  onDelete: (id: number) => void;
+  onView: (receipt: GoodsReceiptNote) => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -27,7 +25,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function GoodsReceiptTable({
-  receipts, isLoading, isAdmin, colSpan, onEdit, onDelete,
+  receipts, isLoading, colSpan, onView,
 }: GoodsReceiptTableProps) {
   const t = useTranslations("goodsReceipts");
   const tc = useTranslations("common");
@@ -58,7 +56,7 @@ export function GoodsReceiptTable({
                   <TableHead>{t("date")}</TableHead>
                   <TableHead>{t("amount")}</TableHead>
                   <TableHead>{t("createdBy")}</TableHead>
-                  {isAdmin && <TableHead className="text-right">{tc("actions")}</TableHead>}
+                  <TableHead className="text-right">{tc("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -73,22 +71,13 @@ export function GoodsReceiptTable({
                       <TableCell className="text-muted-foreground">{formatDate(r.receipt_date)}</TableCell>
                       <TableCell className="font-semibold">{formatCurrency(r.total_amount)}</TableCell>
                       <TableCell className="text-muted-foreground">{r.created_by}</TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" onClick={() => onEdit(r)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => onDelete(r.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="outline" onClick={() => onView(r)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

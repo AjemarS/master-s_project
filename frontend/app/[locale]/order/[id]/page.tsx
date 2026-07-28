@@ -17,7 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
   paid: "bg-green-50 text-green-700 dark:bg-green-950/30",
   delivering: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30",
   delivered: "bg-green-100 text-green-800 dark:bg-green-900/30",
-  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30",
+  completed: "bg-chart-1/10 text-chart-1 dark:bg-chart-1/20",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30",
 };
 
@@ -31,7 +31,9 @@ export default function OrderPage() {
 
   useEffect(() => {
     if (!id) return;
+    let cancelled = false;
     orderApi.getById(Number(id)).then((res) => {
+      if (cancelled) return;
       if (res.data) {
         setOrder(res.data);
       } else {
@@ -39,9 +41,11 @@ export default function OrderPage() {
       }
       setLoading(false);
     }).catch(() => {
+      if (cancelled) return;
       setError(tDet("notFound"));
       setLoading(false);
     });
+    return () => { cancelled = true; };
   }, [id, tDet]);
 
   if (loading) {

@@ -199,7 +199,7 @@ function CheckoutContent() {
   const [saveNamePhone, setSaveNamePhone] = useState(true);
   const [saveAddress, setSaveAddress] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
+  const [, setCreatedOrderId] = useState<number | null>(null);
   const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -495,7 +495,7 @@ function CheckoutContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <CheckoutHeader tChk={tChk} itemCount={items.length} />
+      <CheckoutHeader tChk={tChk} />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         <BackLink tChk={tChk} />

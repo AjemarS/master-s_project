@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { ArrowRightLeft, Filter, RefreshCw, X, Pencil } from "lucide-react";
@@ -12,6 +12,8 @@ import { Pagination } from "~/ui/components/pagination";
 import { StockMovementFilters } from "./stock-movement-filters";
 import { StockMovementTable } from "./stock-movement-table";
 import { StockAdjustDialog } from "./stock-adjust-dialog";
+import { StockMovementDetailDialog } from "./stock-movement-detail-dialog";
+import type { StockMovement } from "~/lib/types";
 
 export function StockMovementsClient() {
   const tSM = useTranslations("stockMovements");
@@ -45,6 +47,8 @@ export function StockMovementsClient() {
   const [filterDateTo, setFilterDateTo] = useState("");
 
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [viewingMovement, setViewingMovement] = useState<StockMovement | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
   const params: Record<string, string | number | undefined> = { page };
   if (filterType) params.type = filterType;
@@ -61,11 +65,7 @@ export function StockMovementsClient() {
   const warehouses = useMemo(() => warehousesData?.results || [], [warehousesData?.results]);
   const totalCount = movementsData?.count || 0;
 
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-
-  useEffect(() => {
-    if (movementsData) setLastUpdated(new Date());
-  }, [movementsData]);
+  const lastUpdated = useMemo(() => new Date(), []);
 
   const dateRangeError = !!(filterDateFrom && filterDateTo && filterDateFrom > filterDateTo);
 
@@ -88,7 +88,6 @@ export function StockMovementsClient() {
           title={tSM("title")}
           subtitle={tSM("subtitle")}
           icon={ArrowRightLeft}
-          backLabel={tCommon("back")}
           actions={
             <Button className="flex items-center gap-2" onClick={() => setAdjustOpen(true)}>
               <Pencil className="h-4 w-4" /> {tSM("adjustStockTitle")}
@@ -98,7 +97,7 @@ export function StockMovementsClient() {
 
         <ErrorAlert message={movementsError?.message || null} />
 
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <LastUpdated timestamp={lastUpdated} loading={movementsLoading} />
           <Button variant="outline" size="sm" onClick={() => movementsMutate()} disabled={movementsLoading} className="h-7 text-xs">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -148,6 +147,10 @@ export function StockMovementsClient() {
               isLoading={movementsLoading}
               movementTypes={MOVEMENT_TYPES}
               formatDate={formatDate}
+              onView={(m) => {
+                setViewingMovement(m);
+                setShowDetailDialog(true);
+              }}
             />
           </CardContent>
         </Card>
@@ -163,6 +166,14 @@ export function StockMovementsClient() {
           open={adjustOpen}
           onOpenChange={setAdjustOpen}
           onSuccess={() => movementsMutate()}
+        />
+
+        <StockMovementDetailDialog
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
+          movement={viewingMovement}
+          movementTypes={MOVEMENT_TYPES}
+          formatDate={formatDate}
         />
       </div>
     </div>

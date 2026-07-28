@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown, MapPin } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { Label } from "~/ui/primitives/label";
 import { Button } from "~/ui/primitives/button";
 import {

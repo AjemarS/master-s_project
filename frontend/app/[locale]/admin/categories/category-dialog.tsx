@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -15,11 +15,13 @@ import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/ui/primitives/select";
+import { Separator } from "~/ui/primitives/separator";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, FolderTree, Languages, Globe, GitBranch } from "lucide-react";
 import { categoryService } from "./actions";
 import type { Category } from "~/lib/types";
 import { useActivityFeed } from "../components/activity-feed";
+import { motion } from "framer-motion";
 
 interface CategoryDialogProps {
   open: boolean;
@@ -44,13 +46,13 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
   const [formError, setFormError] = useState<string | null>(null);
   const { pushEvent } = useActivityFeed();
 
-  const resetAndClose = () => {
+  const resetAndClose = useCallback(() => {
     setFormError(null);
     setSaving(false);
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!formName.trim()) {
       setFormError(t("nameRequired"));
       return;
@@ -86,19 +88,27 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
     } finally {
       setSaving(false);
     }
-  };
+  }, [formName, formNameUk, formNameEn, formParent, mode, category, onSuccess, resetAndClose, pushEvent, t, tc]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose(); }}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? t("addCategory") : t("editCategory")}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <FolderTree className="h-5 w-5" />
+            {mode === "create" ? t("addCategory") : t("editCategory")}
+          </DialogTitle>
           <DialogDescription>
             {mode === "create" ? t("subtitle") : t("editCategory")}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="py-4 space-y-4"
+        >
           <div>
             <Label htmlFor="cat-name">{t("name")} *</Label>
             <Input
@@ -110,8 +120,10 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
               autoFocus
             />
           </div>
+          <Separator className="my-2" />
           <div>
-            <Label htmlFor="cat-name-uk" className="text-xs text-muted-foreground">
+            <Label htmlFor="cat-name-uk" className="text-xs text-muted-foreground flex items-center gap-1">
+              <Languages className="h-3.5 w-3.5" />
               {t("nameUa")}
             </Label>
             <Input
@@ -123,7 +135,8 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
             />
           </div>
           <div>
-            <Label htmlFor="cat-name-en" className="text-xs text-muted-foreground">
+            <Label htmlFor="cat-name-en" className="text-xs text-muted-foreground flex items-center gap-1">
+              <Globe className="h-3.5 w-3.5" />
               {t("nameEn")}
             </Label>
             <Input
@@ -135,7 +148,10 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
             />
           </div>
           <div>
-            <Label htmlFor="cat-parent">{t("parent")}</Label>
+            <Label htmlFor="cat-parent" className="flex items-center gap-1">
+              <GitBranch className="h-3.5 w-3.5" />
+              {t("parent")}
+            </Label>
             <Select value={formParent} onValueChange={setFormParent}>
               <SelectTrigger id="cat-parent" className="mt-2">
                 <SelectValue placeholder={t("noParent")} />
@@ -150,7 +166,7 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
               </SelectContent>
             </Select>
           </div>
-        </div>
+        </motion.div>
 
         {formError && (
           <Alert variant="destructive" className="mb-2">

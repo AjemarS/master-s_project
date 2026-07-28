@@ -79,7 +79,7 @@ export default function ProductsPageContent() {
   const [categories, setCategories] = React.useState<{ id: number; name: string }[]>([]);
   const [minRating, setMinRating] = React.useState(0);
   const [filterOpen, setFilterOpen] = React.useState(false);
-  const [searchTerm, setSearchTerm] = React.useState<string>(() => {
+  const [searchTerm] = React.useState<string>(() => {
     return searchParams.get("search") || "";
   });
 

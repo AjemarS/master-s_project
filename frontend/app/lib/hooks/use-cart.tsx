@@ -47,30 +47,37 @@ export function CartProvider({ children }: React.PropsWithChildren) {
 
   // Load cart from server on mount and on login change
   React.useEffect(() => {
+    let cancelled = false;
     // Ensure session_id exists before fetching
     getSessionId();
     cartApi.get().then((res) => {
+      if (cancelled) return;
       if (res.data) {
         setItems(cartResponseToItems(res.data));
       }
     }).catch(() => {});
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   // Merge anonymous cart on login (only if session cart has items)
   React.useEffect(() => {
     if (!user?.id) return;
+    let cancelled = false;
     // Check if session cart exists and has items before merging
     const sessionId = getSessionId();
     if (!sessionId) return;
     cartApi.merge().then((res) => {
+      if (cancelled) return;
       if (res.data) {
         setItems(cartResponseToItems(res.data));
       } else {
         cartApi.get().then((r) => {
+          if (cancelled) return;
           if (r.data) setItems(cartResponseToItems(r.data));
         });
       }
     });
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   const refreshCart = React.useCallback(() => {

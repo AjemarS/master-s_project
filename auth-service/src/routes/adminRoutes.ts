@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import { auth, pool } from "../auth";
 import { adminRateLimit } from "../middleware/rateLimiter";
-import { getSessionFromCacheOrProvider, invalidateSessionCache } from "../middleware/sessionCache";
+import { invalidateSessionCache } from "../middleware/sessionCache";
 import { writeAuditLog } from "../middleware/auditLog";
 import { auditLogQuerySchema } from "../validation/querySchemas";
 import logger from "../logger";

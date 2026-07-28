@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { Package } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "~/ui/primitives/button";
@@ -59,7 +61,8 @@ export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: St
     if (!product || !isValidDelta) return;
     setStockAdjusting(true);
     try {
-      await productService.updateStock(product.id, delta);
+      const res = await productService.updateStock(product.id, delta);
+      if (res?.error) throw new Error(res.error.message);
       toast.success("Stock updated", {
         description: `${product.name}: ${product.stock} → ${product.stock + delta}`,
       });
@@ -80,9 +83,12 @@ export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: St
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
-            {stockConfirmStep
-              ? t("confirmTitle", { name: product.name })
-              : `${t("stock")} — ${product.name}`}
+            <span className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-muted-foreground" />
+              {stockConfirmStep
+                ? t("confirmTitle", { name: product.name })
+                : `${t("stock")} — ${product.name}`}
+            </span>
           </DialogTitle>
           <DialogDescription>
             {stockConfirmStep
@@ -92,39 +98,54 @@ export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: St
         </DialogHeader>
 
         {stockConfirmStep ? (
-          <div className="py-4 space-y-4">
-            <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t("currentStock")}</span>
-                <span className="font-medium">{product.stock}</span>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <p className="text-xs text-muted-foreground mb-2">Step 2/2 — Review change</p>
+            <div className="py-4 space-y-4">
+              <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t("currentStock")}</span>
+                  <span className="font-medium">{product.stock}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t("adjustment")}</span>
+                  <span className={`font-medium ${delta > 0 ? "text-primary" : "text-destructive"}`}>
+                    {delta > 0 ? "+" : ""}{stockDelta}
+                  </span>
+                </div>
+                <div className="border-t pt-2 flex justify-between text-sm font-semibold">
+                  <span>{t("newStock")}</span>
+                  <span>{product.stock + delta}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t("adjustment")}</span>
-                <span className={`font-medium ${delta > 0 ? "text-primary" : "text-destructive"}`}>
-                  {delta > 0 ? "+" : ""}{stockDelta}
-                </span>
-              </div>
-              <div className="border-t pt-2 flex justify-between text-sm font-semibold">
-                <span>{t("newStock")}</span>
-                <span>{product.stock + delta}</span>
-              </div>
+              <p className="text-sm text-muted-foreground">{t("confirmPrompt")}</p>
             </div>
-            <p className="text-sm text-muted-foreground">{t("confirmPrompt")}</p>
-          </div>
+          </motion.div>
         ) : (
-          <div className="py-4 space-y-3">
-            <Label htmlFor="stock-delta">{t("stock")}</Label>
-            <Input
-              id="stock-delta"
-              onChange={(e) => setStockDelta(e.target.value)}
-              placeholder={t("stockPlaceholder")}
-              type="number"
-              value={stockDelta}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("stockHint")}
-            </p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <p className="text-xs text-muted-foreground mb-2">Step 1/2 — Enter change</p>
+            <div className="py-4 space-y-3">
+              <Label htmlFor="stock-delta">{t("stock")}</Label>
+              <Input
+                id="stock-delta"
+                onChange={(e) => setStockDelta(e.target.value)}
+                placeholder={t("stockPlaceholder")}
+                type="number"
+                value={stockDelta}
+                className={delta > 0 ? "border-green-500 text-green-600" : delta < 0 ? "border-red-500 text-destructive" : ""}
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("stockHint")}
+              </p>
+            </div>
+          </motion.div>
         )}
 
         <DialogFooter>

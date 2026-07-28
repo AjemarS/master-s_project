@@ -1,14 +1,18 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from random import randint, uniform
+from random import randint, choice, sample, uniform
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.db.models import F
+from django.utils import timezone
 
 from inventory.models import (
+    ActivityEvent,
     GoodsReceiptItem,
     GoodsReceiptNote,
+    ProcessedEvent,
     Stock,
     StockMovement,
     Supplier,
@@ -17,58 +21,71 @@ from inventory.models import (
 
 logger = logging.getLogger(__name__)
 
+WAREHOUSE_DEFS = [
+    {"name": "Центральний склад", "type": "warehouse", "address": "м. Київ, вул. Промислова 15"},
+    {"name": "Шоурум Київ", "type": "showroom", "address": "м. Київ, вул. Хрещатик 25"},
+    {"name": "Склад Харків", "type": "warehouse", "address": "м. Харків, вул. Заводська 8"},
+    {"name": "Склад Львів", "type": "warehouse", "address": "м. Львів, вул. Промислова 3"},
+    {"name": "Шоурум Одеса", "type": "showroom", "address": "м. Одеса, вул. Дерибасівська 12"},
+]
+
+SUPPLIERS_DATA = [
+    {"name": "ТОВ «ТехноПостач»", "contact": "Іван Петренко", "phone": "+380441234567", "email": "info@techopostach.ua", "address": "м. Київ, вул. Логістична 10"},
+    {"name": "ПП «ЕлектроСвіт»", "contact": "Марія Коваль", "phone": "+380671112233", "email": "order@electrosvit.ua", "address": "м. Харків, вул. Енергетична 5"},
+    {"name": "ТОВ «ПобутТехніка»", "contact": "Олег Сидоренко", "phone": "+380504445566", "email": "info@pobuttechnika.ua", "address": "м. Дніпро, вул. Індустріальна 20"},
+    {"name": "«SmartHome Distribution»", "contact": "Анна Шевченко", "phone": "+380937778899", "email": "sales@smarthome.ua", "address": "м. Київ, вул. Технологічна 7"},
+    {"name": "ТОВ «КліматКонтроль»", "contact": "Дмитро Бойко", "phone": "+380633334455", "email": "info@klimatcontrol.ua", "address": "м. Львів, вул. Холодильна 15"},
+]
+
+WAREHOUSE_INITIAL_STOCK = [8, 2, 5, 4, 1]  # central, showroom, east, west, south
+
+WRITE_OFF_REASONS = [
+    "Пошкоджено при транспортуванні",
+    "Шлюб виробництва",
+    "Втрачено на складі",
+    "Повернення від клієнта з пошкодженням",
+]
+
 
 class Command(BaseCommand):
-    help = "Seed inventory service with demo data"
+    help = "Seed inventory service with dynamic time-aware demo data covering 60 days of history"
 
     def handle(self, *args, **options):
-        central, _ = Warehouse.objects.get_or_create(
-            name="Центральний склад",
-            defaults={"type": "warehouse", "address": "м. Київ, вул. Промислова 15", "is_active": True},
+        self._clear_seed_data()
+        warehouses = self._create_warehouses()
+        suppliers = self._create_suppliers()
+        self._create_initial_stock(warehouses)
+        grn_count, transfer_count, writeoff_count, sale_count = self._process_events(
+            warehouses, suppliers
         )
-        showroom, _ = Warehouse.objects.get_or_create(
-            name="Шоурум Київ",
-            defaults={"type": "showroom", "address": "м. Київ, вул. Хрещатик 25", "is_active": True},
-        )
-        east, _ = Warehouse.objects.get_or_create(
-            name="Склад Харків",
-            defaults={"type": "warehouse", "address": "м. Харків, вул. Заводська 8", "is_active": True},
-        )
-        west, _ = Warehouse.objects.get_or_create(
-            name="Склад Львів",
-            defaults={"type": "warehouse", "address": "м. Львів, вул. Промислова 3", "is_active": True},
-        )
-        south, _ = Warehouse.objects.get_or_create(
-            name="Шоурум Одеса",
-            defaults={"type": "showroom", "address": "м. Одеса, вул. Дерибасівська 12", "is_active": True},
-        )
-        warehouses = [central, showroom, east, west, south]
+        self.stdout.write(self.style.SUCCESS(
+            f"Inventory seed data created: "
+            f"GRNs={grn_count}, transfers={transfer_count}, "
+            f"write-offs={writeoff_count}, sales={sale_count}"
+        ))
+
+    def _clear_seed_data(self):
+        self.stdout.write("Clearing existing seed data...")
+        ActivityEvent.objects.all().delete()
+        GoodsReceiptItem.objects.all().delete()
+        GoodsReceiptNote.objects.all().delete()
+        StockMovement.objects.all().delete()
+        Stock.objects.all().delete()
+        ProcessedEvent.objects.all().delete()
+
+    def _create_warehouses(self):
+        warehouses = []
+        for wd in WAREHOUSE_DEFS:
+            wh, _ = Warehouse.objects.get_or_create(
+                name=wd["name"],
+                defaults={"type": wd["type"], "address": wd["address"], "is_active": True},
+            )
+            warehouses.append(wh)
         self.stdout.write(f"  Warehouses: {', '.join(w.name for w in warehouses)}")
+        return warehouses
 
-        warehouse_stock_map = {
-            central: 20,
-            showroom: 3,
-            east: 15,
-            west: 12,
-            south: 4,
-        }
-        for product_id in range(1, 51):
-            for wh, qty in warehouse_stock_map.items():
-                Stock.objects.get_or_create(
-                    product_id=product_id,
-                    warehouse=wh,
-                    defaults={"quantity": qty, "reserved": 0},
-                )
-        self.stdout.write("  Stock levels created for 50 products across 5 warehouses")
-
-        suppliers_data = [
-            {"name": "ТОВ «ТехноПостач»", "contact": "Іван Петренко", "phone": "+380441234567", "email": "info@techopostach.ua", "address": "м. Київ, вул. Логістична 10"},
-            {"name": "ПП «ЕлектроСвіт»", "contact": "Марія Коваль", "phone": "+380671112233", "email": "order@electrosvit.ua", "address": "м. Харків, вул. Енергетична 5"},
-            {"name": "ТОВ «ПобутТехніка»", "contact": "Олег Сидоренко", "phone": "+380504445566", "email": "info@pobuttechnika.ua", "address": "м. Дніпро, вул. Індустріальна 20"},
-            {"name": "\u00abSmartHome Distribution\u00bb", "contact": "Анна Шевченко", "phone": "+380937778899", "email": "sales@smarthome.ua", "address": "м. Київ, вул. Технологічна 7"},
-            {"name": "ТОВ «КліматКонтроль»", "contact": "Дмитро Бойко", "phone": "+380633334455", "email": "info@klimatcontrol.ua", "address": "м. Львів, вул. Холодильна 15"},
-        ]
-        for s in suppliers_data:
+    def _create_suppliers(self):
+        for s in SUPPLIERS_DATA:
             Supplier.objects.get_or_create(
                 name=s["name"],
                 defaults={
@@ -78,70 +95,302 @@ class Command(BaseCommand):
                     "address": s["address"],
                 },
             )
-        self.stdout.write(f"  Suppliers: {len(suppliers_data)} created")
-
-        grn_count = self._create_grns(central, suppliers_data)
-        self.stdout.write(f"  GRNs created: {grn_count}")
-
-        self.stdout.write(self.style.SUCCESS("Inventory seed data created"))
-
-    def _create_grns(self, warehouse, suppliers_data):
         suppliers = list(Supplier.objects.all())
-        if not suppliers:
-            return 0
+        self.stdout.write(f"  Suppliers: {len(suppliers)}")
+        return suppliers
 
-        # Product batches per GRN — products 1-3, 4-6, etc.
-        grn_defs = [
-            {"products": [1, 2, 3], "days_ago": 28, "supplier_idx": 0},
-            {"products": [4, 5, 6], "days_ago": 24, "supplier_idx": 1},
-            {"products": [7, 8, 9], "days_ago": 20, "supplier_idx": 0},
-            {"products": [10, 11, 12, 13], "days_ago": 16, "supplier_idx": 2},
-            {"products": [14, 15, 16], "days_ago": 12, "supplier_idx": 3},
-            {"products": [17, 18, 19], "days_ago": 8, "supplier_idx": 1},
-            {"products": [20, 21, 22], "days_ago": 4, "supplier_idx": 4},
-            {"products": [23, 24, 25], "days_ago": 1, "supplier_idx": 0},
-        ]
+    def _create_initial_stock(self, warehouses):
+        for idx, wh in enumerate(warehouses):
+            base_qty = WAREHOUSE_INITIAL_STOCK[idx]
+            for product_id in range(1, 51):
+                Stock.objects.get_or_create(
+                    product_id=product_id,
+                    warehouse=wh,
+                    defaults={"quantity": base_qty, "reserved": 0},
+                )
+        self.stdout.write("  Initial stock levels created for 50 products across 5 warehouses")
 
-        count = 0
-        for g in grn_defs:
-            supplier = suppliers[g["supplier_idx"] % len(suppliers)]
-            receipt_date = date.today() - timedelta(days=g["days_ago"])
+    def _build_events(self, warehouses, suppliers):
+        events = []
 
-            grn = GoodsReceiptNote.objects.create(
-                supplier=supplier,
-                warehouse=warehouse,
-                receipt_date=receipt_date,
-                reference_number=f"INV-{receipt_date.strftime('%Y%m%d')}-{randint(100, 999)}",
-                notes=f"Seed GRN — {supplier.name}",
+        # 20 GRNs spread across 60-day window
+        for _ in range(20):
+            days_ago = randint(1, 60)
+            num_products = randint(2, 4)
+            product_ids = sample(range(1, 32), num_products)
+            qtys = [randint(5, 15) for _ in range(num_products)]
+            costs = [Decimal(str(round(uniform(3000, 25000), 2))) for _ in range(num_products)]
+            events.append({
+                "type": "grn",
+                "days_ago": days_ago,
+                "warehouse": choice(warehouses),
+                "supplier": choice(suppliers),
+                "product_ids": product_ids,
+                "qtys": qtys,
+                "costs": costs,
+            })
+
+        # 10 transfers spread across the period
+        for _ in range(10):
+            from_wh = choice(warehouses)
+            to_wh = choice([w for w in warehouses if w != from_wh])
+            events.append({
+                "type": "transfer",
+                "days_ago": randint(3, 55),
+                "from_warehouse": from_wh,
+                "to_warehouse": to_wh,
+                "product_id": randint(1, 31),
+                "qty": randint(3, 8),
+            })
+
+        # 4 write-offs with distinct reasons
+        for i in range(4):
+            events.append({
+                "type": "write_off",
+                "days_ago": randint(3, 50),
+                "warehouse": choice(warehouses),
+                "product_id": randint(1, 31),
+                "qty": randint(1, 3),
+                "reason": WRITE_OFF_REASONS[i],
+            })
+
+        # 50 sales — prefer central and showrooms for realistic order fulfillment
+        for _ in range(50):
+            events.append({
+                "type": "sale",
+                "days_ago": randint(1, 50),
+                "warehouse": choice(warehouses[:3]),  # central, showroom Kyiv, Kharkiv
+                "product_id": randint(1, 25),
+                "qty": randint(1, 2),
+            })
+
+        # Oldest first
+        events.sort(key=lambda e: e["days_ago"], reverse=True)
+        return events
+
+    def _process_events(self, warehouses, suppliers):
+        events = self._build_events(warehouses, suppliers)
+        grn_count = 0
+        transfer_count = 0
+        writeoff_count = 0
+        sale_count = 0
+
+        for event in events:
+            event_type = event["type"]
+            if event_type == "grn":
+                self._process_grn(event)
+                grn_count += 1
+            elif event_type == "transfer":
+                self._process_transfer(event)
+                transfer_count += 1
+            elif event_type == "write_off":
+                if self._process_writeoff(event):
+                    writeoff_count += 1
+            elif event_type == "sale":
+                if self._process_sale(event):
+                    sale_count += 1
+
+        counts = f"GRNs={grn_count}, transfers={transfer_count}, write-offs={writeoff_count}, sales={sale_count}"
+        self.stdout.write(f"  Events processed: {counts}")
+        return grn_count, transfer_count, writeoff_count, sale_count
+
+    @staticmethod
+    def _event_datetime(days_ago):
+        op_date = date.today() - timedelta(days=days_ago)
+        op_datetime = datetime.combine(
+            op_date, time(hour=randint(8, 18), minute=randint(0, 59))
+        )
+        return timezone.make_aware(op_datetime)
+
+    @staticmethod
+    def _create_activity_event(event_type, message, entity_type, entity_id, created_at):
+        event = ActivityEvent.objects.create(
+            event_type=event_type,
+            message=message,
+            entity_type=entity_type,
+            entity_id=str(entity_id),
+            user_name="Seed Data",
+            user_email="seed@techhub.local",
+        )
+        # Override auto_now_add to match the historical operation date
+        ActivityEvent.objects.filter(pk=event.pk).update(created_at=created_at)
+        return event
+
+    def _process_grn(self, event):
+        wh = event["warehouse"]
+        supplier = event["supplier"]
+        days_ago = event["days_ago"]
+        receipt_date = date.today() - timedelta(days=days_ago)
+        event_dt = self._event_datetime(days_ago)
+
+        grn = GoodsReceiptNote.objects.create(
+            supplier=supplier,
+            warehouse=wh,
+            receipt_date=receipt_date,
+            reference_number=f"INV-{receipt_date.strftime('%Y%m%d')}-{randint(1000, 9999)}",
+            notes=f"Seed GRN — {supplier.name}",
+            created_by="seed",
+        )
+
+        for pid, qty, cost in zip(event["product_ids"], event["qtys"], event["costs"]):
+            GoodsReceiptItem.objects.create(
+                goods_receipt=grn,
+                product_id=pid,
+                quantity=qty,
+                cost_price=cost,
+            )
+            Stock.objects.filter(product_id=pid, warehouse=wh).update(
+                quantity=F("quantity") + qty
+            )
+            StockMovement.objects.create(
+                product_id=pid,
+                to_warehouse=wh,
+                quantity=qty,
+                type=StockMovement.RECEIPT,
+                reference_type="goods_receipt",
+                reference_id=str(grn.pk),
+                notes=f"GRN #{grn.pk}: {qty} units @ {cost}",
                 created_by="seed",
             )
 
-            for pid in g["products"]:
-                qty = randint(5, 15)
-                cost = Decimal(str(round(uniform(3000, 25000), 2)))
+        items_desc = ", ".join(
+            f"#{pid} x{qty}" for pid, qty in zip(event["product_ids"], event["qtys"])
+        )
+        self._create_activity_event(
+            event_type="create",
+            message=f"Створено накладну #{grn.pk}: {supplier.name}, "
+                    f"{len(event['product_ids'])} товарів ({items_desc}) на складі {wh.name}",
+            entity_type="goods_receipt",
+            entity_id=grn.pk,
+            created_at=event_dt,
+        )
 
-                GoodsReceiptItem.objects.create(
-                    goods_receipt=grn,
-                    product_id=pid,
-                    quantity=qty,
-                    cost_price=cost,
-                )
+    def _process_transfer(self, event):
+        from_wh = event["from_warehouse"]
+        to_wh = event["to_warehouse"]
+        pid = event["product_id"]
+        qty = event["qty"]
+        event_dt = self._event_datetime(event["days_ago"])
 
-                Stock.objects.filter(
-                    product_id=pid, warehouse=warehouse
-                ).update(quantity=F("quantity") + qty)
+        try:
+            stock_from = Stock.objects.get(product_id=pid, warehouse=from_wh)
+        except Stock.DoesNotExist:
+            return
 
-                StockMovement.objects.create(
-                    product_id=pid,
-                    to_warehouse=warehouse,
-                    quantity=qty,
-                    type=StockMovement.RECEIPT,
-                    reference_type="goods_receipt",
-                    reference_id=str(grn.pk),
-                    notes=f"GRN #{grn.pk}: {qty} units @ {cost}",
-                    created_by="seed",
-                )
+        if stock_from.quantity < qty:
+            return
 
-            count += 1
+        with transaction.atomic():
+            Stock.objects.filter(product_id=pid, warehouse=from_wh).update(
+                quantity=F("quantity") - qty
+            )
+            Stock.objects.get_or_create(
+                product_id=pid,
+                warehouse=to_wh,
+                defaults={"quantity": 0, "reserved": 0},
+            )
+            Stock.objects.filter(product_id=pid, warehouse=to_wh).update(
+                quantity=F("quantity") + qty
+            )
 
-        return count
+            movement = StockMovement.objects.create(
+                product_id=pid,
+                from_warehouse=from_wh,
+                to_warehouse=to_wh,
+                quantity=qty,
+                type=StockMovement.TRANSFER,
+                reference_type="transfer",
+                reference_id="",
+                idempotency_key=(
+                    f"transfer-seed-{event['days_ago']}-{pid}-"
+                    f"{from_wh.id}-{to_wh.id}"
+                ),
+                notes=f"Переміщення {qty} од. товару #{pid} з {from_wh.name} на {to_wh.name}",
+                created_by="seed",
+            )
+
+        self._create_activity_event(
+            event_type="info",
+            message=f"Переміщено товар #{pid} x{qty} з «{from_wh.name}» на «{to_wh.name}»",
+            entity_type="stock_movement",
+            entity_id=movement.pk,
+            created_at=event_dt,
+        )
+
+    def _process_writeoff(self, event):
+        wh = event["warehouse"]
+        pid = event["product_id"]
+        qty = event["qty"]
+        reason = event["reason"]
+        event_dt = self._event_datetime(event["days_ago"])
+
+        try:
+            stock = Stock.objects.get(product_id=pid, warehouse=wh)
+        except Stock.DoesNotExist:
+            return False
+
+        if stock.quantity < qty:
+            return False
+
+        Stock.objects.filter(product_id=pid, warehouse=wh).update(
+            quantity=F("quantity") - qty
+        )
+
+        movement = StockMovement.objects.create(
+            product_id=pid,
+            from_warehouse=wh,
+            quantity=qty,
+            type=StockMovement.WRITE_OFF,
+            reference_type="write_off",
+            reference_id="",
+            idempotency_key=f"writeoff-seed-{event['days_ago']}-{pid}",
+            notes=f"Списання: {reason}",
+            created_by="seed",
+        )
+
+        self._create_activity_event(
+            event_type="delete",
+            message=f"Списано товар #{pid} x{qty} на «{wh.name}»: {reason}",
+            entity_type="stock_movement",
+            entity_id=movement.pk,
+            created_at=event_dt,
+        )
+        return True
+
+    def _process_sale(self, event):
+        wh = event["warehouse"]
+        pid = event["product_id"]
+        qty = event["qty"]
+        event_dt = self._event_datetime(event["days_ago"])
+
+        try:
+            stock = Stock.objects.get(product_id=pid, warehouse=wh)
+        except Stock.DoesNotExist:
+            return False
+
+        if stock.quantity < qty:
+            return False
+
+        Stock.objects.filter(product_id=pid, warehouse=wh).update(
+            quantity=F("quantity") - qty
+        )
+
+        movement = StockMovement.objects.create(
+            product_id=pid,
+            from_warehouse=wh,
+            quantity=qty,
+            type=StockMovement.SALE,
+            reference_type="sale",
+            reference_id="",
+            notes=f"Продаж {qty} од. товару #{pid}",
+            created_by="seed",
+        )
+
+        self._create_activity_event(
+            event_type="info",
+            message=f"Продано товар #{pid} x{qty} з «{wh.name}»",
+            entity_type="stock_movement",
+            entity_id=movement.pk,
+            created_at=event_dt,
+        )
+        return True

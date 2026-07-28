@@ -59,11 +59,9 @@ export function AdminProductsClient({
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [formDialogMode, setFormDialogMode] = useState<"create" | "edit">("create");
   const [formDialogProduct, setFormDialogProduct] = useState<Product | null>(null);
-  const [formDialogKey, setFormDialogKey] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [stockDialogProduct, setStockDialogProduct] = useState<Product | null>(null);
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
-  const [stockDialogKey, setStockDialogKey] = useState(0);
   const t = useTranslations("products");
   const tc = useTranslations("common");
 
@@ -133,13 +131,11 @@ export function AdminProductsClient({
     setFormDialogMode("create");
     setFormDialogProduct(null);
     setShowFormDialog(true);
-    setFormDialogKey((k) => k + 1);
   };
 
   const handleStockClick = (product: Product) => {
     setStockDialogProduct(product);
     setStockDialogOpen(true);
-    setStockDialogKey(k => k + 1);
   };
 
 
@@ -147,7 +143,6 @@ export function AdminProductsClient({
     setFormDialogMode("edit");
     setFormDialogProduct(product);
     setShowFormDialog(true);
-    setFormDialogKey((k) => k + 1);
   };
 
   const handleSort = (field: string) => {
@@ -333,7 +328,6 @@ export function AdminProductsClient({
         />
 
         <StockAdjustDialog
-          key={stockDialogKey}
           open={stockDialogOpen}
           onOpenChange={setStockDialogOpen}
           product={stockDialogProduct}
@@ -341,7 +335,6 @@ export function AdminProductsClient({
         />
 
         <ProductFormDialog
-          key={formDialogKey}
           open={showFormDialog}
           onOpenChange={setShowFormDialog}
           mode={formDialogMode}

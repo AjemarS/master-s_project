@@ -78,7 +78,6 @@ export function SuppliersClient() {
           title={t("title")}
           subtitle={t("subtitle")}
           icon={Truck}
-          backLabel={tc("back")}
           actions={
             isAdmin ? (
               <Button onClick={openCreate} className="flex items-center gap-2">

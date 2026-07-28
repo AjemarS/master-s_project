@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { RefreshCw, ShoppingCart } from "lucide-react";
@@ -53,10 +53,7 @@ export function AdminOrdersClient() {
   const totalCount = pageData?.count || 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  useEffect(() => {
-    if (pageData) setLastUpdated(new Date());
-  }, [pageData]);
+  const lastUpdated = useMemo(() => new Date(), []);
 
   const handleFilterChange = useCallback(
     (setter: (v: string) => void) => (value: string) => {

@@ -9,4 +9,7 @@ export { default as WarehouseOccupancyCard } from "./warehouse-occupancy-card";
 export { default as QuickActionsCard } from "./quick-actions-card";
 export { default as RecentProductsCard } from "./recent-products-card";
 export { default as SystemHealthCard } from "./system-health-card";
+export { default as SupplierPerformanceCard } from "./supplier-performance-card";
+export { default as RecentDeliveriesCard } from "./recent-deliveries-card";
 export { default as DashboardLoadingSkeleton } from "./loading-skeleton";
+export { default as ActivityFeed } from "./activity-feed";

@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
 import { Bell, X, Activity } from "lucide-react";
 import { Button } from "~/ui/primitives/button";
 import { activityEventApi } from "~/lib/api/admin-api";
@@ -15,7 +14,7 @@ export type { ActivityEventType };
 
 interface ActivityFeedContextValue {
   events: ActivityEventType[];
-  pushEvent: (event: { type: "create" | "update" | "delete" | "info"; message: string; entityType: string; entityId?: string | number }) => void;
+  pushEvent: (event: { type: "create" | "update" | "delete" | "info" | "ban"; message: string; entityType: string; entityId?: string | number }) => void;
   markAllRead: () => void;
   unreadCount: number;
 }
@@ -39,6 +38,7 @@ export function ActivityFeedProvider({ children, open }: ActivityFeedProviderPro
   const [serverEvents, setServerEvents] = useState<ActivityEventType[]>([]);
   const [lastReadCount, setLastReadCount] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasReadAllRef = useRef(false);
 
   // Fetch server events only when panel is open — poll every 15s
   useEffect(() => {
@@ -49,6 +49,10 @@ export function ActivityFeedProvider({ children, open }: ActivityFeedProviderPro
         const res = await activityEventApi.list();
         if (res.data) {
           setServerEvents(res.data);
+          if (hasReadAllRef.current) {
+            setLastReadCount(res.data.length);
+            hasReadAllRef.current = false;
+          }
         }
       } catch {
         // silently fail — events are non-critical UX
@@ -64,7 +68,7 @@ export function ActivityFeedProvider({ children, open }: ActivityFeedProviderPro
   }, [open]);
 
   const pushEvent = useCallback(
-    (event: { type: "create" | "update" | "delete" | "info"; message: string; entityType: string; entityId?: string | number }) => {
+    (event: { type: "create" | "update" | "delete" | "info" | "ban"; message: string; entityType: string; entityId?: string | number }) => {
       activityEventApi.create({
         event_type: event.type,
         message: event.message,
@@ -83,6 +87,7 @@ export function ActivityFeedProvider({ children, open }: ActivityFeedProviderPro
 
   const markAllRead = useCallback(() => {
     setLastReadCount(serverEvents.length);
+    hasReadAllRef.current = true;
   }, [serverEvents.length]);
 
   return (
@@ -102,7 +107,6 @@ interface ActivityFeedPanelProps {
 }
 
 export function ActivityFeedPanel({ open, onOpenChange }: ActivityFeedPanelProps) {
-  const t = useTranslations("common");
   const { events, markAllRead } = useActivityFeed();
 
   if (!open) return null;
@@ -143,8 +147,9 @@ export function ActivityFeedPanel({ open, onOpenChange }: ActivityFeedPanelProps
         {events.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
             <Bell className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">No recent activity</p>
-            <p className="text-xs">Actions you perform in the admin panel will appear here.</p>
+            <p className="text-sm">Welcome to TechHub!</p>
+            <p className="text-xs">Your activity feed will show real-time updates as you manage the store.</p>
+            <p className="text-xs mt-1">Start by exploring products, orders, or reports.</p>
           </div>
         ) : (
           <div className="divide-y">

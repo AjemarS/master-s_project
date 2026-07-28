@@ -103,7 +103,7 @@ async function handleOrderEvent(routingKey: string, event: Record<string, unknow
   }
 }
 
-async function handleLowStock(event: Record<string, unknown>, eventId?: string): Promise<void> {
+async function handleLowStock(_routingKey: string, event: Record<string, unknown>, eventId?: string): Promise<void> {
   const template = TEMPLATES["inventory.low_stock"];
   if (!template) return;
   const { subject, html } = template(event);
@@ -158,7 +158,7 @@ export async function handleEvent(routingKey: string, event: Record<string, unkn
     return;
   }
 
-  const handlers: Record<string, (event: Record<string, unknown>, eventId?: string) => Promise<void>> = {
+  const handlers: Record<string, (routingKey: string, event: Record<string, unknown>, eventId?: string) => Promise<void>> = {
     "inventory.low_stock": handleLowStock,
     "order.created": handleOrderEvent,
     "order.status_changed": handleOrderEvent,
@@ -166,7 +166,7 @@ export async function handleEvent(routingKey: string, event: Record<string, unkn
   };
   const handler = handlers[routingKey];
   if (handler) {
-    await handler(event, eventId);
+    await handler(routingKey, event, eventId);
   }
 }
 

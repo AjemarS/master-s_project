@@ -7,7 +7,7 @@ import { enableTwoFactorSchema, disableTwoFactorSchema } from "../validation/sch
 
 const router = express.Router();
 
-router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req, res, next) => {
+router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req, res, _next) => {
   try {
     const { password, issuer } = req.body;
     const result = await auth.api.enableTwoFactor({
@@ -20,7 +20,7 @@ router.post("/enable", requireAuth, validate(enableTwoFactorSchema), async (req,
   }
 });
 
-router.post("/disable", requireAuth, validate(disableTwoFactorSchema), async (req, res, next) => {
+router.post("/disable", requireAuth, validate(disableTwoFactorSchema), async (req, res, _next) => {
   try {
     const { password } = req.body;
     const result = await auth.api.disableTwoFactor({

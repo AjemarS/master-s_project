@@ -187,7 +187,17 @@
     "noPosSales": "Ще немає POS-продажів",
     "openPos": "Відкрити POS-термінал",
     "unpaidOrders": "Несплачені замовлення",
-    "todaySummary": "Сьогодні: {count} продажів на {amount} ₴"
+    "todaySummary": "Сьогодні: {count} продажів на {amount} ₴",
+    "supplierPerformance": "Продуктивність постачальників",
+    "recentDeliveries": "Останні поставки",
+    "noSuppliers": "Немає даних постачальників",
+    "noDeliveries": "Ще немає поставок",
+    "units_short": "{count} шт.",
+    "deliveries_short": "{count} пост.",
+    "activityFeed": "Стрічка активності",
+    "noActivity": "Ще немає активності",
+    "activityError": "Не вдалося завантажити активність",
+    "viewAllActivity": "Вся активність"
   },
   "products": {
     "title": "Керування товарами",
@@ -640,6 +650,11 @@
     "productId": "ID товару",
     "qty": "К-сть",
     "costPrice": "Ціна",
+    "currentStock": "Поточний залишок",
+    "detailDialogTitle": "Прибуткова накладна №{id}",
+    "detailDialogDesc": "Детальна інформація про прибуткову накладну та її позиції.",
+    "total": "Сума",
+    "noItems": "Немає позицій",
     "editDialogTitle": "Редагувати прибуткову накладну",
     "editDialogDesc": "Оновіть інформацію заголовка накладної та позиції.",
     "deleteConfirmTitle": "Видалити прибуткову накладну",
@@ -689,7 +704,11 @@
     "back": "Назад",
     "writeOffWarning": "Встановлення залишку 0 буде записано як списання.",
     "largeAdjustWarning": "Це коригування змінює залишок більш ніж на 20%.",
-    "stockFetchError": "Не вдалося отримати поточні дані про залишки"
+    "stockFetchError": "Не вдалося отримати поточні дані про залишки",
+    "detailDialogTitle": "Деталі руху #{id}",
+    "detailDialogDesc": "Детальна інформація про операцію руху товару.",
+    "reference": "Посилання",
+    "actions": "Дії"
   },
   "reports": {
     "title": "Звіти",
@@ -788,7 +807,7 @@
     "myOrders": "Мої замовлення",
     "privacy": "Політика конфіденційності",
     "terms": "Умови використання",
-    "copyright": "© {year} TechHub. Усі права захищено.",
+    "copyright": "© {year} TechHub. Виключно для навчальних цілей.",
     "privacyShort": "Конфіденційність",
     "termsShort": "Умови",
     "newsletter": "Підпишіться на новини",

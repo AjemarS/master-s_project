@@ -5,10 +5,9 @@ import Link from "next/link";
 
 interface CheckoutHeaderProps {
   tChk: (key: string) => string;
-  itemCount: number;
 }
 
-export function CheckoutHeader({ tChk, itemCount }: CheckoutHeaderProps) {
+export function CheckoutHeader({ tChk }: CheckoutHeaderProps) {
   return (
     <header className="border-b bg-background">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">

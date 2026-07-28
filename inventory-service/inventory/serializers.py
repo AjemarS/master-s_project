@@ -162,6 +162,11 @@ class GoodsReceiptNoteCreateSerializer(serializers.ModelSerializer):
         return note
 
 
+class ProductInfoInputSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    warehouse_id = serializers.IntegerField()
+
+
 class ReserveStockSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     warehouse_id = serializers.IntegerField()

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -14,8 +15,9 @@ import {
 import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
+import { Separator } from "~/ui/primitives/separator";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Building2, User, Phone, Mail, MapPin } from "lucide-react";
 import { supplierService } from "./actions";
 import type { Supplier } from "~/lib/types";
 import { useActivityFeed } from "../components/activity-feed";
@@ -43,11 +45,11 @@ export function SupplierDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const { pushEvent } = useActivityFeed();
 
-  const resetAndClose = () => {
+  const resetAndClose = useCallback(() => {
     setFormError(null);
     setSaving(false);
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -94,7 +96,8 @@ export function SupplierDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
             {mode === "create" ? t("createDialogTitle") : t("editDialogTitle")}
           </DialogTitle>
           <DialogDescription>
@@ -102,70 +105,84 @@ export function SupplierDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="sup-name" className="text-right pr-2">
-              {t("name")} *
-            </Label>
-            <Input
-              id="sup-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="sup-contact" className="text-left pr-2">
-              {t("contactPerson")}
-            </Label>
-            <Input
-              id="sup-contact"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="sup-phone" className="text-right pr-2">
-              {t("phone")}
-            </Label>
-            <Input
-              id="sup-phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="sup-email" className="text-right pr-2">
-              {t("email")}
-            </Label>
-            <Input
-              id="sup-email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="sup-address" className="text-right pr-2">
-              {t("address")}
-            </Label>
-            <Input
-              id="sup-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="bg-muted/30 border rounded-lg p-4 space-y-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sup-name" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5" />
+                {t("name")} *
+              </Label>
+              <Input
+                id="sup-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
 
-        {formError && (
-          <Alert variant="destructive" className="mb-2 mx-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{formError}</AlertDescription>
-          </Alert>
-        )}
+            <Separator />
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sup-contact" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <User className="h-3.5 w-3.5" />
+                {t("contactPerson")}
+              </Label>
+              <Input
+                id="sup-contact"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sup-phone" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Phone className="h-3.5 w-3.5" />
+                {t("phone")}
+              </Label>
+              <Input
+                id="sup-phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sup-email" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Mail className="h-3.5 w-3.5" />
+                {t("email")}
+              </Label>
+              <Input
+                id="sup-email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sup-address" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" />
+                {t("address")}
+              </Label>
+              <Input
+                id="sup-address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+
+          {formError && (
+            <Alert variant="destructive" className="mt-4 mb-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          )}
+        </motion.div>
 
         <DialogFooter>
           <Button

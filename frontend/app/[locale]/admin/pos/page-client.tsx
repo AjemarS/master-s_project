@@ -34,7 +34,9 @@ export function POSClient() {
   const [stockError, setStockError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     posService.getWarehouses().then((res) => {
+      if (cancelled) return;
       if (res.data?.results) {
         setWarehouses(res.data.results);
         if (res.data.results.length === 1) {
@@ -42,6 +44,7 @@ export function POSClient() {
         }
       }
     });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

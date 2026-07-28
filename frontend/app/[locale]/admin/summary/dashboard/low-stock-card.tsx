@@ -16,14 +16,12 @@ interface LowStockCardProps {
   lowStockData: unknown;
   initialProducts: LowStockProduct[];
   tSum: (key: string, values?: Record<string, string | number | Date>) => string;
-  tc: (key: string, values?: Record<string, string | number | Date>) => string;
 }
 
 export default function LowStockCard({
   lowStockData,
   initialProducts,
   tSum,
-  tc,
 }: LowStockCardProps) {
   return (
     <Card className="dark:bg-card dark:border-border">

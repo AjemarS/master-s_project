@@ -42,3 +42,27 @@ export function formatDateTime(dateStr: string | null | undefined): string {
     return "—";
   }
 }
+
+export function formatRelativeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const now = Date.now();
+  const date = new Date(dateStr).getTime();
+  const diffMs = now - date;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  try {
+    if (diffSeconds < 60) return "щойно";
+    if (diffMinutes < 60) return `${diffMinutes} хв. тому`;
+    if (diffHours < 24) return `${diffHours} год. тому`;
+    if (diffDays < 7) return `${diffDays} дн. тому`;
+    return new Date(dateStr).toLocaleDateString("uk-UA", {
+      day: "numeric",
+      month: "short",
+    });
+  } catch {
+    return "—";
+  }
+}

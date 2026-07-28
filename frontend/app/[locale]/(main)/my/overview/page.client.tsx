@@ -71,19 +71,22 @@ export function OverviewClient() {
 
   useEffect(() => {
     if (authPending) return;
+    let cancelled = false;
     const fetchOrders = async () => {
       setLoading(true);
       try {
         const res = await orderApi.getMy();
+        if (cancelled) return;
         if (res.error) throw new Error(res.error.message);
         setOrders(res.data?.results || []);
       } catch {
         // silent — empty state handles it
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchOrders();
+    return () => { cancelled = true; };
   }, [authPending]);
 
   if (authPending) {

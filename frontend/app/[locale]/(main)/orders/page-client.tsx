@@ -21,7 +21,7 @@ const STATUS_CFG: Record<string, { label: string; color: string }> = {
   paid: { label: "Сплачено", color: "bg-green-50 text-green-700 dark:bg-green-950/30" },
   delivering: { label: "В дорозі", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30" },
   delivered: { label: "Доставлено", color: "bg-green-100 text-green-800 dark:bg-green-900/30" },
-  completed: { label: "Виконано", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30" },
+  completed: { label: "Виконано", color: "bg-chart-1/10 text-chart-1 dark:bg-chart-1/20" },
   cancelled: { label: "Скасовано", color: "bg-red-100 text-red-800 dark:bg-red-900/30" },
 };
 
@@ -36,19 +36,23 @@ export function MyOrdersClient() {
   const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const fetch = async () => {
       setLoading(true);
       try {
         const res = await orderApi.getMy();
+        if (cancelled) return;
         if (res.error) throw new Error(res.error.message);
         setOrders(res.data?.results || []);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load orders");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetch();
+    return () => { cancelled = true; };
   }, []);
 
   const toggleExpand = async (orderId: number) => {

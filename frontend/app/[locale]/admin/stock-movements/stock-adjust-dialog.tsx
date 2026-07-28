@@ -132,7 +132,7 @@ export function StockAdjustDialog({ open, onOpenChange, onSuccess }: StockAdjust
       })
       .catch(() => { if (!cancelled) setStockedWarehouses(new Set()); });
     return () => { cancelled = true; };
-  }, [productId]);
+  }, [productId, warehouseId]);
 
   // Load current stock when product and warehouse are selected
   useEffect(() => {

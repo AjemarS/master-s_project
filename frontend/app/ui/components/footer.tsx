@@ -12,6 +12,19 @@ export async function Footer({ className }: { className?: string }) {
 
   return (
     <footer className={cn("border-t bg-background", className)}>
+      {/* Newsletter section */}
+        <div className="mt-28 border-b pb-28">
+          <div className="flex flex-col items-center text-center">
+            <h3 className="text-2xl font-semibold">{t("newsletter")}</h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-md">
+              {t("newsletterDesc")}
+            </p>
+            <div className="mt-4 w-full max-w-md">
+              <NewsletterForm />
+            </div>
+          </div>
+        </div>
+        {/* Footer links section */}
       <div className="container mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div className="space-y-4">
@@ -68,18 +81,6 @@ export async function Footer({ className }: { className?: string }) {
               <li><Link className="text-muted-foreground hover:text-foreground" href="/privacy">{t("privacy")}</Link></li>
               <li><Link className="text-muted-foreground hover:text-foreground" href="/terms">{t("terms")}</Link></li>
             </ul>
-          </div>
-        </div>
-        {/* Newsletter section */}
-        <div className="mt-12 border-t pt-8">
-          <div className="flex flex-col items-center text-center">
-            <h3 className="text-lg font-semibold">{t("newsletter")}</h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md">
-              {t("newsletterDesc")}
-            </p>
-            <div className="mt-4 w-full max-w-md">
-              <NewsletterForm />
-            </div>
           </div>
         </div>
         <div className="mt-12 border-t pt-8">

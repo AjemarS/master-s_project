@@ -42,8 +42,6 @@ export function WarehousesClient() {
   const [editWarehouse, setEditWarehouse] = useState<Warehouse | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [stockDialogWh, setStockDialogWh] = useState<Warehouse | null>(null);
-  const [dialogKey, setDialogKey] = useState(0);
-  const [transferKey, setTransferKey] = useState(0);
 
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
@@ -95,10 +93,9 @@ export function WarehousesClient() {
           title={t("title")}
           subtitle={t("subtitle")}
           icon={WarehouseIcon}
-          backLabel={tc("back")}
           actions={
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => { setShowTransfer(true); setTransferKey((k) => k + 1); }} className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => { setShowTransfer(true)}} className="flex items-center gap-2">
                 <ArrowRightLeft className="h-4 w-4" /> {t("transferStock")}
               </Button>
               <Button onClick={() => setShowCreate(true)} className="flex items-center gap-2">
@@ -121,7 +118,7 @@ export function WarehousesClient() {
               warehouses={warehouses}
               isLoading={loading}
               isAdmin={isAdmin}
-              onEdit={(wh) => { setEditWarehouse(wh); setDialogKey((k) => k + 1); }}
+              onEdit={(wh) => { setEditWarehouse(wh); }}
               onDelete={(id) => setDeleteConfirmId(id)}
             />
 
@@ -145,7 +142,6 @@ export function WarehousesClient() {
 
       {/* Edit Dialog */}
       <WarehouseDialog
-        key={dialogKey}
         open={!!editWarehouse}
         onOpenChange={(open) => { if (!open) setEditWarehouse(null); }}
         mode="edit"
@@ -155,7 +151,6 @@ export function WarehousesClient() {
 
       {/* Transfer Dialog */}
       <WarehouseTransferDialog
-        key={transferKey}
         open={showTransfer}
         onOpenChange={setShowTransfer}
         warehouses={warehouses}

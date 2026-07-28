@@ -37,6 +37,9 @@ import {
   QuickActionsCard,
   RecentProductsCard,
   SystemHealthCard,
+  SupplierPerformanceCard,
+  RecentDeliveriesCard,
+  ActivityFeed,
   DashboardLoadingSkeleton,
 } from "./dashboard";
 
@@ -114,11 +117,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
     reportApi.sales(), { refreshInterval: 15000 },
   );
 
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  useEffect(() => {
-    const hasData = lowStockData || ordersData || unpaidData || warehousesData || stockData || revenue || dailySalesData || salesData;
-    if (hasData) setLastUpdated(new Date());
-  }, [lowStockData, ordersData, unpaidData, warehousesData, stockData, revenue, dailySalesData, salesData]);
+  const lastUpdated = useMemo(() => new Date(), []);
 
   const [staleUnpaidCount, setStaleUnpaidCount] = useState(0);
   useEffect(() => {
@@ -138,6 +137,12 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
 
   const dailyRevenue = useMemo(() => dailySalesData?.daily || [], [dailySalesData]);
 
+  // Sparkline data: revenue per day as simple number array
+  const revenueSparkline = useMemo(() =>
+    dailyRevenue.map(d => d.revenue),
+    [dailyRevenue]
+  );
+
   const warehouseOccupancy = useMemo(() => {
     const whs = warehousesData?.results ?? [];
     const st = stockData ?? [];
@@ -153,9 +158,11 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
   }, [warehousesData, stockData]);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchStats = async () => {
       try {
         const usersData = await authClient.admin.listUsers({ query: {} });
+        if (cancelled) return;
         const recentDate = new Date();
         recentDate.setDate(recentDate.getDate() - 7);
         const userList = (usersData.data?.users || []) as AdminUserData[];
@@ -169,12 +176,14 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
           recentUsersCount: recentUsers,
         }));
       } catch (error) {
+        if (cancelled) return;
         console.error("Failed to fetch stats:", error);
       } finally {
-        setStatsLoading(false);
+        if (!cancelled) setStatsLoading(false);
       }
     };
     fetchStats();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -267,7 +276,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
 
         <StaleUnpaidAlert count={staleUnpaidCount} tSum={tSum} tc={tc} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <StatCard
             title={tSum("users")}
             value={stats.totalUsers}
@@ -277,6 +286,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
               label: tSum("newThisWeek", { count: stats.recentUsersCount }),
               icon: <TrendingUp className="h-3 w-3" />,
             }}
+            animationIndex={0}
           />
           <StatCard
             title={tSum("activeUsers")}
@@ -291,6 +301,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
                     : "0",
               }),
             }}
+            animationIndex={1}
           />
           <StatCard
             title={tSum("products")}
@@ -300,6 +311,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
             trend={{
               label: tSum("stockValue", { value: stockValueLabel }),
             }}
+            animationIndex={2}
           />
           <StatCard
             title={tSum("lowStock")}
@@ -307,6 +319,7 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
             icon={<AlertCircle className="h-5 w-5 text-accent-electric" />}
             borderColor="border-t-destructive"
             trend={{ label: tSum("lowStockDesc") }}
+            animationIndex={3}
           />
           <StatCard
             title={tSum("revenue")}
@@ -328,6 +341,8 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
                   }
                 : undefined
             }
+            sparklineData={revenueSparkline.length > 1 ? revenueSparkline : undefined}
+            animationIndex={4}
           />
         </div>
 
@@ -346,9 +361,15 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
             lowStockData={lowStockData}
             initialProducts={initialProducts}
             tSum={tSum}
-            tc={tc}
           />
         </div>
+
+        {isAdmin && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <SupplierPerformanceCard tSum={tSum} />
+            <RecentDeliveriesCard tSum={tSum} />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <ChannelPieChart
@@ -366,10 +387,16 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
             isWhWorker={isWhWorker}
             dailyRevenue={dailyRevenue}
             tSum={tSum}
-            tc={tc}
           />
         </div>
 
+        {/* Bottom row: Activity Feed + System Health */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ActivityFeed tSum={tSum} tc={tc} />
+          <SystemHealthCard services={services} tSum={tSum} />
+        </div>
+
+        {/* Recent Products (full width) */}
         <RecentProductsCard
           products={recentProducts}
           onClear={clearRecent}
@@ -377,8 +404,6 @@ export function AdminDashboard({ initialProducts }: AdminDashboardProps) {
           tc={tc}
           formatCurrency={formatCurrency}
         />
-
-        <SystemHealthCard services={services} tSum={tSum} />
       </div>
     </div>
   );

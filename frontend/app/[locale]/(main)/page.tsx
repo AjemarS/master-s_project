@@ -283,6 +283,8 @@ export default async function HomePage() {
         </div>
       </section>
       </FadeIn>
+
+      <WaveDivider />
     </div>
   );
 }

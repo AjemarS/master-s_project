@@ -93,8 +93,8 @@ export function useSuppliers() {
   return useApiGet<{ results: Supplier[]; count: number }>("/suppliers", () => supplierApi.getAll());
 }
 
-export function useGoodsReceipts() {
-  return useApiGet<{ results: GoodsReceiptNote[]; count: number }>("/goods-receipts", () => goodsReceiptApi.getAll());
+export function useGoodsReceipts(config?: SWRConfiguration<{ results: GoodsReceiptNote[]; count: number }>) {
+  return useApiGet<{ results: GoodsReceiptNote[]; count: number }>("/goods-receipts", () => goodsReceiptApi.getAll(), config);
 }
 
 export function useCreateSupplier() {

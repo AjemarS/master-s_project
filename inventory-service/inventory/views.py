@@ -14,7 +14,7 @@ from rest_framework.response import Response
 
 from .eventbus import publish_event, _check_and_publish_low_stock
 from .filters import StockFilter, StockMovementFilter
-from .models import ActivityEvent, GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
+from .models import ActivityEvent, GoodsReceiptItem, GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
 from shared_auth.permissions import IsAdminOrWarehouseWorker
 from .serializers import (
     ActivityEventSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
     DeductStockSerializer,
     GoodsReceiptNoteCreateSerializer,
     GoodsReceiptNoteSerializer,
+    ProductInfoInputSerializer,
     ReserveStockSerializer,
     StockMovementSerializer,
     StockSerializer,
@@ -360,6 +361,7 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
     queryset = GoodsReceiptNote.objects.select_related(
         "supplier", "warehouse"
     ).prefetch_related("items").all()
+    http_method_names = ["get", "post", "head", "options"]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["supplier", "warehouse"]
     search_fields = ["reference_number", "notes"]
@@ -374,9 +376,40 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("create", "update", "partial_update"):
+        if self.action == "create":
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
+
+    @action(detail=False, methods=["get"])
+    def product_info(self, request):
+        """Return last cost_price and current stock for a product+warehouse combo."""
+        serializer = ProductInfoInputSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        product_id = serializer.validated_data["product_id"]
+        warehouse_id = serializer.validated_data["warehouse_id"]
+
+        # Get last cost price from most recent GRN item for this product
+        last_item = GoodsReceiptItem.objects.filter(
+            product_id=product_id,
+            goods_receipt__warehouse_id=warehouse_id,
+        ).select_related("goods_receipt").order_by("-goods_receipt__created_at").first()
+
+        last_cost_price = str(last_item.cost_price) if last_item else None
+
+        # Get current stock level
+        try:
+            stock = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+            current_stock = stock.quantity
+        except Stock.DoesNotExist:
+            current_stock = 0
+
+        return Response({
+            "product_id": product_id,
+            "warehouse_id": warehouse_id,
+            "last_cost_price": last_cost_price,
+            "current_stock": current_stock,
+        })
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -449,49 +482,6 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
                 )
             )
         logger.info("GRN created | id=%s supplier=%s", instance.pk, instance.supplier.name)
-
-    def perform_destroy(self, instance):
-        """Reverse stock changes when GRN is deleted."""
-        with transaction.atomic():
-            for item in instance.items.all():
-                stock = Stock.objects.select_for_update().get(
-                    product_id=item.product_id,
-                    warehouse=instance.warehouse,
-                )
-                new_qty = stock.quantity - item.quantity
-                if new_qty < 0:
-                    raise ValidationError(
-                        "Cannot delete GRN: negative stock for product "
-                        f"{item.product_id} "
-                        f"(current: {stock.quantity}, remove: {item.quantity})"
-                    )
-                Stock.objects.filter(
-                    product_id=item.product_id, warehouse=instance.warehouse
-                ).update(quantity=F("quantity") - item.quantity)
-
-                StockMovement.objects.create(
-                    product_id=item.product_id,
-                    from_warehouse=instance.warehouse,
-                    quantity=item.quantity,
-                    type=StockMovement.ADJUSTMENT,
-                    reference_type="grn_delete",
-                    reference_id=str(instance.pk),
-                    notes=(
-                        f"GRN #{instance.pk} deleted: "
-                        f"reversed {item.quantity} units @ {item.cost_price}"
-                    ),
-                    created_by=instance.created_by or "system",
-                )
-
-                logger.info(
-                    "GRN reversal | product=%s warehouse=%s qty=%d grn=%s",
-                    item.product_id, instance.warehouse.name, item.quantity, instance.pk,
-                )
-
-            instance.delete()
-
-        logger.info("GRN deleted | id=%s", instance.pk)
-
 
 class ActivityEventViewSet(viewsets.ModelViewSet):
     queryset = ActivityEvent.objects.all()[:50]

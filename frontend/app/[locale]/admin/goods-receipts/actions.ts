@@ -10,11 +10,7 @@ export const goodsReceiptService = {
     return goodsReceiptApi.create(data);
   },
 
-  async update(id: number, data: Partial<GoodsReceiptNote>) {
-    return goodsReceiptApi.update(id, data);
-  },
-
-  async remove(id: number) {
-    return goodsReceiptApi.delete(id);
+  async productInfo(product_id: number, warehouse_id: number) {
+    return goodsReceiptApi.productInfo(product_id, warehouse_id);
   },
 };

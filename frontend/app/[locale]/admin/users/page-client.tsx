@@ -21,7 +21,6 @@ import { useActivityFeed } from "../components/activity-feed";
 
 export default function UsersPageClient() {
   const t = useTranslations("users");
-  const tc = useTranslations("common");
   const ti = useTranslations("impersonation");
   const PAGE_SIZE = 20;
   const { pushEvent } = useActivityFeed();
@@ -115,7 +114,6 @@ export default function UsersPageClient() {
           title={t("title")}
           subtitle={t("subtitle")}
           icon={Users}
-          backLabel={tc("back")}
           actions={
             <Button
               className="flex items-center gap-2"

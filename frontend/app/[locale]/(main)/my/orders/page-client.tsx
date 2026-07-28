@@ -42,20 +42,24 @@ export function MyOrdersClient() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchOrders = async () => {
       setLoading(true);
       setError(null);
       try {
         const res = await orderApi.getMy();
+        if (cancelled) return;
         if (res.error) throw new Error(res.error.message);
         setOrders(res.data?.results || []);
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : t("error"));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchOrders();
+    return () => { cancelled = true; };
   }, [t]);
 
   useEffect(() => {

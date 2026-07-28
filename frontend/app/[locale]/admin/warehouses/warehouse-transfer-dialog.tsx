@@ -214,7 +214,7 @@ export function WarehouseTransferDialog({ open, onOpenChange, warehouses, onSucc
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="wh-transfer-from" className="text-right">{t("fromWarehouse")} *</Label>
+            <Label htmlFor="wh-transfer-from">{t("from")} *</Label>
             <div className="col-span-3">
               <div className="relative">
                 <Select value={fromWarehouseId} onValueChange={setFromWarehouseId}>
@@ -240,7 +240,7 @@ export function WarehouseTransferDialog({ open, onOpenChange, warehouses, onSucc
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="wh-transfer-to" className="text-right">{t("toWarehouse")} *</Label>
+            <Label htmlFor="wh-transfer-to">{t("to")} *</Label>
             <Select value={toWarehouseId} onValueChange={setToWarehouseId}>
               <SelectTrigger id="wh-transfer-to" className="col-span-3"><SelectValue placeholder={t("toWarehouse")} /></SelectTrigger>
               <SelectContent>

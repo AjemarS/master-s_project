@@ -160,6 +160,10 @@ export const goodsReceiptApi = {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`);
   },
 
+  async productInfo(product_id: number, warehouse_id: number): Promise<ApiResponse<{ product_id: number; warehouse_id: number; last_cost_price: string | null; current_stock: number }>> {
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/product_info/?product_id=${product_id}&warehouse_id=${warehouse_id}`);
+  },
+
   async create(data: Partial<GoodsReceiptNote>): Promise<ApiResponse<GoodsReceiptNote>> {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`, { method: "POST", body: JSON.stringify(data) });
   },

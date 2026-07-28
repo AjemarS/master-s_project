@@ -5,16 +5,15 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { Button } from "~/ui/primitives/button";
 import { ClipboardList, Plus } from "lucide-react";
-import { AdminPageHeader, ConfirmDialog } from "../components";
+import { AdminPageHeader } from "../components";
 import {
   useGoodsReceipts, useSuppliers, useWarehouses,
 } from "~/lib/hooks/use-api-data";
-import { goodsReceiptService } from "./actions";
 import { useCurrentUser } from "~/lib/auth-client";
 import type { GoodsReceiptNote } from "~/lib/types";
 import { ErrorAlert } from "~/ui/components/error-alert";
-import { useActivityFeed } from "../components/activity-feed";
 import { GoodsReceiptDialog } from "./goods-receipt-dialog";
+import { GoodsReceiptDetailDialog } from "./goods-receipt-detail-dialog";
 import { GoodsReceiptTable } from "./goods-receipt-table";
 
 export function GoodsReceiptsClient() {
@@ -31,48 +30,22 @@ export function GoodsReceiptsClient() {
 
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
-  const { pushEvent } = useActivityFeed();
 
-  const [deleting, setDeleting] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
-  const [editingReceipt, setEditingReceipt] = useState<GoodsReceiptNote | null>(null);
-  const [dialogKey, setDialogKey] = useState(0);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createDialogKey, setCreateDialogKey] = useState(0);
+  const [viewingReceipt, setViewingReceipt] = useState<GoodsReceiptNote | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
-  const colSpan = isAdmin ? 7 : 6;
-
-  const handleDelete = async () => {
-    if (!deleteConfirmId) return;
-    setDeleting(true);
-    try {
-      const res = await goodsReceiptService.remove(deleteConfirmId);
-      if (res.error) throw new Error(res.error.message);
-      toast.success(t("grnDeleted"));
-      pushEvent({ type: "delete", message: `Deleted goods receipt #${deleteConfirmId}`, entityType: "goods_receipt" });
-      setDeleteConfirmId(null);
-      grMutate();
-    } catch (err) {
-      toast.error(t("deleteError"), {
-        description: err instanceof Error ? err.message : "",
-      });
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const colSpan = 7;
 
   const openCreate = () => {
-    setDialogMode("create");
-    setEditingReceipt(null);
-    setShowDialog(true);
-    setDialogKey((k) => k + 1);
+    setCreateDialogKey((k) => k + 1);
+    setShowCreateDialog(true);
   };
 
-  const openEdit = (grn: GoodsReceiptNote) => {
-    setDialogMode("edit");
-    setEditingReceipt(grn);
-    setShowDialog(true);
-    setDialogKey((k) => k + 1);
+  const openView = (grn: GoodsReceiptNote) => {
+    setViewingReceipt(grn);
+    setShowDetailDialog(true);
   };
 
   return (
@@ -95,36 +68,24 @@ export function GoodsReceiptsClient() {
         <GoodsReceiptTable
           receipts={receipts}
           isLoading={grLoading}
-          isAdmin={isAdmin}
           colSpan={colSpan}
-          onEdit={openEdit}
-          onDelete={setDeleteConfirmId}
+          onView={openView}
         />
 
         <GoodsReceiptDialog
-          key={dialogKey}
-          open={showDialog}
-          onOpenChange={setShowDialog}
-          mode={dialogMode}
-          receipt={editingReceipt}
+          key={createDialogKey}
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
           suppliers={suppliers}
           warehouses={warehouses}
           onSuccess={grMutate}
         />
 
-        {isAdmin && (
-          <ConfirmDialog
-            open={deleteConfirmId !== null}
-            onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
-            onConfirm={handleDelete}
-            title={t("deleteConfirmTitle")}
-            description={t("deleteConfirmDesc")}
-            confirmText={tc("delete")}
-            cancelText={tc("cancel")}
-            variant="destructive"
-            loading={deleting}
-          />
-        )}
+        <GoodsReceiptDetailDialog
+          open={showDetailDialog}
+          onOpenChange={setShowDetailDialog}
+          receipt={viewingReceipt}
+        />
       </div>
     </div>
   );
