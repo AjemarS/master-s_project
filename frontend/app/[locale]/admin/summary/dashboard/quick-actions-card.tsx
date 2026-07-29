@@ -1,23 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { PlusCircle, ShoppingCart, FileText, LayoutDashboard } from "lucide-react";
+import {
+  PlusCircle, ShoppingCart, FileText, ArrowRightLeft,
+  LayoutDashboard, Users, BarChart3, Tags,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
-import { BarChart, Bar, ResponsiveContainer } from "recharts";
 
 interface QuickActionsCardProps {
   isAdmin: boolean;
   isWhWorker: boolean;
-  dailyRevenue: Array<{ date: string; revenue: number }>;
   tSum: (key: string, values?: Record<string, string | number | Date>) => string;
+  tNav: (key: string) => string;
 }
 
 export default function QuickActionsCard({
   isAdmin,
   isWhWorker,
-  dailyRevenue,
   tSum,
+  tNav,
 }: QuickActionsCardProps) {
   return (
     <Card className="dark:bg-card dark:border-border">
@@ -27,38 +29,54 @@ export default function QuickActionsCard({
           {tSum("quickActions")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {isAdmin && (
-          <Button asChild variant="outline" className="w-full justify-start">
-            <Link href="/admin/products">
-              <PlusCircle className="h-4 w-4 mr-2" /> {tSum("addProduct")}
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {isAdmin && (
+            <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+              <Link href="/admin/products">
+                <PlusCircle className="h-4 w-4 mr-2 shrink-0" /> {tSum("addProduct")}
+              </Link>
+            </Button>
+          )}
+          <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+            <Link href="/admin/orders">
+              <ShoppingCart className="h-4 w-4 mr-2 shrink-0" /> {tSum("viewOrders")}
             </Link>
           </Button>
-        )}
-        <Button asChild variant="outline" className="w-full justify-start">
-          <Link href="/admin/orders">
-            <ShoppingCart className="h-4 w-4 mr-2" /> {tSum("viewOrders")}
-          </Link>
-        </Button>
-        {(isAdmin || isWhWorker) && (
-          <Button asChild variant="outline" className="w-full justify-start">
-            <Link href="/admin/goods-receipts">
-              <FileText className="h-4 w-4 mr-2" /> {tSum("createGrn")}
-            </Link>
-          </Button>
-        )}
-        {dailyRevenue.length > 0 && (
-          <div className="mt-4 pt-4 border-t dark:border-border">
-            <div className="text-xs text-muted-foreground mb-2">
-              {tSum("revenue30days")}
-            </div>
-            <ResponsiveContainer width="100%" height={60}>
-              <BarChart data={dailyRevenue}>
-                <Bar dataKey="revenue" fill="var(--chart-1)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+          {(isAdmin || isWhWorker) && (
+            <>
+              <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+                <Link href="/admin/goods-receipts">
+                  <FileText className="h-4 w-4 mr-2 shrink-0" /> {tSum("createGrn")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+                <Link href="/admin/stock-movements">
+                  <ArrowRightLeft className="h-4 w-4 mr-2 shrink-0" /> {tNav("stockMovements")}
+                </Link>
+              </Button>
+            </>
+          )}
+          {isAdmin && (
+            <>
+              <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+                <Link href="/admin/categories">
+                  <Tags className="h-4 w-4 mr-2 shrink-0" /> {tNav("categories")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+                <Link href="/admin/reports">
+                  <BarChart3 className="h-4 w-4 mr-2 shrink-0" /> {tNav("reports")}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-start h-auto py-2.5">
+                <Link href="/admin/users">
+                  <Users className="h-4 w-4 mr-2 shrink-0" /> {tNav("users")}
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

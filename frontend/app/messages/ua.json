@@ -26,6 +26,9 @@
     "apply": "Застосувати",
     "actions": "Дії",
     "status": "Статус",
+    "delivering": "В дорозі",
+    "delivered": "Доставлено",
+    "completed": "Виконано",
     "date": "Дата",
     "total": "Всього",
     "items": "Позицій",
@@ -197,7 +200,8 @@
     "activityFeed": "Стрічка активності",
     "noActivity": "Ще немає активності",
     "activityError": "Не вдалося завантажити активність",
-    "viewAllActivity": "Вся активність"
+    "viewAllActivity": "Вся активність",
+    "orderStatusSummary": "Статуси замовлень"
   },
   "products": {
     "title": "Керування товарами",

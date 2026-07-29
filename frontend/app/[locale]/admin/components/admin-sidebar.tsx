@@ -77,7 +77,7 @@ export function AdminSidebar() {
     userRole === "admin" || g.roles.includes(userRole || "")
   );
 
-  const [pinned, setPinned] = useState(false);
+  const [pinned, setPinned] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const g of groups) {

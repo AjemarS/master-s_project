@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { StatsCardSkeleton, AdminPageHeader } from "../components";
 import { useOrders } from "~/lib/hooks/use-api-data";
+import { useStaleUnpaidCount } from "~/lib/hooks/use-stale-unpaid";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { formatCurrency } from "~/lib/utils/format";
 
@@ -19,9 +20,8 @@ export function CashierDashboard() {
   const tSum = useTranslations("summary");
   const tc = useTranslations("common");
   const { data: posOrdersData, isLoading: posOrdersLoading } = useOrders({ channel: "offline" });
-  const { data: unpaidData, isLoading: unpaidLoading } = useOrders({ status: "unpaid" });
 
-  const isLoading = posOrdersLoading || unpaidLoading;
+  const isLoading = posOrdersLoading;
 
   const today = useMemo(() => {
     const d = new Date();
@@ -36,17 +36,7 @@ export function CashierDashboard() {
 
   const recentOrders = useMemo(() => posOrdersData?.results?.slice(0, 10) || [], [posOrdersData]);
 
-  const [staleUnpaidCount, setStaleUnpaidCount] = useState(0);
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setStaleUnpaidCount(
-        unpaidData?.results
-          ? unpaidData.results.filter((o) => new Date(o.created_at).getTime() < Date.now() - 3600000).length
-          : 0
-      );
-    }, 0);
-    return () => clearTimeout(id);
-  }, [unpaidData]);
+  const { staleUnpaidCount } = useStaleUnpaidCount();
 
   const todayRevenue = posOrdersToday.reduce(
     (sum, o) => sum + Number(o.total_amount || 0), 0

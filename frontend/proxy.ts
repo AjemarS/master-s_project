@@ -16,7 +16,7 @@ const protectedRoutes = ["/dashboard", "/admin", "/order", "/my"];
 // More specific paths are checked first (longest match wins)
 // Must stay in sync with gateway RBAC (nginx/auth.js) and admin-sidebar.tsx
 const roleRouteAccess: Record<string, string[]> = {
-  "/admin/summary": ["admin"],
+  "/admin/summary": ["admin", "cashier", "warehouse_worker"],
   "/admin/pos": ["admin", "cashier"],
   "/admin/products": ["admin", "cashier"],
   "/admin/orders": ["admin", "cashier"],

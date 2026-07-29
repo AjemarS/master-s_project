@@ -26,6 +26,9 @@
     "apply": "Apply",
     "actions": "Actions",
     "status": "Status",
+    "delivering": "Delivering",
+    "delivered": "Delivered",
+    "completed": "Completed",
     "date": "Date",
     "total": "Total",
     "items": "Items",
@@ -197,7 +200,8 @@
     "activityFeed": "Activity Feed",
     "noActivity": "No activity yet",
     "activityError": "Failed to load activity",
-    "viewAllActivity": "All activity"
+    "viewAllActivity": "All activity",
+    "orderStatusSummary": "Order Status"
   },
   "products": {
     "title": "Products",

@@ -13,3 +13,4 @@ export { default as SupplierPerformanceCard } from "./supplier-performance-card"
 export { default as RecentDeliveriesCard } from "./recent-deliveries-card";
 export { default as DashboardLoadingSkeleton } from "./loading-skeleton";
 export { default as ActivityFeed } from "./activity-feed";
+export { default as OrderStatusCard } from "./order-status-card";

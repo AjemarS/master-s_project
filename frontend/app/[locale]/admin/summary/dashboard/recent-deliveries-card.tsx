@@ -85,7 +85,7 @@ export default function RecentDeliveriesCard({ tSum }: RecentDeliveriesCardProps
                       <Building2 className="h-3 w-3" />
                       {grn.warehouse_name}
                       <Package className="h-3 w-3 ml-1" />
-                      {itemCount} {tSum("units_short", { count: itemCount })}
+                      {tSum("units_short", { count: itemCount })}
                     </div>
                   </div>
                 </div>

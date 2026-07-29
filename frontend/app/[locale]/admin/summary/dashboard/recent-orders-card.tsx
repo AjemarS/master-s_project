@@ -39,7 +39,7 @@ export default function RecentOrdersCard({
       <CardContent>
         {isLoading ? (
           <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-10 bg-muted rounded animate-pulse" />
             ))}
           </div>
