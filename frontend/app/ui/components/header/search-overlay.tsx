@@ -4,8 +4,9 @@ import { Search, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "~/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { productApi } from "~/lib/api/admin-api";
+import { useEffect, useRef, useState } from "react";
+import { useSearchProducts } from "~/lib/hooks/use-api-data";
+import { useDebounce } from "~/lib/hooks/use-debounce";
 import type { Product } from "~/lib/types";
 import { formatCurrency } from "~/lib/utils/format";
 import { cn } from "~/lib/cn";
@@ -18,38 +19,27 @@ export function SearchBar({ className }: SearchBarProps) {
   const router = useRouter();
   const t = useTranslations("common");
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const fetchSuggestions = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      setSuggestions([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await productApi.getAll({ search: q, pageSize: 5 });
-      const products = res.data?.results || [];
-      setSuggestions(products);
+  const debouncedQuery = useDebounce(query, 300);
+  const { data: searchData, isValidating } = useSearchProducts(debouncedQuery, 5);
+  const suggestions = searchData?.results ?? [];
+  const loading = isValidating;
+
+  // Reset keyboard selection when new results arrive
+  useEffect(() => {
+    if (query.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: clear stale highlight when SWR results update
       setSelectedIndex(-1);
-    } catch {
-      setSuggestions([]);
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [searchData, query]);
 
   const handleChange = (value: string) => {
     setQuery(value);
     setIsOpen(true);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(value), 300);
   };
 
   const handleSubmit = (q?: string) => {
@@ -110,13 +100,6 @@ export function SearchBar({ className }: SearchBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="relative flex items-center">
@@ -139,7 +122,7 @@ export function SearchBar({ className }: SearchBarProps) {
         />
         {query && (
           <button
-            onClick={() => { setQuery(""); setSuggestions([]); inputRef.current?.focus(); }}
+            onClick={() => { setQuery(""); inputRef.current?.focus(); }}
             className="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
             type="button"
           >

@@ -1,9 +1,14 @@
+import { useCallback, useEffect, useMemo } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { SWRConfiguration } from "swr";
+import useSWRMutation from "swr/mutation";
 import { useApiGet, useApiMutation } from "./use-api";
 import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
 import { authClient } from "~/lib/auth-client";
 import { productApi, categoryApi, warehouseApi, stockApi, supplierApi, goodsReceiptApi, orderApi, stockMovementApi, stockTransferApi, stockAdjustApi } from "~/lib/api/admin-api";
+import { apiCall, ORDERS_API_URL } from "~/lib/api/client";
+import { createNotificationSSE, notificationsApi } from "~/lib/api/notifications";
+import type { NotificationListResponse } from "~/lib/api/notifications";
 
 export function useProducts(params?: Record<string, string | number | boolean | undefined>) {
   const q = new URLSearchParams();
@@ -53,7 +58,7 @@ export function useOrders(params?: { page?: number; status?: string; channel?: s
 }
 
 export function useOrder(id: number) {
-  return useApiGet<OrderDetail>(`/orders/${id}`, () => orderApi.getById(id));
+  return useApiGet<OrderDetail>(`/orders/${id}`, () => orderApi.getById(id), { keepPreviousData: false });
 }
 
 export function useUpdateOrderStatus() {
@@ -224,5 +229,261 @@ export function useDeleteUser() {
       if (res.error) throw new Error(res.error.message);
       globalMutate((k: string) => typeof k === "string" && k.startsWith('{"type":"users'));
     },
+  };
+}
+
+export function useMyOrders() {
+  return useApiGet<{ results: Order[]; count: number }>("/orders/my", () => orderApi.getMy());
+}
+
+export function useCancelOrder() {
+  const { mutate: globalMutate } = useSWRConfig();
+  return useSWRMutation<OrderDetail, Error, string, number>(
+    "cancel-order",
+    async (_key, { arg }: { arg: number }) => {
+      const res = await orderApi.cancel(arg);
+      if (res.error) throw new Error(res.error.message);
+      return res.data!;
+    },
+    {
+      onSuccess: () => {
+        globalMutate((k) => typeof k === "string" && k.startsWith("/orders/my"));
+      },
+    }
+  );
+}
+
+export function useSearchProducts(search: string, pageSize = 5) {
+  const trimmed = search.trim();
+  const key = trimmed ? `/products/search?q=${encodeURIComponent(trimmed)}&pageSize=${pageSize}` : null;
+  return useApiGet<{ results: Product[]; count: number }>(
+    key,
+    () => productApi.getAll({ search: trimmed, pageSize }),
+  );
+}
+
+export function useWarehouseStock(warehouseId: number | null) {
+  const key = warehouseId ? `/stock/?warehouse_id=${warehouseId}` : null;
+  return useApiGet<Stock[]>(
+    key,
+    () => stockApi.getAll({ warehouse_id: warehouseId! }),
+    { keepPreviousData: false },
+  );
+}
+
+interface HealthServiceEntry {
+  status: string;
+  label?: string;
+}
+interface SystemHealth {
+  services: Record<string, HealthServiceEntry>;
+}
+
+export function useSystemHealth() {
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost/api").replace(/\/api$/, "");
+  return useSWR<SystemHealth>(
+    "/health",
+    async () => {
+      const res = await fetch(`${baseUrl}/health`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
+      return res.json();
+    },
+    { refreshInterval: 30000 },
+  );
+}
+
+export interface NovaPoshtaCity {
+  name: string;
+  ref: string;
+  area?: string;
+  type?: string;
+}
+
+export interface NovaPoshtaCitiesResponse {
+  cities: NovaPoshtaCity[];
+  error?: string;
+}
+
+export function useNovaPoshtaCities(query: string) {
+  const trimmed = query.trim();
+  const key = trimmed.length >= 3 ? `/np-cities?q=${encodeURIComponent(trimmed)}` : null;
+  return useSWR<NovaPoshtaCitiesResponse>(
+    key,
+    async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Nova Poshta city search failed: ${res.status}`);
+      return res.json();
+    },
+    { revalidateOnFocus: false },
+  );
+}
+
+export interface NovaPoshtaWarehouse {
+  name: string;
+  ref: string;
+  address: string;
+  type: "warehouse" | "postomat";
+  number?: number;
+}
+
+export interface NovaPoshtaWarehousesResponse {
+  warehouses: NovaPoshtaWarehouse[];
+  error?: string;
+}
+
+export function useNovaPoshtaWarehouses(cityRef: string | null, query: string) {
+  const trimmedQuery = query.trim();
+  const queryParam =
+    trimmedQuery.length >= 3 ? `&q=${encodeURIComponent(trimmedQuery)}` : "";
+  const key = cityRef
+    ? `/np-warehouses?cityRef=${encodeURIComponent(cityRef)}${queryParam}`
+    : null;
+  return useSWR<NovaPoshtaWarehousesResponse>(
+    key,
+    async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Nova Poshta warehouse search failed: ${res.status}`);
+      return res.json();
+    },
+    { revalidateOnFocus: false },
+  );
+}
+
+export interface DeliveryWarehouseOption {
+  name: string;
+  address: string;
+  ref?: string;
+}
+
+export function useDeliveryWarehouses(city: string, deliveryMethod: string) {
+  const trimmed = city.trim();
+  const enabled = Boolean(trimmed) && (deliveryMethod === "nova_poshta" || deliveryMethod === "ukrposhta");
+  const slug = deliveryMethod === "nova_poshta" ? "nova-poshta" : deliveryMethod;
+  const key = enabled ? `/delivery/${slug}-warehouses?city=${encodeURIComponent(trimmed)}` : null;
+  return useApiGet<{ data: DeliveryWarehouseOption[] }>(
+    key,
+    () =>
+      apiCall<{ data: DeliveryWarehouseOption[] }>(
+        `${ORDERS_API_URL}/delivery/${slug}-warehouses/`,
+        { method: "POST", body: JSON.stringify({ city_name: trimmed }) },
+      ),
+    { keepPreviousData: false },
+  );
+}
+
+export function useNotifications(userId: string | undefined) {
+  const listKey = userId ? `/notifications?userId=${userId}&limit=50` : null;
+  const unreadKey = userId ? `/notifications/unread/${userId}` : null;
+  const { mutate: globalMutate, cache } = useSWRConfig();
+
+  const { data: notifications, isLoading } = useApiGet<NotificationListResponse>(
+    listKey,
+    () => notificationsApi.list(userId!, 1, 50),
+  );
+  const { data: unreadData } = useApiGet<{ count: number }>(
+    unreadKey,
+    () => notificationsApi.unreadCount(userId!),
+  );
+
+  // Boolean (not the list object) so SSE pushes that update `notifications`
+  // don't re-run the effect below and re-create the EventSource on each event.
+  const listLoaded = useMemo(() => notifications !== undefined, [notifications]);
+
+  useEffect(() => {
+    if (!userId || !listLoaded) return;
+    return createNotificationSSE(userId, (item) => {
+      if (!listKey || !unreadKey) return;
+      // Dedup by id: a re-established connection may re-send an event we already
+      // have. Skip both the list push and the unread bump for duplicates.
+      const list = cache.get(listKey)?.data as NotificationListResponse | undefined;
+      if (list?.items.some((n) => n.id === item.id)) return;
+      globalMutate(
+        listKey,
+        (prev?: NotificationListResponse) =>
+          prev ? { ...prev, items: [item, ...prev.items], total: prev.total + 1 } : prev,
+        { revalidate: false }
+      );
+      globalMutate(
+        unreadKey,
+        (prev?: { count: number }) => ({ count: (prev?.count ?? 0) + 1 }),
+        { revalidate: false }
+      );
+    });
+  }, [userId, listLoaded, listKey, unreadKey, globalMutate, cache]);
+
+  const markAsRead = useCallback(async (id: string) => {
+    if (!listKey || !unreadKey) return;
+    const res = await notificationsApi.markRead(id);
+    if (!res.data) return;
+    globalMutate(
+      listKey,
+      (prev?: NotificationListResponse) =>
+        prev
+          ? { ...prev, items: prev.items.map((n) => (n.id === id ? { ...n, read: true } : n)) }
+          : prev,
+      { revalidate: false }
+    );
+    globalMutate(
+      unreadKey,
+      (prev?: { count: number }) => ({ count: Math.max(0, (prev?.count ?? 0) - 1) }),
+      { revalidate: false }
+    );
+  }, [globalMutate, listKey, unreadKey]);
+
+  const markAllAsRead = useCallback(async () => {
+    if (!userId || !listKey || !unreadKey) return;
+    const res = await notificationsApi.markAllRead(userId);
+    if (!res.data) return;
+    globalMutate(
+      listKey,
+      (prev?: NotificationListResponse) =>
+        prev ? { ...prev, items: prev.items.map((n) => ({ ...n, read: true })) } : prev,
+      { revalidate: false }
+    );
+    globalMutate(unreadKey, () => ({ count: 0 }), { revalidate: false });
+  }, [globalMutate, listKey, unreadKey, userId]);
+
+  const dismiss = useCallback(async (id: string) => {
+    if (!listKey || !unreadKey) return;
+    const res = await notificationsApi.dismiss(id);
+    if (!res.data) return;
+    const current = cache.get(listKey)?.data as NotificationListResponse | undefined;
+    const target = current?.items.find((n) => n.id === id);
+    const wasUnread = Boolean(target && !target.read);
+    globalMutate(
+      listKey,
+      (prev?: NotificationListResponse) =>
+        prev ? { ...prev, items: prev.items.filter((n) => n.id !== id) } : prev,
+      { revalidate: false }
+    );
+    if (wasUnread) {
+      globalMutate(
+        unreadKey,
+        (prev?: { count: number }) => ({ count: Math.max(0, (prev?.count ?? 0) - 1) }),
+        { revalidate: false }
+      );
+    }
+  }, [cache, globalMutate, listKey, unreadKey]);
+
+  const clearAll = useCallback(async () => {
+    if (!userId || !listKey || !unreadKey) return;
+    const res = await notificationsApi.clearAll(userId);
+    if (!res.data) return;
+    globalMutate(
+      listKey,
+      (prev?: NotificationListResponse) => ({ items: [], total: 0, page: 1, limit: prev?.limit ?? 50 }),
+      { revalidate: false }
+    );
+    globalMutate(unreadKey, () => ({ count: 0 }), { revalidate: false });
+  }, [globalMutate, listKey, unreadKey, userId]);
+
+  return {
+    notifications: notifications?.items ?? [],
+    unreadCount: unreadData?.count ?? 0,
+    isLoading,
+    markAsRead,
+    markAllAsRead,
+    dismiss,
+    clearAll,
   };
 }

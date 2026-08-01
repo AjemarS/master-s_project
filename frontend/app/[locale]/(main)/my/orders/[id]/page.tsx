@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "~/i18n/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -10,7 +10,7 @@ import { Button } from "~/ui/primitives/button";
 import { Alert, AlertDescription, AlertTitle } from "~/ui/primitives/alert";
 import { Skeleton } from "~/ui/primitives/skeleton";
 import { ArrowLeft, AlertCircle, ShoppingBag } from "lucide-react";
-import { orderApi } from "~/lib/api/admin-api";
+import { useCancelOrder, useOrder } from "~/lib/hooks/use-api-data";
 import { formatCurrency } from "~/lib/utils/format";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { getAllowedTransitions } from "~/lib/utils/order-status";
@@ -19,46 +19,55 @@ import type { OrderDetail } from "~/lib/types";
 export default function MyOrderDetailPage() {
   const params = useParams();
   const id = Number(params.id);
+
+  if (!id || isNaN(id)) {
+    return <OrderNotFoundAlert />;
+  }
+
+  return <MyOrderDetailContent id={id} />;
+}
+
+function OrderNotFoundAlert() {
+  const t = useTranslations("orderDetail");
+  return (
+    <div className="container mx-auto max-w-4xl px-4 py-8">
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>{t("notFound")}</AlertTitle>
+        <AlertDescription>{t("notFoundDesc")}</AlertDescription>
+      </Alert>
+      <div className="mt-4 flex gap-3">
+        <Link href="/my/orders">
+          <Button variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {t("back")}
+          </Button>
+        </Link>
+        <Link href="/products">
+          <Button>
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            {t("continueShopping")}
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function MyOrderDetailContent({ id }: { id: number }) {
   const t = useTranslations("orderDetail");
   const to = useTranslations("orders");
-  const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: order, error, isLoading, mutate } = useOrder(id);
+  const { trigger: cancelOrder } = useCancelOrder();
   const [cancelling, setCancelling] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      if (!id || isNaN(id)) {
-        setError(t("notFound"));
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await orderApi.getById(id);
-        if (cancelled) return;
-        if (res.error) throw new Error(res.error.message);
-        setOrder(res.data ?? null);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : t("notFound"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, [id, t]);
-
   const handleCancel = async () => {
+    if (!order) return;
     if (!window.confirm(to("cancelConfirm"))) return;
     setCancelling(true);
     try {
-      const res = await orderApi.cancel(id);
-      if (res.error) throw new Error(res.error.message);
-      setOrder((prev) => prev ? { ...prev, status: "cancelled" as const } : prev);
+      await cancelOrder(id);
+      mutate({ ...order, status: "cancelled" } as OrderDetail, { revalidate: false });
       toast.success(to("cancelledSuccess"));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : to("cancelFailed"));
@@ -67,7 +76,7 @@ export default function MyOrderDetailPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
         <Skeleton className="h-6 w-32" />
@@ -82,29 +91,7 @@ export default function MyOrderDetailPage() {
   }
 
   if (error || !order) {
-    return (
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{t("notFound")}</AlertTitle>
-          <AlertDescription>{t("notFoundDesc")}</AlertDescription>
-        </Alert>
-        <div className="mt-4 flex gap-3">
-          <Link href="/my/orders">
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("back")}
-            </Button>
-          </Link>
-          <Link href="/products">
-            <Button>
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              {t("continueShopping")}
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
+    return <OrderNotFoundAlert />;
   }
 
   const deliveryLabel =

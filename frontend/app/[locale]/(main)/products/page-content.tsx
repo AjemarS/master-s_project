@@ -5,8 +5,8 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { ProductCard } from "~/ui/components/product-card";
 import { ProductsFilterSidebar } from "~/ui/components/products-filter-sidebar";
-import { categoryApi, productApi } from "~/lib/api/admin-api";
 import { useCart } from "~/lib/hooks/use-cart";
+import { useCategories, useProducts } from "~/lib/hooks/use-api-data";
 import { getImageUrl } from "~/lib/utils/image-url";
 import { Pagination } from "~/ui/components/pagination";
 import type { Category, Product } from "~/lib/types";
@@ -48,11 +48,7 @@ export default function ProductsPageContent() {
   const searchParams = useSearchParams();
   const { addItem } = useCart();
 
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [totalCount, setTotalCount] = React.useState(0);
-  const [totalPages, setTotalPages] = React.useState(1);
   const [page, setPage] = React.useState(1);
-  const [isLoading, setIsLoading] = React.useState(true);
 
   // Price range: slider value and axis limits
   const [priceRange, setPriceRange] = React.useState<[number, number]>([0, 100000]);
@@ -60,8 +56,6 @@ export default function ProductsPageContent() {
   const [priceMax, setPriceMax] = React.useState(100000);
 
   // Brand & color
-  const [brands, setBrands] = React.useState<string[]>([]);
-  const [colors, setColors] = React.useState<string[]>([]);
   const [selectedBrand, setSelectedBrand] = React.useState<string | null>(null);
   const [selectedColor, setSelectedColor] = React.useState<string | null>(null);
 
@@ -76,7 +70,6 @@ export default function ProductsPageContent() {
     return null;
   });
   const [sort, setSort] = React.useState<string>("newest");
-  const [categories, setCategories] = React.useState<{ id: number; name: string }[]>([]);
   const [minRating, setMinRating] = React.useState(0);
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [searchTerm] = React.useState<string>(() => {
@@ -98,40 +91,43 @@ export default function ProductsPageContent() {
 
   const PAGE_SIZE = 20;
 
-  // Fetch categories, brands, colors and price bounds on mount
-  React.useEffect(() => {
-    async function loadFilterOptions() {
-      const [catRes, productRes] = await Promise.all([
-        categoryApi.getAll(),
-        productApi.getAll({ pageSize: 100 }),
-      ]);
-      if (catRes.data) {
-        setCategories(
-          catRes.data.results
-            .filter((c): c is Category & { id: number } => c.id !== undefined)
-            .map((c) => ({ id: c.id, name: c.name })),
-        );
-      }
-      if (productRes.data?.results) {
-        const allProducts = productRes.data.results;
-        const uniqueBrands = [...new Set(allProducts.map((p: Product) => p.brand).filter(Boolean))] as string[];
-        const uniqueColors = [...new Set(allProducts.map((p: Product) => p.color).filter(Boolean))] as string[];
-        uniqueBrands.sort();
-        uniqueColors.sort();
-        setBrands(uniqueBrands);
-        setColors(uniqueColors);
+  // Filter option data: categories, brands, colors and price bounds
+  const { data: categoriesData } = useCategories();
+  const { data: allProductsData } = useProducts({ pageSize: 100 });
+  const priceInitializedRef = React.useRef(false);
 
-        // Set price bounds from actual data
-        const prices = allProducts.map((p: Product) => Number(p.price));
-        const minP = Math.floor(Math.min(...prices));
-        const maxP = Math.ceil(Math.max(...prices));
-        setPriceMin(minP);
-        setPriceMax(maxP);
-        setPriceRange([minP, maxP]);
-      }
-    }
-    loadFilterOptions();
-  }, []);
+  const categories = React.useMemo(
+    () =>
+      (categoriesData?.results ?? [])
+        .filter((c): c is Category & { id: number } => c.id !== undefined)
+        .map((c) => ({ id: c.id, name: c.name })),
+    [categoriesData],
+  );
+
+  const { brands, colors } = React.useMemo(() => {
+    const allProducts = allProductsData?.results ?? [];
+    const uniqueBrands = [...new Set(allProducts.map((p: Product) => p.brand).filter(Boolean))] as string[];
+    const uniqueColors = [...new Set(allProducts.map((p: Product) => p.color).filter(Boolean))] as string[];
+    uniqueBrands.sort();
+    uniqueColors.sort();
+    return { brands: uniqueBrands, colors: uniqueColors };
+  }, [allProductsData]);
+
+  // Initialize price bounds from actual data once, without clobbering user slider selections
+  React.useEffect(() => {
+    if (priceInitializedRef.current) return;
+    const allProducts = allProductsData?.results;
+    if (!allProducts || allProducts.length === 0) return;
+    const prices = allProducts.map((p: Product) => Number(p.price));
+    const minP = Math.floor(Math.min(...prices));
+    const maxP = Math.ceil(Math.max(...prices));
+    /* eslint-disable react-hooks/set-state-in-effect -- intentional: seed slider bounds once from first data arrival (ref-guarded) */
+    setPriceMin(minP);
+    setPriceMax(maxP);
+    setPriceRange([minP, maxP]);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    priceInitializedRef.current = true;
+  }, [allProductsData]);
 
   const getFilters = React.useCallback(() => {
     const filters: Record<string, string | number | boolean | undefined> = {
@@ -151,26 +147,11 @@ export default function ProductsPageContent() {
     return filters;
   }, [page, sort, priceRange, priceMin, priceMax, onlyInStock, onSale, selectedCategoryId, selectedBrand, selectedColor, minRating, searchTerm]);
 
-  React.useEffect(() => {
-    let cancelled = false;
-
-    productApi.getAll(getFilters())
-      .then((response) => {
-        if (!cancelled && response.data) {
-          setProducts(response.data.results);
-          setTotalCount(response.data.count);
-          setTotalPages(Math.ceil(response.data.count / PAGE_SIZE));
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [getFilters]);
+  const { data: productData, isLoading } = useProducts(getFilters());
+  const showInitialLoading = isLoading && !productData;
+  const products = React.useMemo(() => productData?.results ?? [], [productData]);
+  const totalCount = productData?.count ?? 0;
+  const totalPages = Math.ceil((productData?.count ?? 0) / PAGE_SIZE);
 
   const handleAddToCart = React.useCallback(
     async (productId: number) => {
@@ -297,7 +278,7 @@ export default function ProductsPageContent() {
             ))}
           </div>
 
-          {isLoading && (
+          {showInitialLoading && (
             <div className="mt-8 text-center">
               <p className="text-muted-foreground animate-pulse">{tCommon("loading")}</p>
             </div>
@@ -309,7 +290,7 @@ export default function ProductsPageContent() {
             </div>
           )}
 
-          {!isLoading && totalPages > 1 && (
+          {!showInitialLoading && totalPages > 1 && (
             <div className="mt-8 flex items-center justify-center">
               <Pagination
                 currentPage={page}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, startTransition } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useDebounce } from "~/lib/hooks/use-debounce";
+import { useWarehouses, useWarehouseStock, useSearchProducts } from "~/lib/hooks/use-api-data";
 import { CreditCard } from "lucide-react";
 import { AdminPageHeader } from "../components";
-import type { Product, Warehouse, Stock } from "~/lib/types";
+import type { Product, Warehouse } from "~/lib/types";
 import { POSProductGrid } from "./pos-product-grid";
 import { POSReceiptPanel } from "./pos-receipt-panel";
 import { POSSaleConfirmDialog } from "./pos-sale-confirm-dialog";
@@ -15,108 +16,61 @@ import { useActivityFeed } from "../components/activity-feed";
 
 export function POSClient() {
   const { pushEvent } = useActivityFeed();
+
   const t = useTranslations("pos");
   const tc = useTranslations("common");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  
   const [receipt, setReceipt] = useState<ReceiptItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [selectedWarehouse, setSelectedWarehouse] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  
   const [submitting, setSubmitting] = useState(false);
   const [showSaleConfirm, setShowSaleConfirm] = useState(false);
 
-  const abortRef = useRef<AbortController | null>(null);
-  const [stockByProduct, setStockByProduct] = useState<Map<number, number> | null>(null);
-  const [stockError, setStockError] = useState<string | null>(null);
+  const { data: warehousesData } = useWarehouses();
+  const warehouses = warehousesData?.results ?? [];
+
+  const { data: stockData, error: stockError } = useWarehouseStock(selectedWarehouse);
+
+  const { data: searchData, isValidating: searchLoading, error: searchError } = useSearchProducts(debouncedSearchTerm, 20);
 
   useEffect(() => {
-    let cancelled = false;
-    posService.getWarehouses().then((res) => {
-      if (cancelled) return;
-      if (res.data?.results) {
-        setWarehouses(res.data.results);
-        if (res.data.results.length === 1) {
-          setSelectedWarehouse(res.data.results[0].id);
-        }
-      }
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedWarehouse) return;
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    posService
-      .getStock(selectedWarehouse, controller.signal)
-      .then((res) => {
-        if (controller.signal.aborted) return;
-        if (res.error) throw new Error(res.error.message);
-        const map = new Map<number, number>();
-        (res.data ?? []).forEach((s: Stock) => {
-          map.set(s.product_id, s.available);
-        });
-        setStockByProduct(map);
-        setStockError(null);
-      })
-      .catch((err) => {
-        if (err.name === "AbortError") return;
-        setStockError(err.message || "Failed to load stock data");
-        setStockByProduct(null);
-      });
-
-    return () => {
-      controller.abort();
-      setStockByProduct(null);
-      setStockError(null);
-    };
-  }, [selectedWarehouse]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!debouncedSearchTerm.trim()) {
-      startTransition(() => setProducts([]));
-      return;
+    if (searchError) {
+      toast.error(t("searchError"));
     }
+  }, [searchError, t]);
 
-    startTransition(() => setLoading(true));
-    posService
-      .searchProducts(debouncedSearchTerm)
-      .then((res) => {
-        if (cancelled) return;
-        const results = res.data?.results;
-        if (results) {
-          startTransition(() =>
-            setProducts(
-              results.map((p: Product) => ({
-                ...p,
-                price: Number(p.price),
-                original_price: Number(p.original_price),
-                rating: Number(p.rating),
-              }))
-            )
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) toast.error(t("searchError"));
-      })
-      .finally(() => {
-        if (!cancelled) startTransition(() => setLoading(false));
-      });
+  const stockByProduct = useMemo(() => {
+    if (!selectedWarehouse) return null;
+    if (stockData === undefined) return null;
+    return new Map(stockData.map((s) => [s.product_id, s.available]));
+  }, [selectedWarehouse, stockData]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearchTerm, t]);
+  const products = useMemo(
+    () =>
+      (searchData?.results ?? []).map((p) => ({
+        ...p,
+        price: Number(p.price),
+        original_price: Number(p.original_price),
+        rating: Number(p.rating),
+      })),
+    [searchData]
+  );
+
+  // Auto-select the only warehouse once the list loads (adjusting state during
+  // render, per React docs, instead of an effect — avoids cascade re-renders).
+  const [prevWarehouseResults, setPrevWarehouseResults] = useState<Warehouse[] | undefined>(undefined);
+  const warehouseResults = warehousesData?.results;
+  if (prevWarehouseResults !== warehouseResults) {
+    setPrevWarehouseResults(warehouseResults);
+    if (selectedWarehouse === null && warehouseResults?.length === 1) {
+      setSelectedWarehouse(warehouseResults[0].id);
+    }
+  }
 
   const addToReceipt = (product: Product) => {
     setReceipt((prev) => {
@@ -212,8 +166,8 @@ export function POSClient() {
             filteredProducts={filteredProducts}
             selectedWarehouse={selectedWarehouse}
             stockByProduct={stockByProduct}
-            stockError={stockError}
-            loading={loading}
+            stockError={stockError ? stockError.message || "Failed to load stock data" : null}
+            loading={searchLoading}
             onAddToReceipt={addToReceipt}
           />
 

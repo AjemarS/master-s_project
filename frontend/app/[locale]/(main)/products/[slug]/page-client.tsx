@@ -35,6 +35,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
   const { setSegments } = useBreadcrumbSegments();
   const [similar, setSimilar] = React.useState<Product[]>([]);
   const priceInfo = React.useMemo(() => formatPrice(product, locale), [product, locale]);
+  // Seed data may include non-string feature entries (e.g. {"restocked": true});
+  // keep only strings so slug anchors and visible text never see non-strings.
+  const stringFeatures = product.features.filter((feature): feature is string => typeof feature === "string");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -203,7 +206,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
             <section>
               <h2 className="mb-4 text-2xl font-bold">{t("features")}</h2>
               <ul className="space-y-2">
-                {product.features.map((feature) => (
+                {stringFeatures.map((feature) => (
                   <li className="flex items-start" key={`feature-${product.id}-${slugify(feature)}`}>
                     <span className="mt-2.5 mr-2 h-2 w-2 rounded-full bg-accent-electric" />
                     <span>{feature}</span>

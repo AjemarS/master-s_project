@@ -11,6 +11,7 @@ interface ReceiverFormProps {
   onSelfChange: (self: boolean) => void;
   onNameChange: (value: string) => void;
   onPhoneChange: (value: string) => void;
+  onPhoneBlur?: () => void;
   tChk: (key: string) => string;
 }
 
@@ -21,6 +22,7 @@ export function ReceiverForm({
   onSelfChange,
   onNameChange,
   onPhoneChange,
+  onPhoneBlur,
   tChk,
 }: ReceiverFormProps) {
   return (
@@ -71,6 +73,7 @@ export function ReceiverForm({
               id="co-receiver-phone"
               value={receiverPhone}
               onChange={(e) => onPhoneChange(e.target.value)}
+              onBlur={onPhoneBlur}
               placeholder={tChk("receiverPhonePlaceholder")}
               className="mt-1.5"
             />

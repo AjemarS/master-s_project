@@ -1,8 +1,11 @@
+import json
 from decimal import Decimal
+from unittest import mock
+from urllib.error import URLError
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -299,3 +302,180 @@ class ReportsAPITest(APITestCase):
         self.client.force_authenticate(user=user)
         response = self.client.get("/api/reports/revenue/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class _FakeUrlopenResponse:
+    """Minimal urllib response double: context manager exposing read()."""
+
+    def __init__(self, payload):
+        self._payload = payload
+
+    def read(self):
+        return json.dumps(self._payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+
+class DeliveryApiTests(APITestCase):
+    """Coverage for delivery proxy endpoints (Nova Poshta, Ukrposhta)."""
+
+    NOVA_POSHTA_URL = "/api/orders/delivery/nova-poshta-warehouses/"
+    UKRPOSHTA_URL = "/api/orders/delivery/ukrposhta-warehouses/"
+
+    def setUp(self):
+        self.client = APIClient()
+
+    # --- Nova Poshta: mock path (no API key configured) ---
+
+    @override_settings(NOVA_POSHTA_API_KEY="")
+    def test_nova_poshta_mock_path_returns_warehouse_shape(self):
+        response = self.client.post(
+            self.NOVA_POSHTA_URL,
+            {"city_name": "Київ"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()["data"]
+        self.assertEqual(len(data), 3)
+        for item in data:
+            self.assertEqual(set(item.keys()), {"name", "ref", "address"})
+            self.assertTrue(item["name"])
+            self.assertTrue(item["ref"])
+            self.assertTrue(item["address"])
+
+    def test_nova_poshta_requires_city_name(self):
+        response = self.client.post(self.NOVA_POSHTA_URL, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_nova_poshta_rejects_invalid_json(self):
+        response = self.client.post(
+            self.NOVA_POSHTA_URL,
+            data="not json",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- Nova Poshta: real path (API key configured, network mocked) ---
+
+    @override_settings(NOVA_POSHTA_API_KEY="test-key")
+    def test_nova_poshta_real_path_maps_raw_fields(self):
+        payload = {
+            "success": True,
+            "data": [
+                {
+                    "Description": "Відділення №1",
+                    "Ref": "ref-1",
+                    "ShortAddress": "м. Київ, вул. Тестова, 1",
+                }
+            ],
+        }
+        with mock.patch(
+            "urllib.request.urlopen",
+            return_value=_FakeUrlopenResponse(payload),
+        ) as urlopen:
+            response = self.client.post(
+                self.NOVA_POSHTA_URL,
+                {"city_name": "Київ"},
+                format="json",
+            )
+        urlopen.assert_called_once()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.json()["data"],
+            [
+                {
+                    "name": "Відділення №1",
+                    "ref": "ref-1",
+                    "address": "м. Київ, вул. Тестова, 1",
+                }
+            ],
+        )
+        sent = json.loads(urlopen.call_args.args[0].data.decode("utf-8"))
+        self.assertEqual(sent["apiKey"], "test-key")
+        self.assertEqual(sent["methodProperties"]["CityName"], "Київ")
+
+    @override_settings(NOVA_POSHTA_API_KEY="test-key")
+    def test_nova_poshta_real_path_falls_back_to_generated_name(self):
+        payload = {
+            "success": True,
+            "data": [
+                {"Ref": "ref-short-address", "ShortAddress": "м. Львів, вул. Тестова, 2"},
+                {"Ref": "ref-empty", "Description": "", "ShortAddress": ""},
+            ],
+        }
+        with mock.patch(
+            "urllib.request.urlopen",
+            return_value=_FakeUrlopenResponse(payload),
+        ):
+            response = self.client.post(
+                self.NOVA_POSHTA_URL,
+                {"city_name": "Львів"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()["data"]
+        self.assertEqual(data[0]["name"], "м. Львів, вул. Тестова, 2")
+        self.assertEqual(data[1]["name"], "Відділення 2")
+        self.assertEqual(data[1]["ref"], "ref-empty")
+        self.assertEqual(data[1]["address"], "")
+
+    @override_settings(NOVA_POSHTA_API_KEY="test-key")
+    def test_nova_poshta_real_path_non_list_data_returns_empty_list(self):
+        payload = {"success": True, "data": {"Description": "not a list"}}
+        with mock.patch(
+            "urllib.request.urlopen",
+            return_value=_FakeUrlopenResponse(payload),
+        ):
+            response = self.client.post(
+                self.NOVA_POSHTA_URL,
+                {"city_name": "Київ"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["data"], [])
+
+    @override_settings(NOVA_POSHTA_API_KEY="test-key")
+    def test_nova_poshta_real_path_returns_502_on_url_error(self):
+        with mock.patch(
+            "urllib.request.urlopen",
+            side_effect=URLError("boom"),
+        ):
+            response = self.client.post(
+                self.NOVA_POSHTA_URL,
+                {"city_name": "Київ"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertEqual(response.json()["error"], "<urlopen error boom>")
+
+    # --- Ukrposhta (mock only) ---
+
+    def test_ukrposhta_warehouses_shape(self):
+        response = self.client.post(
+            self.UKRPOSHTA_URL,
+            {"city_name": "Київ"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.json()["data"]
+        self.assertEqual(len(data), 2)
+        for item in data:
+            self.assertEqual(set(item.keys()), {"name", "address"})
+            self.assertTrue(item["name"])
+            self.assertTrue(item["address"])
+
+    def test_ukrposhta_requires_city_name(self):
+        response = self.client.post(self.UKRPOSHTA_URL, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_ukrposhta_rejects_invalid_json(self):
+        response = self.client.post(
+            self.UKRPOSHTA_URL,
+            data="not json",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

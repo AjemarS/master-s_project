@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { BarChart3, Package, Warehouse, ShoppingCart, Shield, Monitor, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
+import { useSystemHealth } from "~/lib/hooks/use-api-data";
 
 interface SystemHealthCardProps {
   tSum: (key: string, values?: Record<string, string | number | Date>) => string;
@@ -46,68 +47,25 @@ const StatusDot = ({ status }: { status: ServiceHealth["status"] }) => {
 };
 
 export default function SystemHealthCard({ tSum }: SystemHealthCardProps) {
-  const [services, setServices] = useState<Record<string, ServiceHealth>>(INITIAL_SERVICES);
+  const { data: healthData, error: healthError } = useSystemHealth();
 
-  useEffect(() => {
-    const abort = new AbortController();
-    const baseUrl = (
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost/api"
-    ).replace(/\/api$/, "");
-
-    const checkHealth = async () => {
-      try {
-        const res = await fetch(`${baseUrl}/health`, {
-          signal: abort.signal,
-        });
-        if (!res.ok) throw new Error("Health check failed");
-        const data = await res.json();
-        const svcs = data.services || {};
-        setServices({
-          product: {
-            status: svcs.product?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Products",
-          },
-          inventory: {
-            status: svcs.inventory?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Inventory",
-          },
-          order: {
-            status: svcs.order?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Orders",
-          },
-          auth: {
-            status: svcs.auth?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Auth",
-          },
-          frontend: {
-            status: svcs.frontend?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "Frontend",
-          },
-          rabbitmq: {
-            status: svcs.rabbitmq?.status === "healthy" ? "healthy" : "unhealthy",
-            label: "RabbitMQ",
-          },
-        });
-      } catch (err) {
-        if ((err as Error)?.name === "AbortError") return;
-        setServices({
-          product: { status: "unhealthy", label: "Products" },
-          inventory: { status: "unhealthy", label: "Inventory" },
-          order: { status: "unhealthy", label: "Orders" },
-          auth: { status: "unhealthy", label: "Auth" },
-          frontend: { status: "unhealthy", label: "Frontend" },
-          rabbitmq: { status: "unhealthy", label: "RabbitMQ" },
-        });
-      }
-    };
-
-    checkHealth();
-    const interval = setInterval(checkHealth, 30000);
-    return () => {
-      clearInterval(interval);
-      abort.abort();
-    };
-  }, []);
+  const services = useMemo<Record<string, ServiceHealth>>(() => {
+    if (healthError) {
+      return Object.fromEntries(
+        Object.entries(INITIAL_SERVICES).map(([key, svc]) => [key, { ...svc, status: "unhealthy" }]),
+      ) as Record<string, ServiceHealth>;
+    }
+    if (!healthData) return INITIAL_SERVICES;
+    return Object.fromEntries(
+      Object.entries(healthData.services).map(([serviceName, entry]) => [
+        serviceName,
+        {
+          status: entry.status === "healthy" ? "healthy" : "unhealthy",
+          label: entry.label ?? INITIAL_SERVICES[serviceName]?.label ?? serviceName,
+        },
+      ]),
+    ) as Record<string, ServiceHealth>;
+  }, [healthData, healthError]);
 
   const entries = Object.entries(services);
   const allHealthy = entries.every(([, svc]) => svc.status === "healthy");

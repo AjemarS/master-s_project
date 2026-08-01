@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "~/i18n/navigation";
@@ -9,8 +8,7 @@ import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { formatCurrency } from "~/lib/utils/format";
 import { ArrowLeft, Package, ShoppingBag, Loader2 } from "lucide-react";
-import { orderApi } from "~/lib/api/admin-api";
-import type { OrderDetail } from "~/lib/types";
+import { useOrder } from "~/lib/hooks/use-api-data";
 
 const STATUS_COLORS: Record<string, string> = {
   unpaid: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30",
@@ -22,33 +20,42 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function OrderPage() {
+  const { id } = useParams<{ id: string }>();
+  const orderId = Number(id);
+
+  if (!id || isNaN(orderId)) {
+    return <OrderNotFoundCard />;
+  }
+
+  return <OrderDetailPage orderId={orderId} />;
+}
+
+function OrderNotFoundCard() {
+  const tDet = useTranslations("orderDetail");
+  return (
+    <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+      <Card className="w-full max-w-md text-center">
+        <CardHeader>
+          <Package className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
+          <CardTitle>{tDet("notFound")}</CardTitle>
+          <CardDescription>{tDet("notFoundDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/">{tDet("back")}</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function OrderDetailPage({ orderId }: { orderId: number }) {
   const tDet = useTranslations("orderDetail");
   const tOrd = useTranslations("orders");
-  const { id } = useParams<{ id: string }>();
-  const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: order, error, isLoading } = useOrder(orderId);
 
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    orderApi.getById(Number(id)).then((res) => {
-      if (cancelled) return;
-      if (res.data) {
-        setOrder(res.data);
-      } else {
-        setError(res.error?.message || tDet("notFound"));
-      }
-      setLoading(false);
-    }).catch(() => {
-      if (cancelled) return;
-      setError(tDet("notFound"));
-      setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [id, tDet]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-muted/50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -57,22 +64,7 @@ export default function OrderPage() {
   }
 
   if (error || !order) {
-    return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <Package className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
-            <CardTitle>{tDet("notFound")}</CardTitle>
-            <CardDescription>{tDet("notFoundDesc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/">{tDet("back")}</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <OrderNotFoundCard />;
   }
 
   return (

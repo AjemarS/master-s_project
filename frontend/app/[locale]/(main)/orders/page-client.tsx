@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSWRConfig } from "swr";
 import { Link } from "~/i18n/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -8,10 +9,10 @@ import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { AlertCircle, Package, ChevronDown, ChevronUp, Archive, XCircle } from "lucide-react";
-import { orderApi } from "~/lib/api/admin-api";
+import { useCancelOrder, useMyOrders } from "~/lib/hooks/use-api-data";
 import { formatCurrency } from "~/lib/utils/format";
 import { getAllowedTransitions } from "~/lib/utils/order-status";
-import type { Order, OrderDetail } from "~/lib/types";
+import type { Order } from "~/lib/types";
 import { TableSkeleton } from "../../admin/components";
 
 const ACTIVE_STATUSES = ["unpaid", "paid", "delivering", "delivered"];
@@ -28,45 +29,15 @@ const STATUS_CFG: Record<string, { label: string; color: string }> = {
 const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 
 export function MyOrdersClient() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: myOrdersData, isLoading, error } = useMyOrders();
+  const { trigger: cancelOrder } = useCancelOrder();
+  const { mutate: globalMutate } = useSWRConfig();
+  const orders = useMemo(() => myOrdersData?.results ?? [], [myOrdersData]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [orderDetails, setOrderDetails] = useState<Record<number, OrderDetail>>({});
   const [showArchive, setShowArchive] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const res = await orderApi.getMy();
-        if (cancelled) return;
-        if (res.error) throw new Error(res.error.message);
-        setOrders(res.data?.results || []);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load orders");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    fetch();
-    return () => { cancelled = true; };
-  }, []);
-
-  const toggleExpand = async (orderId: number) => {
-    if (expandedId === orderId) {
-      setExpandedId(null);
-      return;
-    }
-    if (!orderDetails[orderId]) {
-      try {
-        const res = await orderApi.getById(orderId);
-        if (res.data) setOrderDetails((prev) => ({ ...prev, [orderId]: res.data! }));
-      } catch { /* silent */ }
-    }
-    setExpandedId(orderId);
+  const toggleExpand = (orderId: number) => {
+    setExpandedId((prev) => (prev === orderId ? null : orderId));
   };
 
   const [now, setNow] = useState(Date.now);
@@ -76,13 +47,26 @@ export function MyOrdersClient() {
   }, [now]);
 
   const handleCancel = async (orderId: number) => {
+    const prevStatus = orders.find((o) => o.id === orderId)?.status;
     try {
-      const res = await orderApi.cancel(orderId);
-      if (res.error) throw new Error(res.error.message);
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" as const } : o))
+      globalMutate(
+        (k: string) => typeof k === "string" && k.startsWith("/orders/my"),
+        (prev?: { results: Order[]; count: number }) =>
+          prev
+            ? { ...prev, results: prev.results.map((o) => (o.id === orderId ? { ...o, status: "cancelled" as const } : o)) }
+            : prev,
+        { revalidate: false },
       );
+      await cancelOrder(orderId);
     } catch (err) {
+      globalMutate(
+        (k: string) => typeof k === "string" && k.startsWith("/orders/my"),
+        (prev?: { results: Order[]; count: number }) =>
+          prev && prevStatus
+            ? { ...prev, results: prev.results.map((o) => (o.id === orderId ? { ...o, status: prevStatus } : o)) }
+            : prev,
+        { revalidate: false },
+      );
       toast.error(err instanceof Error ? err.message : "Failed to cancel order");
     }
   };
@@ -164,13 +148,13 @@ export function MyOrdersClient() {
     </div>
   );
 
-  if (loading) return <TableSkeleton rows={4} cols={5} />;
+  if (isLoading) return <TableSkeleton rows={4} cols={5} />;
 
   if (error) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>{error?.message ?? "Failed to load orders"}</AlertDescription>
       </Alert>
     );
   }

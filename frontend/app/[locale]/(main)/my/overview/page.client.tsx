@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "~/i18n/navigation";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ShoppingBag,
   Package,
@@ -18,10 +18,9 @@ import { Card, CardContent } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Skeleton } from "~/ui/primitives/skeleton";
 import { useCurrentUserOrRedirect } from "~/lib/auth-client";
-import { orderApi } from "~/lib/api/admin-api";
+import { useMyOrders } from "~/lib/hooks/use-api-data";
 import { formatCurrency } from "~/lib/utils/format";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
-import type { Order } from "~/lib/types";
 import { toast } from "sonner";
 
 function formatDate(dateStr: string | null | undefined, locale: string): string {
@@ -66,28 +65,25 @@ export function OverviewClient() {
   const [dismissed, setDismissed] = useState(false);
   const { user, isPending: authPending } = useCurrentUserOrRedirect("/sign-in");
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: myOrdersData, isLoading } = useMyOrders();
+  const orders = useMemo(() => myOrdersData?.results ?? [], [myOrdersData]);
 
-  useEffect(() => {
-    if (authPending) return;
-    let cancelled = false;
-    const fetchOrders = async () => {
-      setLoading(true);
-      try {
-        const res = await orderApi.getMy();
-        if (cancelled) return;
-        if (res.error) throw new Error(res.error.message);
-        setOrders(res.data?.results || []);
-      } catch {
-        // silent — empty state handles it
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    fetchOrders();
-    return () => { cancelled = true; };
-  }, [authPending]);
+  const recentOrders = useMemo(
+    () =>
+      [...orders]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5),
+    [orders],
+  );
+
+  const { totalOrders, activeOrders, completedOrders } = useMemo(
+    () => ({
+      totalOrders: orders.length,
+      activeOrders: orders.filter((o) => isActiveStatus(o.status)).length,
+      completedOrders: orders.filter((o) => isCompletedStatus(o.status)).length,
+    }),
+    [orders],
+  );
 
   if (authPending) {
     return (
@@ -109,14 +105,6 @@ export function OverviewClient() {
       </div>
     );
   }
-
-  const recentOrders = [...orders]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 5);
-
-  const totalOrders = orders.length;
-  const activeOrders = orders.filter((o) => isActiveStatus(o.status)).length;
-  const completedOrders = orders.filter((o) => isCompletedStatus(o.status)).length;
 
   // Profile completion nudges
   const isFirstNameMissing = !user?.first_name;
@@ -271,7 +259,7 @@ export function OverviewClient() {
             <div>
               <p className="text-sm text-muted-foreground">{t("totalOrders")}</p>
               <p className="text-2xl font-bold tracking-tight">
-                {loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : totalOrders}
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : totalOrders}
               </p>
             </div>
           </CardContent>
@@ -285,7 +273,7 @@ export function OverviewClient() {
             <div>
               <p className="text-sm text-muted-foreground">{t("activeOrders")}</p>
               <p className="text-2xl font-bold tracking-tight">
-                {loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : activeOrders}
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : activeOrders}
               </p>
             </div>
           </CardContent>
@@ -299,7 +287,7 @@ export function OverviewClient() {
             <div>
               <p className="text-sm text-muted-foreground">{t("completedOrders")}</p>
               <p className="text-2xl font-bold tracking-tight">
-                {loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : completedOrders}
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : completedOrders}
               </p>
             </div>
           </CardContent>
@@ -312,7 +300,7 @@ export function OverviewClient() {
         <div className="lg:col-span-2 space-y-4 h-full">
           <h3 className="text-lg font-semibold tracking-tight">{t("recentOrders")}</h3>
 
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-24 rounded-xl" />
               <Skeleton className="h-24 rounded-xl" />

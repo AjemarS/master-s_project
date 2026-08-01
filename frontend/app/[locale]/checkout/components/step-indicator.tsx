@@ -1,57 +1,29 @@
 "use client";
 
+import { statusDotColors } from "./status-dot";
+import type { SectionKey, SectionStatus } from "./section-status";
+
 interface StepIndicatorProps {
-  sections: readonly string[];
+  sections: readonly SectionKey[];
   expandedSections: string[];
-  city: string;
-  name: string;
-  email: string;
-  phone: string;
-  deliveryType: string;
-  deliveryBranch: string;
-  isSelfReceiver: boolean;
-  receiverName: string;
-  receiverPhone: string;
+  statuses: Record<SectionKey, SectionStatus>;
 }
 
 export function StepIndicator({
   sections,
   expandedSections,
-  city,
-  name,
-  email,
-  phone,
-  deliveryType,
-  deliveryBranch,
-  isSelfReceiver,
-  receiverName,
-  receiverPhone,
+  statuses,
 }: StepIndicatorProps) {
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
       {sections.map((section, idx) => {
-        const isFilled =
-          section === "city"
-            ? !!city
-            : section === "info"
-              ? !!(name && email && phone)
-              : section === "delivery"
-                ? !!(deliveryBranch || deliveryType === "pickup")
-                : section === "receiver"
-                  ? !!(isSelfReceiver || (receiverName && receiverPhone))
-                  : section === "confirmation" || section === "comment"
-                    ? true
-                    : false;
+        const isExpanded = expandedSections.includes(section);
 
         return (
           <div key={section} className="flex items-center gap-1">
             <div
-              className={`size-2 rounded-full transition-colors ${
-                isFilled
-                  ? "bg-primary"
-                  : expandedSections.includes(section)
-                    ? "bg-primary/50"
-                    : "bg-muted-foreground/20"
+              className={`size-2.5 rounded-full transition-colors ${statusDotColors[statuses[section]]} ${
+                isExpanded ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
               }`}
             />
             {idx < sections.length - 1 && (

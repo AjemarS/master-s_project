@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { useState, Suspense, useRef, useCallback } from "react";
+import { useState, Suspense, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "~/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -21,7 +21,8 @@ import {
 import { useCart } from "~/lib/hooks/use-cart";
 import { formatCurrency } from "~/lib/utils/format";
 import { orderApi } from "~/lib/api/admin-api";
-import { useCurrentUser, authClient } from "~/lib/auth-client";
+import { authClient, useCurrentUser, type User as AuthUser } from "~/lib/auth-client";
+import { formatPhone, normalizePhoneDigits, isValidPhone, MAX_PHONE_DIGITS } from "~/lib/utils/phone";
 
 import type { CartItem } from "~/lib/hooks/use-cart";
 
@@ -40,6 +41,8 @@ import {
   GuestPrompt,
   CheckoutEmpty,
 } from "./components";
+import { EMAIL_RE, getSectionStatuses, type SectionStatus } from "./components/section-status";
+import { StatusDot } from "./components/status-dot";
 
 const SECTION_ORDER = [
   "city", "info", "delivery", "receiver", "confirmation", "comment",
@@ -136,23 +139,6 @@ function PriceSummary({
   );
 }
 
-// ── Phone formatting utility ──────────────────────────────────────────
-
-const formatPhone = (value: string): string => {
-  const digits = value.replace(/\D/g, "");
-  let clean = digits;
-  if (!clean.startsWith("380")) clean = "380" + clean.replace(/^380?/, "");
-  clean = clean.slice(0, 12);
-  const match = clean.slice(3).match(/^(\d{0,2})(\d{0,3})(\d{0,2})(\d{0,2})/);
-  if (!match) return "+380 ";
-  let formatted = "+380 ";
-  if (match[1]) formatted += match[1];
-  if (match[2]) formatted += " " + match[2];
-  if (match[3]) formatted += " " + match[3];
-  if (match[4]) formatted += " " + match[4];
-  return formatted;
-};
-
 // ── Validation utility ────────────────────────────────────────────────
 
 const validateField = (field: string, value: string, tChk: (key: string) => string): string => {
@@ -160,28 +146,52 @@ const validateField = (field: string, value: string, tChk: (key: string) => stri
     case "name":
       return value.trim().length < 2 ? tChk("nameRequired") : "";
     case "email":
-      return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ? tChk("emailInvalid") : "";
+      return !EMAIL_RE.test(value.trim()) ? tChk("emailInvalid") : "";
     case "phone":
-      return value.replace(/\D/g, "").length < 12 ? tChk("phoneInvalid") : "";
+      return isValidPhone(value) ? "" : tChk("phoneInvalid");
     default:
       return "";
   }
 };
 
+// ── Auth gate ───────────────────────────────────────────────────────────
+
+function CheckoutGate() {
+  const { user, isPending } = useCurrentUser();
+  const [resolvedUser, setResolvedUser] = useState<AuthUser | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isPending && resolvedUser === undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time auth latch; must mount CheckoutContent only after first session resolution so useState(user?.name) initializers see real user
+      setResolvedUser(user ?? null);
+    }
+  }, [isPending, user, resolvedUser]);
+
+  if (resolvedUser === undefined) {
+    return (
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return <CheckoutContent user={resolvedUser} />;
+}
+
 // ── Checkout content ──────────────────────────────────────────────────
 
-function CheckoutContent() {
+function CheckoutContent({ user }: { user: AuthUser | null }) {
   const tChk = useTranslations("checkout");
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, isPending: authPending } = useCurrentUser();
   const { items, subtotal, clearCart, updateQuantity } = useCart();
   const orderId = searchParams.get("order_id");
 
-  const [manuallyExpanded, setManuallyExpanded] = useState<string[]>([]);
+  const [expandedSection, setExpandedSection] = useState<string | null>("city");
   const [city, setCity] = useState("");
+  const [cityRef, setCityRef] = useState<string | null>(null);
   const [cityOpen, setCityOpen] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -195,6 +205,7 @@ function CheckoutContent() {
   const [callToConfirm, setCallToConfirm] = useState(false);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNamePhone, setSaveNamePhone] = useState(true);
   const [saveAddress, setSaveAddress] = useState(true);
@@ -202,77 +213,49 @@ function CheckoutContent() {
   const [, setCreatedOrderId] = useState<number | null>(null);
   const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  interface WarehouseFetchState {
-    warehouses: WarehouseOption[];
-    loading: boolean;
-    error: boolean;
-  }
-  const [warehouseFetch, setWarehouseFetch] = useState<WarehouseFetchState>({
-    warehouses: [],
-    loading: false,
-    error: false,
-  });
-  const [warehouseOpen, setWarehouseOpen] = useState(false);
+  const [selectedShowroomId, setSelectedShowroomId] = useState<number | null>(null);
 
   const checkoutUrlRef = useRef<string>("");
 
   const deliveryCost = deliveryType === "pickup" ? 0 : DELIVERY_COST;
   const total = subtotal + deliveryCost;
 
-  // ── Derived expanded sections (manual + auto-progression) ─────────────
+  // ── Derived delivery state ─────────────────────────────────────────────
 
   const deliveryFilled =
-    deliveryType === "pickup" ||
-    (deliveryType !== "pickup" && deliveryBranch.trim().length > 0) ||
-    (deliveryType === "other_courier" && otherDeliveryService.trim().length > 0);
+    deliveryType === "pickup"
+      ? selectedShowroomId !== null
+      : (deliveryType !== "pickup" && deliveryBranch.trim().length > 0) ||
+        (deliveryType === "other_courier" && otherDeliveryService.trim().length > 0);
 
-  const expandedSections = (() => {
-    const s = new Set(manuallyExpanded);
-    if (city) s.add("info");
-    if (name.trim() && email.trim() && phone.trim()) s.add("delivery");
-    if (deliveryFilled) s.add("receiver");
-    return Array.from(s);
-  })();
+  const sectionStatuses = getSectionStatuses({
+    city,
+    name,
+    email,
+    phone,
+    deliveryType,
+    deliveryBranch,
+    otherDeliveryService,
+    selectedShowroomId,
+    isSelfReceiver,
+    receiverName,
+    receiverPhone,
+    callToConfirm,
+    comment,
+    fieldErrors,
+    submitAttempted,
+  });
 
-  // ── Warehouse fetching (triggered from event handlers, not effects) ────
-
-  const fetchWarehouses = useCallback(
-    (cityName: string, deliveryMethod: string) => {
-      if (!cityName || (deliveryMethod !== "nova_poshta" && deliveryMethod !== "ukrposhta")) {
-        return;
-      }
-
-      setWarehouseFetch({ warehouses: [], loading: true, error: false });
-      setDeliveryBranch("");
-
-      const endpoint =
-        deliveryMethod === "nova_poshta"
-          ? "/api/orders/delivery/nova-poshta-warehouses/"
-          : "/api/orders/delivery/ukrposhta-warehouses/";
-
-      fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city_name: cityName }),
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("API error");
-          return res.json();
-        })
-        .then((data) => {
-          if (data.data && Array.isArray(data.data)) {
-            setWarehouseFetch({ warehouses: data.data, loading: false, error: false });
-          } else {
-            throw new Error("Unexpected response format");
-          }
-        })
-        .catch(() => {
-          setWarehouseFetch({ warehouses: [], loading: false, error: true });
-        });
-    },
-    [setWarehouseFetch, setDeliveryBranch],
-  );
+  const statusLabel = (status: SectionStatus): string =>
+    tChk(
+      status === "filled"
+        ? "statusFilled"
+        : status === "partial"
+          ? "statusPartial"
+          : status === "error"
+            ? "statusError"
+            : "statusEmpty",
+    );
 
   // ── Callbacks ───────────────────────────────────────────────────────────
 
@@ -288,9 +271,21 @@ function CheckoutContent() {
     setFieldErrors((prev) => ({ ...prev, [field]: validateField(field, value, tChk) }));
   };
 
+  const handleNameChange = (value: string) => {
+    setName(value);
+    setFieldErrors((prev) => ({ ...prev, name: "" }));
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    setFieldErrors((prev) => ({ ...prev, email: "" }));
+  };
+
   const handlePhoneChange = (value: string) => {
     const digits = value.replace(/\D/g, "");
+    if (digits.length > MAX_PHONE_DIGITS) return;
     setPhone(digits);
+    setFieldErrors((prev) => ({ ...prev, phone: "" }));
   };
 
   const handlePhoneBlur = () => {
@@ -300,9 +295,35 @@ function CheckoutContent() {
     handleBlur("phone", phone);
   };
 
+  const handleReceiverPhoneChange = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length > MAX_PHONE_DIGITS) return;
+    setReceiverPhone(digits);
+  };
+
+  const handleReceiverPhoneBlur = () => {
+    if (receiverPhone) {
+      setReceiverPhone(formatPhone(receiverPhone));
+    }
+  };
+
   const handleSubmit = async () => {
     if (items.length === 0) {
       toast.error(tChk("emptyCart"));
+      return;
+    }
+
+    const guardStatuses = getSectionStatuses({
+      city, name, email, phone, deliveryType, deliveryBranch, otherDeliveryService,
+      selectedShowroomId, isSelfReceiver, receiverName, receiverPhone,
+      callToConfirm, comment, fieldErrors,
+      submitAttempted: true,
+    });
+    const firstErrored = SECTION_ORDER.find((s) => guardStatuses[s] === "error");
+    if (firstErrored) {
+      setSubmitAttempted(true);
+      setExpandedSection(firstErrored);
+      toast.error(tChk("fillRequired"));
       return;
     }
 
@@ -313,8 +334,7 @@ function CheckoutContent() {
 
       const actualDeliveryMethod =
         deliveryType === "other_courier" ? otherDeliveryService : deliveryType;
-      const shippingAddress =
-        deliveryType === "pickup" ? "" : deliveryBranch.trim();
+      const shippingAddress = deliveryBranch.trim();
 
       const notesParts: string[] = [];
       if (comment.trim()) notesParts.push(comment.trim());
@@ -324,8 +344,9 @@ function CheckoutContent() {
         channel: "online",
         customer_name: recipientName.trim(),
         customer_email: email.trim(),
-        customer_phone: recipientPhone.trim(),
+        customer_phone: normalizePhoneDigits(recipientPhone),
         delivery_method: actualDeliveryMethod,
+        warehouse_id: deliveryType === "pickup" ? selectedShowroomId ?? undefined : undefined,
         shipping_city: city.trim(),
         shipping_address: shippingAddress,
         notes: notesParts.join(" | "),
@@ -390,7 +411,7 @@ function CheckoutContent() {
       const fieldsToUpdate: Record<string, string> = {};
       if (saveNamePhone) {
         fieldsToUpdate.name = recipientName;
-        fieldsToUpdate.phone = recipientPhone;
+        fieldsToUpdate.phone = normalizePhoneDigits(recipientPhone);
       }
       if (saveAddress) {
         fieldsToUpdate.address = deliveryBranch;
@@ -414,49 +435,44 @@ function CheckoutContent() {
     }
   };
 
-  const handleAccordionChange = (values: string[]) => {
-    setManuallyExpanded(values);
+  const handleAccordionChange = (value: string | undefined) => {
+    // Radix single-collapsible emits "" on collapse; "" and null both mean "closed"
+    setExpandedSection(value || null);
   };
 
   const handleNextSection = () => {
-    const currentIndex = SECTION_ORDER.findIndex((s) => !expandedSections.includes(s));
-    if (currentIndex === -1) return;
-    const nextSection = SECTION_ORDER[currentIndex];
-    if (nextSection && !expandedSections.includes(nextSection)) {
-      setManuallyExpanded((prev) => [...prev, nextSection]);
-    }
+    const idx = SECTION_ORDER.findIndex((s) => s === expandedSection);
+    const next = SECTION_ORDER[idx + 1];
+    if (next) setExpandedSection(next);
   };
 
   const handleWarehouseSelect = (warehouse: WarehouseOption) => {
-    const label = warehouse.name || warehouse.address;
+    const label = warehouse.name || warehouse.address || "";
     setDeliveryBranch(label);
-    setWarehouseOpen(false);
+  };
+
+  const handleShowroomSelect = (id: number, label: string) => {
+    setSelectedShowroomId(id);
+    setDeliveryBranch(label);
   };
 
   const handleDeliveryTypeChange = (val: string) => {
     setDeliveryType(val);
     setDeliveryBranch("");
     setOtherDeliveryService("");
-    if (city && (val === "nova_poshta" || val === "ukrposhta")) {
-      fetchWarehouses(city, val);
-    }
+    setSelectedShowroomId(null);
   };
 
-  const handleCitySelect = (c: string) => {
-    setCity(c);
+  const handleCitySelect = (name: string, ref: string) => {
+    setCity(name);
+    setCityRef(ref);
     setCityOpen(false);
-    fetchWarehouses(c, deliveryType);
+    setDeliveryBranch("");
+    setSelectedShowroomId(null);
+    setExpandedSection("info");
   };
 
-  // ── Guard: auth pending ─────────────────────────────────────────────────
-
-  if (authPending) {
-    return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // ── Early returns ───────────────────────────────────────────────────────
 
   if (orderId) {
     return (
@@ -480,16 +496,7 @@ function CheckoutContent() {
     );
   }
 
-  const disabled =
-    submitting ||
-    items.length === 0 ||
-    !name.trim() ||
-    !email.trim() ||
-    phone.replace(/\D/g, "").length < 12 ||
-    !city.trim() ||
-    (deliveryType !== "pickup" && !deliveryBranch.trim()) ||
-    (deliveryType === "other_courier" && !otherDeliveryService) ||
-    (!isSelfReceiver && (!receiverName.trim() || !receiverPhone.trim()));
+  const disabled = submitting || items.length === 0;
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -518,27 +525,24 @@ function CheckoutContent() {
               {/* Step indicator */}
               <StepIndicator
                 sections={SECTION_ORDER}
-                expandedSections={expandedSections}
-                city={city}
-                name={name}
-                email={email}
-                phone={phone}
-                deliveryType={deliveryType}
-                deliveryBranch={deliveryBranch}
-                isSelfReceiver={isSelfReceiver}
-                receiverName={receiverName}
-                receiverPhone={receiverPhone}
+                expandedSections={expandedSection ? [expandedSection] : []}
+                statuses={sectionStatuses}
               />
 
               {/* Accordion sections */}
               <Accordion
-                type="multiple"
-                value={expandedSections}
+                type="single"
+                collapsible
+                value={expandedSection ?? ""}
                 onValueChange={handleAccordionChange}
               >
                 {/* 1. City section */}
                 <AccordionItem value="city">
-                  <AccordionTrigger className="hover:no-underline">
+                  <AccordionTrigger
+                    className="hover:no-underline"
+                    headerClassName="sticky top-0 z-10 bg-background/95 backdrop-blur"
+                    trailing={<StatusDot status={sectionStatuses["city"]} label={statusLabel(sectionStatuses["city"])} />}
+                  >
                     <span className="flex items-center gap-2 font-semibold text-base">
                       <MapPin className="h-4 w-4 text-primary shrink-0" />
                       {tChk("cityLabel")}
@@ -562,7 +566,10 @@ function CheckoutContent() {
 
                 {/* 2. Personal info section */}
                 <AccordionItem value="info">
-                  <AccordionTrigger className="hover:no-underline">
+                  <AccordionTrigger
+                    className="hover:no-underline"
+                    trailing={<StatusDot status={sectionStatuses["info"]} label={statusLabel(sectionStatuses["info"])} />}
+                  >
                     <span className="flex items-center gap-2 font-semibold text-base">
                       <User className="h-4 w-4 text-primary shrink-0" />
                       {tChk("personalInfo")}
@@ -575,8 +582,8 @@ function CheckoutContent() {
                           name={name}
                           email={email}
                           phone={phone}
-                          onNameChange={setName}
-                          onEmailChange={setEmail}
+                          onNameChange={handleNameChange}
+                          onEmailChange={handleEmailChange}
                           onPhoneChange={handlePhoneChange}
                           errors={fieldErrors}
                   onBlur={(field) => {
@@ -592,7 +599,7 @@ function CheckoutContent() {
                           variant="ghost"
                           size="sm"
                           onClick={handleNextSection}
-                          disabled={!name.trim() || !email.trim() || !phone.trim()}
+                          disabled={!name.trim() || !email.trim() || !isValidPhone(phone)}
                         >
                           {tChk("nextStep")}
                         </Button>
@@ -603,7 +610,10 @@ function CheckoutContent() {
 
                 {/* 3. Delivery section */}
                 <AccordionItem value="delivery">
-                  <AccordionTrigger className="hover:no-underline">
+                  <AccordionTrigger
+                    className="hover:no-underline"
+                    trailing={<StatusDot status={sectionStatuses["delivery"]} label={statusLabel(sectionStatuses["delivery"])} />}
+                  >
                     <span className="flex items-center gap-2 font-semibold text-base">
                       <MapPin className="h-4 w-4 text-primary shrink-0" />
                       {tChk("delivery")}
@@ -611,7 +621,7 @@ function CheckoutContent() {
                   </AccordionTrigger>
                   <AccordionContent>
                     <Card>
-                      <CardContent className="p-4">
+                      <CardContent className="p-4 space-y-3">
                         <DeliveryMethod
                           deliveryType={deliveryType}
                           onDeliveryTypeChange={handleDeliveryTypeChange}
@@ -619,12 +629,21 @@ function CheckoutContent() {
                           onDeliveryBranchChange={setDeliveryBranch}
                           otherDeliveryService={otherDeliveryService}
                           onOtherServiceChange={setOtherDeliveryService}
-                          warehouseFetch={warehouseFetch}
-                          warehouseOpen={warehouseOpen}
-                          onWarehouseOpenChange={setWarehouseOpen}
+                          city={city}
+                          cityRef={cityRef}
+                          selectedShowroomId={selectedShowroomId}
+                          onShowroomSelect={handleShowroomSelect}
                           onWarehouseSelect={handleWarehouseSelect}
                           tChk={tChk}
                         />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleNextSection}
+                          disabled={!deliveryFilled}
+                        >
+                          {tChk("nextStep")}
+                        </Button>
                       </CardContent>
                     </Card>
                   </AccordionContent>
@@ -632,7 +651,10 @@ function CheckoutContent() {
 
                 {/* 4. Receiver section */}
                 <AccordionItem value="receiver">
-                  <AccordionTrigger className="hover:no-underline">
+                  <AccordionTrigger
+                    className="hover:no-underline"
+                    trailing={<StatusDot status={sectionStatuses["receiver"]} label={statusLabel(sectionStatuses["receiver"])} />}
+                  >
                     <span className="flex items-center gap-2 font-semibold text-base">
                       <User className="h-4 w-4 text-primary shrink-0" />
                       {tChk("receiver")}
@@ -647,7 +669,8 @@ function CheckoutContent() {
                           receiverPhone={receiverPhone}
                           onSelfChange={setIsSelfReceiver}
                           onNameChange={setReceiverName}
-                          onPhoneChange={setReceiverPhone}
+                          onPhoneChange={handleReceiverPhoneChange}
+                          onPhoneBlur={handleReceiverPhoneBlur}
                           tChk={tChk}
                         />
                       </CardContent>
@@ -657,7 +680,10 @@ function CheckoutContent() {
 
                 {/* 5. Confirmation section */}
                 <AccordionItem value="confirmation">
-                  <AccordionTrigger className="hover:no-underline">
+                  <AccordionTrigger
+                    className="hover:no-underline"
+                    trailing={<StatusDot status={sectionStatuses["confirmation"]} label={statusLabel(sectionStatuses["confirmation"])} />}
+                  >
                     <span className="flex items-center gap-2 font-semibold text-base">
                       <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                       {tChk("callToConfirm")}
@@ -678,7 +704,10 @@ function CheckoutContent() {
 
                 {/* 6. Comment section */}
                 <AccordionItem value="comment">
-                  <AccordionTrigger className="hover:no-underline">
+                  <AccordionTrigger
+                    className="hover:no-underline"
+                    trailing={<StatusDot status={sectionStatuses["comment"]} label={statusLabel(sectionStatuses["comment"])} />}
+                  >
                     <span className="flex items-center gap-2 font-semibold text-base">
                       <MessageSquare className="h-4 w-4 text-primary shrink-0" />
                       {tChk("comment")}
@@ -745,7 +774,7 @@ function CheckoutContent() {
 export default function CheckoutPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
-      <CheckoutContent />
+      <CheckoutGate />
     </Suspense>
   );
 }

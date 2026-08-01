@@ -36,9 +36,9 @@ def nova_poshta_warehouses(request):
             "success": True,
             "data": [
                 {
-                    "Description": f"Відділення №{i}",
-                    "Ref": f"warehouse_{i}",
-                    "ShortAddress": f"м. {city_name}, вул. Тестова, {i}",
+                    "name": f"Відділення №{i}",
+                    "ref": f"warehouse_{i}",
+                    "address": f"м. {city_name}, вул. Тестова, {i}",
                 }
                 for i in range(1, 4)
             ],
@@ -62,7 +62,16 @@ def nova_poshta_warehouses(request):
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read().decode("utf-8"))
-            return JsonResponse(result)
+            raw_items = result.get("data", []) if isinstance(result.get("data"), list) else []
+            mapped = [
+                {
+                    "name": item.get("Description") or item.get("ShortAddress") or f"Відділення {i}",
+                    "ref": item.get("Ref", ""),
+                    "address": item.get("ShortAddress", ""),
+                }
+                for i, item in enumerate(raw_items, 1)
+            ]
+            return JsonResponse({"success": True, "data": mapped})
     except urllib.error.URLError as e:
         logger.error("Nova Poshta API error: %s", e)
         return JsonResponse({"error": str(e)}, status=502)
