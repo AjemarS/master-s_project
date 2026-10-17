@@ -49,4 +49,4 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health/')" || exit 1
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8001"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn inventory_service.wsgi:application -w 4 --bind 0.0.0.0:8001 --log-level info --access-logfile - --error-logfile -"]
