@@ -471,8 +471,8 @@ Network: microservices_network (bridge)
 
 | Issue | Notes |
 |-------|-------|
-| `orders_db` test DB leftover | `EOFError` and missing `autoclobber` prompt when running order-service tests |
-| Backend tests assertion count | Some tests pass system check but may have 0 assertions |
+| `orders_db` test DB leftover | Fixed: run `manage.py test --noinput` (the `autoclobber` prompt raised `EOFError`) |
+| Backend tests assertion count | Fixed: order tests that accepted either outcome now stub inventory and assert one result |
 | Testimonials mock data | Hardcoded in Ukrainian (not yet extracted to translations) |
 | Frontend `/products` i18n | Recently added — verify coverage |
 | Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction |

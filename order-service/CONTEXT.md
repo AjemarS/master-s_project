@@ -16,7 +16,7 @@
 ## Quick Start
 ```bash
 python manage.py runserver 0.0.0.0:8002
-python manage.py test
+python manage.py test --noinput
 ```
 
 ## Apps
@@ -99,10 +99,10 @@ Transitions enforced in `Order.can_transition_to()`.
 ## Tests
 - **Framework:** Django `TestCase` + `APITestCase`
 - **Coverage:** models, status transitions, API (create, auth gating, status update, my orders, POS, reports)
-- **Known issue:** `EOFError` on test DB teardown (prompts for `autoclobber` input)
-- **Run:** `python manage.py test`
+- **Inventory calls:** stubbed with `unittest.mock` (tests do not need a running inventory-service)
+- **Run:** `python manage.py test --noinput` (without `--noinput` a leftover test DB triggers the
+  `autoclobber` prompt, which fails with `EOFError` in a non-interactive shell)
 
 ## Known Issues
 - No product validation (accepts any `product_id` without cross-referencing product-service)
 - `order_number` retry loop handles collisions but no DB-level unique guarantee (column has `unique=True` for future enforcement)
-- Test DB teardown prompts for `autoclobber` input (`EOFError`)
