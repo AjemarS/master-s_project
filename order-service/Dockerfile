@@ -1,7 +1,7 @@
 # ----------------------
 # BUILD stage
 # ----------------------
-FROM python:3.11-slim AS build
+FROM python:3.13-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -29,7 +29,7 @@ CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0
 # ----------------------
 # PROD stage
 # ----------------------
-FROM python:3.11-slim AS prod
+FROM python:3.13-slim AS prod
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
@@ -47,6 +47,6 @@ USER app
 EXPOSE 8002
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/health/')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/orders/health/')" || exit 1
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8002"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn order_service.wsgi:application -w 4 --bind 0.0.0.0:8002 --log-level info --access-logfile - --error-logfile -"]

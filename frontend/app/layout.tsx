@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import localFont from "next/font/local";
 
 import "./lib/css/globals.css";
@@ -25,11 +26,13 @@ export const metadata: Metadata = {
   title: "TechHub",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // CSP nonce from proxy.ts; reading headers also makes pages dynamic, which nonces require
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html suppressHydrationWarning>
       <body
@@ -45,6 +48,7 @@ export default function RootLayout({
           defaultTheme="system"
           disableTransitionOnChange
           enableSystem
+          nonce={nonce}
         >
           <CartProvider>
             <BreadcrumbProvider>

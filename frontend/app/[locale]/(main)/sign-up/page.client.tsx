@@ -23,7 +23,7 @@ export function SignUpPageClient() {
     email: "",
     password: "",
     repeatPassword: "",
-    marketingConsent: true,
+    marketingConsent: false,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

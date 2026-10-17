@@ -75,7 +75,6 @@ def _handle_webhook_completed(order, session, request):
                     idempotency_key=f"release-{order.id}-{pid}",
                     request=request,
                 )
-            order.status = Order.CANCELLED
             # Actually refund the Stripe payment
             if order.stripe_payment_intent_id:
                 try:
@@ -84,7 +83,8 @@ def _handle_webhook_completed(order, session, request):
                 except stripe.error.StripeError as e:
                     logger.error("Stripe refund failed | order=%s error=%s", order.order_number, e)
             order.payment_status = Order.PAYMENT_REFUNDED
-            order.save(update_fields=["status", "payment_status"])
+            order.save(update_fields=["payment_status"])
+            svc.update_order_status(order, Order.CANCELLED, request, release_reserved=False)
             logger.error("Order cancelled after payment — reserve failure | number=%s", order.order_number)
             return Response({"status": "reserve_failed"})
 
@@ -197,11 +197,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                         request=request,
                     )
 
-                # Mark order as cancelled and record error reason in notes
+                # Record the reason, then cancel through the service so order.cancelled is published
                 error_reason = "Stock reservation failed during order creation"
-                order.status = Order.CANCELLED
                 order.notes = (order.notes + "\n" + error_reason).strip()
-                order.save(update_fields=["status", "notes"])
+                order.save(update_fields=["notes"])
+                svc.update_order_status(order, Order.CANCELLED, request, release_reserved=False)
 
                 logger.error(
                     "Order cancelled — reserve failure | number=%s",
@@ -343,20 +343,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             user_id=user_id,
         )
 
-        all_success, succeeded = svc.deduct_order_stock(order, request)
-        if not all_success:
-            for pid, qty in succeeded:
-                release_stock(
-                    product_id=pid,
-                    warehouse_id=order.warehouse_id,
-                    quantity=qty,
-                    reference_type="order",
-                    reference_id=str(order.id),
-                    idempotency_key=f"compensate-pos-{order.id}-{pid}",
-                    request=request,
-                )
-            order.status = Order.CANCELLED
-            order.save(update_fields=["status"])
+        if not svc.deduct_order_stock(order, from_reserved=False, request=request):
+            svc.update_order_status(order, Order.CANCELLED, request, release_reserved=False)
             logger.error("POS sale cancelled — deduct failure | number=%s", order.order_number)
             return Response(
                 {"error": "Stock deduct failed", "status": Order.CANCELLED, "order": OrderDetailSerializer(order).data},

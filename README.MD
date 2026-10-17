@@ -2,7 +2,7 @@
 
 A microservices-based e-commerce platform for household appliances retail. Built as a master's thesis project, TechHub demonstrates a production-grade architecture with bilingual (UA/EN) support, role-based access control, event-driven communication, and a full POS interface.
 
-**Thesis:** *"Development and Deployment of an Information System for Household Appliances Retail"*
+**Thesis:** *"Design and Implementation of an Information System for Household Appliances Retail"*
 
 ---
 
@@ -11,7 +11,7 @@ A microservices-based e-commerce platform for household appliances retail. Built
 TechHub runs 8 microservices behind an Nginx gateway, orchestrated via Docker Compose:
 
 ```
-User → Gateway (Nginx + njs) → 8 microservices → 6 PostgreSQL databases
+User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
                               → RabbitMQ (event bus)
                               → Redis (caching, rate limiting)
 ```
@@ -27,17 +27,17 @@ User → Gateway (Nginx + njs) → 8 microservices → 6 PostgreSQL databases
 | **Audit Service** | Express | 8005 | Centralized audit logging (HTTP + events) |
 | **Frontend** | Next.js 16 | 3000 | Storefront, admin panel, POS (bilingual UA/EN) |
 
-**Infrastructure:** RabbitMQ (topic exchange `techhub.events`), 6 PostgreSQL databases, Redis 7.
+**Infrastructure:** RabbitMQ (topic exchange `techhub.events`), 5 PostgreSQL databases (products, inventory, orders, auth, logging — the last shared by audit and notification), Redis 7.
 
 ---
 
 ## Tech Stack
 
 - **Gateway:** Nginx + njs (NGINX JavaScript module)
-- **Backend:** Python 3.11 / Django 5.2 / DRF 3.16, Node.js 22 / Express
+- **Backend:** Python 3.13 / Django 5.2 / DRF 3.16, Node.js 24 LTS / Express 4 / TypeScript
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui, Framer Motion, next-intl v4.13
 - **Auth:** Better Auth v1.4.3 (sessions, 2FA, OAuth)
-- **Databases:** PostgreSQL 15 (×6), Redis 7
+- **Databases:** PostgreSQL 15 (×5), Redis 7
 - **Event Bus:** RabbitMQ 3.13 (topic exchange)
 - **Authentication:** Gateway-injected `X-Gateway-User-*` headers, trusted by downstream Django services via `GatewayAuthentication`
 
@@ -138,8 +138,8 @@ techhub/
 
 TechHub uses a topic exchange `techhub.events` for asynchronous communication:
 
-- **order.created** → consumed by inventory-consumer (reserve stock), notification-service (email receipt)
-- **order.cancelled** → consumed by inventory-consumer (release stock)
+- **order.created** → consumed by notification-service (email receipt); stock is reserved synchronously over HTTP
+- **order.cancelled** → stock is released synchronously over HTTP
 - **order.status_changed** → consumed by notification-service (status update email)
 - **inventory.stock.changed** → consumed by product-consumer (update denormalized stock)
 - **inventory.goods_received** → consumed by product-consumer

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { useState, Suspense, useRef, useCallback, useEffect } from "react";
+import { useState, Suspense, useCallback, useEffect } from "react";
 import { useRouter } from "~/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -37,8 +37,7 @@ import {
   ReceiverForm,
   ConfirmationSection,
   CommentSection,
-  SaveDialog,
-  GuestPrompt,
+  SaveDetails,
   CheckoutEmpty,
 } from "./components";
 import { EMAIL_RE, getSectionStatuses, type SectionStatus } from "./components/section-status";
@@ -206,16 +205,12 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNamePhone, setSaveNamePhone] = useState(true);
   const [saveAddress, setSaveAddress] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [, setCreatedOrderId] = useState<number | null>(null);
-  const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [selectedShowroomId, setSelectedShowroomId] = useState<number | null>(null);
 
-  const checkoutUrlRef = useRef<string>("");
 
   const deliveryCost = deliveryType === "pickup" ? 0 : DELIVERY_COST;
   const total = subtotal + deliveryCost;
@@ -384,16 +379,9 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
         setSubmitting(false);
         return;
       }
-      const checkoutUrl = pay.data.checkout_url;
-
-      if (user) {
-        checkoutUrlRef.current = checkoutUrl;
-        setShowSaveDialog(true);
-        setSubmitting(false);
-      } else {
-        setPendingCheckoutUrl(checkoutUrl);
-        setSubmitting(false);
-      }
+      if (user) await saveDetails();
+      // Straight to payment: no modal between "pay" and Stripe (BAD_UX C1)
+      window.location.assign(pay.data.checkout_url);
     } catch (err) {
       toast.error(tCommon("error"), {
         description: err instanceof Error ? err.message : "Something went wrong",
@@ -402,8 +390,8 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const saveDetails = async () => {
+    if (!saveNamePhone && !saveAddress) return;
     try {
       const recipientName = isSelfReceiver ? name : receiverName;
       const recipientPhone = isSelfReceiver ? phone : receiverPhone;
@@ -420,18 +408,6 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
       await authClient.updateUser(fieldsToUpdate);
     } catch {
       // Silently fail — user data save is optional
-    }
-    setSaving(false);
-    window.location.href = checkoutUrlRef.current;
-  };
-
-  const handleSkip = () => {
-    window.location.href = checkoutUrlRef.current;
-  };
-
-  const handleContinue = () => {
-    if (pendingCheckoutUrl) {
-      window.location.href = pendingCheckoutUrl;
     }
   };
 
@@ -730,7 +706,16 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
 
             {/* Right: PriceSummary sidebar */}
             <div className="lg:w-80 shrink-0 mt-6 lg:mt-0">
-              <div className="lg:sticky lg:top-24">
+              <div className="lg:sticky lg:top-24 space-y-4">
+                {user && (
+                  <SaveDetails
+                    saveNamePhone={saveNamePhone}
+                    saveAddress={saveAddress}
+                    onNamePhoneChange={setSaveNamePhone}
+                    onAddressChange={setSaveAddress}
+                    tChk={tChk}
+                  />
+                )}
                 <PriceSummary
                   items={items}
                   subtotal={subtotal}
@@ -748,25 +733,6 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
         )}
       </main>
 
-      {/* Save Dialog for logged-in users */}
-      <SaveDialog
-        open={showSaveDialog}
-        saveNamePhone={saveNamePhone}
-        saveAddress={saveAddress}
-        onNamePhoneChange={setSaveNamePhone}
-        onAddressChange={setSaveAddress}
-        saving={saving}
-        onSave={handleSave}
-        onSkip={handleSkip}
-        tChk={tChk}
-      />
-
-      {/* Inline prompt for non-logged-in users */}
-      <GuestPrompt
-        pendingCheckoutUrl={pendingCheckoutUrl}
-        onContinue={handleContinue}
-        tChk={tChk}
-      />
     </div>
   );
 }

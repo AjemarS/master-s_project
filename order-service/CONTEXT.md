@@ -1,7 +1,7 @@
 # Order Service
 
 ## Stack
-- **Runtime:** Python 3.11 (Alpine in Docker)
+- **Runtime:** Python 3.13 (slim in Docker)
 - **Framework:** Django 5.2 + DRF 3.16
 - **Database:** PostgreSQL 15 (`orders_db`, port 5435)
 - **Auth:** `GatewayAuthentication` — reads `X-Gateway-User-*` headers, syncs local Django User
@@ -16,7 +16,7 @@
 ## Quick Start
 ```bash
 python manage.py runserver 0.0.0.0:8002
-python manage.py test
+python manage.py test --noinput
 ```
 
 ## Apps
@@ -67,12 +67,12 @@ Transitions enforced in `Order.can_transition_to()`.
 
 ### Synchronous HTTP Flow
 1. **Create order:** order-service → `POST /api/inventory/stock/reserve/` (with `product_id`, `quantity`, `warehouse_id`)
-2. **Ship order:** order-service → `POST /api/inventory/stock/deduct/` (converts reserve → deduction)
+2. **Ship order:** order-service → `POST /api/inventory/stock/deduct_batch/` with `from_reserved=true` (converts reserve → deduction, all items or none)
 3. **Cancel order:** order-service → `POST /api/inventory/stock/release/` (releases reserved stock)
 
 ### Saga Integration (Reserve on Create)
 - **Create order:** stock reserve with saga compensation on failure (rollback + cancel order)
-- **Ship order:** stock deduct with partial-failure compensation (revert status + release)
+- **Ship order / POS sale:** one batch deduct for all items; on failure nothing was written off, so only the status is reverted (shipping) or the sale cancelled (POS)
 - **Cancel order:** stock release via `release_stock` (best-effort, idempotency keys prevent double-release)
 - **Idempotency keys:** all inventory client calls include `idempotency_key` for safe retry
 - **Stock pre-check:** `check_availability` before order creation (returns 400 if insufficient)
@@ -80,8 +80,8 @@ Transitions enforced in `Order.can_transition_to()`.
 ## RabbitMQ Integration
 
 ### Publisher
-- `order.created` — published after order creation (consumed by inventory-consumer, notification-service)
-- `order.cancelled` — published on cancellation (consumed by inventory-consumer)
+- `order.created` — published after order creation (consumed by notification-service)
+- `order.cancelled` — published on cancellation (stock is released over HTTP, not by this event)
 - `order.status_changed` — published on any status transition (consumed by notification-service)
 - **Exchange:** `techhub.events` (topic)
 
@@ -99,10 +99,10 @@ Transitions enforced in `Order.can_transition_to()`.
 ## Tests
 - **Framework:** Django `TestCase` + `APITestCase`
 - **Coverage:** models, status transitions, API (create, auth gating, status update, my orders, POS, reports)
-- **Known issue:** `EOFError` on test DB teardown (prompts for `autoclobber` input)
-- **Run:** `python manage.py test`
+- **Inventory calls:** stubbed with `unittest.mock` (tests do not need a running inventory-service)
+- **Run:** `python manage.py test --noinput` (without `--noinput` a leftover test DB triggers the
+  `autoclobber` prompt, which fails with `EOFError` in a non-interactive shell)
 
 ## Known Issues
 - No product validation (accepts any `product_id` without cross-referencing product-service)
-- `order_number` retry loop handles collisions but no DB-level unique guarantee (column has `unique=True` for future enforcement)
-- Test DB teardown prompts for `autoclobber` input (`EOFError`)
+- `order_number` uniqueness is enforced by the DB (`unique=True` since migration 0001); `create_order` retries up to 3 times on `IntegrityError`

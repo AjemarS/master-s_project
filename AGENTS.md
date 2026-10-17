@@ -11,8 +11,7 @@
 - Role-based access in njs: anonymous=read-only+cart+order-creation, user=authenticated reads,
   cashier=POS+orders, warehouse_worker=GRN+stock, admin=full.
 - Event bus: RabbitMQ topic exchange `techhub.events`. Publishers: order-service, inventory-service.
-  Consumers: inventory-consumer (order.created, order.cancelled with dedup),
-  product-consumer (inventory.stock.changed), notification-service (order events, low stock).
+  Consumers: product-consumer (inventory.stock.changed), notification-service (order events, low stock).
 - Route ordering matters in nginx: prefix matches `/api/{path}`, `/media/{path}`, `/auth/{path}` must be declared
   before `/{path}`. nginx matches longest prefix first.
 - Nginx config syntax check: `docker run --rm nginx-test nginx -t` (hostnames resolve only inside compose network).

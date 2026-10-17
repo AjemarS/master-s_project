@@ -6,14 +6,12 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "test": "vitest run",
-    "migrate": "node-pg-migrate --migration-file-language sql --migrations-dir ./migrations --envVar NOTIFICATIONS_DATABASE_URL up"
+    "test": "vitest run"
   },
   "dependencies": {
     "amqplib": "^0.10.7",
     "express": "^4.21.2",
     "ioredis": "^5.6.1",
-    "node-pg-migrate": "^7.0.0",
     "pg": "^8.22.0",
     "resend": "^4.0.0",
     "tsx": "^4.19.0",

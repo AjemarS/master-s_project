@@ -1,8 +1,11 @@
+import random
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
-from django.test import TestCase
+from django.core.cache import cache
+from django.db import IntegrityError, connections
+from django.test import TestCase, TransactionTestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -381,3 +384,149 @@ class ActivityEventAPITest(APITestCase):
         # Response is a bare list, not a paginated {count, results} object
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 2)
+
+
+def _deliver_order_created(event):
+    """Deliver order.created the way the inventory consumer does, if it subscribes to it."""
+    from . import eventbus
+    handler = getattr(eventbus, "QUEUE_MAP", {}).get("inventory.order.reserve")
+    if handler:
+        handler(event, event["event_id"])
+
+
+class LastUnitReservationRaceTest(TransactionTestCase):
+    """K2: 100 parallel orders for the last unit -> exactly one reservation (fix #1)."""
+
+    ORDERS = 100
+    ROUNDS = 20
+
+    def setUp(self):
+        self.admin = _create_admin_user()
+        self.warehouse = _create_warehouse()
+
+    def _http_reserve(self, order_id):
+        try:
+            client = APIClient()
+            client.force_authenticate(user=self.admin)
+            return client.post("/api/stock/reserve/", {
+                "product_id": 1, "warehouse_id": self.warehouse.pk, "quantity": 1,
+                "reference_type": "order", "reference_id": str(order_id),
+                "idempotency_key": f"reserve-{order_id}-1",
+            }).status_code
+        finally:
+            connections.close_all()
+
+    def _event(self, order_id):
+        try:
+            _deliver_order_created({
+                "event_id": f"evt-{order_id}", "order_id": order_id, "channel": "online",
+                "warehouse_id": self.warehouse.pk, "items": [{"product_id": 1, "quantity": 1}],
+            })
+        finally:
+            connections.close_all()
+
+    def test_last_unit_is_reserved_exactly_once(self):
+        for rnd in range(self.ROUNDS):
+            cache.clear()  # DRF user throttle (300/min) would otherwise reject later rounds
+            Stock.objects.filter(product_id=1).delete()
+            stock = _create_stock(product_id=1, warehouse=self.warehouse, quantity=1)
+            base = rnd * self.ORDERS
+            tasks = [(self._http_reserve, base + i) for i in range(self.ORDERS)]
+            tasks += [(self._event, base + i) for i in range(self.ORDERS)]
+            random.shuffle(tasks)
+            with ThreadPoolExecutor(max_workers=40) as pool:
+                results = [f.result() for f in [pool.submit(fn, oid) for fn, oid in tasks]]
+            ok = results.count(status.HTTP_200_OK)
+            stock.refresh_from_db()
+            self.assertEqual(ok, 1, f"round {rnd}: {ok} successful orders")
+            self.assertEqual(stock.reserved, 1, f"round {rnd}: reserved={stock.reserved}")
+            self.assertLessEqual(stock.reserved, stock.quantity)
+
+
+class InventoryReadAccessTest(APITestCase):
+    """Suppliers, GRNs and the movement log are staff-only; storefront availability stays public (fix #6)."""
+
+    STAFF_ONLY = [
+        "/api/suppliers/",
+        "/api/goods-receipts/",
+        "/api/stock/movements/",
+    ]
+
+    def setUp(self):
+        self.warehouse = _create_warehouse()
+        self.stock = _create_stock(product_id=1, warehouse=self.warehouse, quantity=5)
+        self.urls = self.STAFF_ONLY + [
+            f"/api/stock/{self.stock.pk}/movements/",
+            f"/api/goods-receipts/product_info/?product_id=1&warehouse_id={self.warehouse.pk}",
+        ]
+
+    def _as(self, role):
+        return {"HTTP_X_GATEWAY_USER_ID": f"{role}-1", "HTTP_X_GATEWAY_USER_ROLE": role}
+
+    def test_anonymous_and_customer_cannot_read_staff_data(self):
+        for url in self.urls:
+            for headers in ({}, self._as("user"), self._as("cashier")):
+                response = self.client.get(url, **headers)
+                self.assertIn(response.status_code, (401, 403), f"{url} {headers}")
+
+    def test_warehouse_worker_and_admin_can_read_staff_data(self):
+        for url in self.urls:
+            for role in ("warehouse_worker", "admin"):
+                response = self.client.get(url, **self._as(role))
+                self.assertEqual(response.status_code, 200, f"{url} {role}")
+
+    def test_storefront_availability_and_showrooms_stay_public(self):
+        self.assertEqual(self.client.get("/api/stock/").status_code, 200)
+        self.assertEqual(self.client.get("/api/warehouses/").status_code, 200)
+
+
+class DeductBatchTest(APITestCase):
+    """All items of an order are written off in one transaction, or none are (fix #2)."""
+
+    def setUp(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        self.warehouse = _create_warehouse()
+        self.a = _create_stock(product_id=1, warehouse=self.warehouse, quantity=5)
+        self.b = _create_stock(product_id=2, warehouse=self.warehouse, quantity=1)
+
+    def _deduct(self, items, from_reserved=False, key="deduct-7"):
+        return self.client.post("/api/stock/deduct_batch/", {
+            "warehouse_id": self.warehouse.pk, "reference_type": "order", "reference_id": "7",
+            "idempotency_key": key, "from_reserved": from_reserved, "items": items,
+        }, format="json")
+
+    def _levels(self, stock):
+        stock.refresh_from_db()
+        return stock.quantity, stock.reserved
+
+    def test_failing_second_item_leaves_first_item_untouched(self):
+        Stock.objects.filter(pk=self.a.pk).update(reserved=1)
+        response = self._deduct([{"product_id": 1, "quantity": 1}, {"product_id": 2, "quantity": 3}])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._levels(self.a), (5, 1))
+        self.assertEqual(self._levels(self.b), (1, 0))
+        self.assertFalse(StockMovement.objects.filter(type=StockMovement.DEDUCT).exists())
+
+    def test_reserved_last_unit_can_be_shipped(self):
+        Stock.objects.filter(pk=self.b.pk).update(reserved=1)
+        response = self._deduct([{"product_id": 2, "quantity": 1}], from_reserved=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._levels(self.b), (0, 0))
+
+    def test_sale_without_reservation_keeps_other_reservations(self):
+        Stock.objects.filter(pk=self.a.pk).update(reserved=2)
+        response = self._deduct([{"product_id": 1, "quantity": 3}])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._levels(self.a), (2, 2))
+
+    def test_sale_cannot_take_reserved_units(self):
+        Stock.objects.filter(pk=self.a.pk).update(reserved=4)
+        response = self._deduct([{"product_id": 1, "quantity": 2}])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._levels(self.a), (5, 4))
+
+    def test_replay_with_same_key_is_not_deducted_twice(self):
+        items = [{"product_id": 1, "quantity": 2}]
+        self.assertEqual(self._deduct(items).status_code, status.HTTP_200_OK)
+        self.assertEqual(self._deduct(items).status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(self._levels(self.a), (3, 0))

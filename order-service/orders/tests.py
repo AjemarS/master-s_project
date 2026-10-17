@@ -13,6 +13,9 @@ from .models import Order, OrderItem
 
 User = get_user_model()
 
+# Inventory is a separate service: unit tests stub its HTTP client instead of depending on a live stack
+INVENTORY_OK = ({"ok": True}, None)
+
 
 def _create_admin_user():
     return User.objects.create_superuser("admin", "admin@test.com", "password123")
@@ -147,8 +150,11 @@ class OrderAPITest(APITestCase):
         self.assertEqual(len(data["items"]), 1)
         self.assertAlmostEqual(float(data["total_amount"]), 199.98)
 
-    def test_create_order_with_warehouse(self):
-        """Order with warehouse_id triggers reserve saga (fails gracefully when inventory unreachable)."""
+    @mock.patch("orders.order_service.reserve_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.serializers.check_availability", return_value=(True, None))
+    @mock.patch("orders.views.check_availability", return_value=(True, None))
+    def test_create_order_with_warehouse(self, _check_view, _check_serializer, reserve):
+        """Order with warehouse_id reserves every item."""
         user = _create_admin_user()
         self.client.force_authenticate(user=user)
         response = self.client.post(
@@ -165,15 +171,15 @@ class OrderAPITest(APITestCase):
             },
             format="json",
         )
-        # reserve can fail in test (no inventory-service), accepts both paths
-        self.assertIn(response.status_code, [status.HTTP_201_CREATED, status.HTTP_500_INTERNAL_SERVER_ERROR])
-        if response.status_code == status.HTTP_201_CREATED:
-            data = response.data
-            self.assertEqual(data["channel"], "online")
-            self.assertEqual(data["status"], "unpaid")
-            self.assertEqual(data["payment_status"], "unpaid")
-            self.assertEqual(len(data["items"]), 1)
-            self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        data = response.data
+        self.assertEqual(data["channel"], "online")
+        self.assertEqual(data["status"], "unpaid")
+        self.assertEqual(data["payment_status"], "unpaid")
+        self.assertEqual(len(data["items"]), 1)
+        self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+        reserve.assert_called_once()
+        self.assertEqual(reserve.call_args.kwargs["quantity"], 2)
 
     def test_create_order_empty_items(self):
         user = _create_admin_user()
@@ -228,7 +234,8 @@ class POSAPITest(APITestCase):
         self.client.force_authenticate(user=user)
         return user
 
-    def test_pos_order(self):
+    @mock.patch("orders.order_service.deduct_stock_batch", return_value=INVENTORY_OK)
+    def test_pos_order(self, deduct):
         self._auth_admin()
         response = self.client.post(
             "/api/orders/pos/",
@@ -241,8 +248,9 @@ class POSAPITest(APITestCase):
             },
             format="json",
         )
-        # deduct fails in test (no inventory-service), returns 502 with cancelled order
-        self.assertIn(response.status_code, [status.HTTP_201_CREATED, status.HTTP_502_BAD_GATEWAY])
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["channel"], Order.OFFLINE)
+        deduct.assert_called_once()
 
     def test_pos_order_without_warehouse_fails(self):
         self._auth_admin()
@@ -258,21 +266,29 @@ class POSAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_status_transition_paid_to_delivering(self):
+    @mock.patch("orders.order_service.deduct_stock_batch", return_value=INVENTORY_OK)
+    def test_status_transition_paid_to_delivering(self, deduct):
         """Status to delivering triggers deduct saga."""
         self._auth_admin()
         order = _create_order(status=Order.PAID, warehouse_id=1)
+        _create_order_item(order, product_id=1, quantity=3)
         response = self.client.patch(
             f"/api/orders/{order.pk}/status/",
             {"status": "delivering"},
             format="json",
         )
-        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_502_BAD_GATEWAY])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.DELIVERING)
+        self.assertEqual(deduct.call_args.kwargs["items"], [{"product_id": 1, "quantity": 3}])
+        self.assertTrue(deduct.call_args.kwargs["from_reserved"])
 
-    def test_create_order_cancel_releases_stock(self):
+    @mock.patch("orders.order_service.release_stock", return_value=(None, "inventory unreachable"))
+    def test_create_order_cancel_releases_stock(self, release):
         """Cancelling an order triggers release saga (fails gracefully when inventory unreachable)."""
         self._auth_admin()
         order = _create_order(order_number="ORD-CANCEL-001", warehouse_id=1)
+        _create_order_item(order)
         response = self.client.patch(
             f"/api/orders/{order.pk}/status/",
             {"status": "cancelled"},
@@ -281,6 +297,7 @@ class POSAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.status, Order.CANCELLED)
+        release.assert_called_once()
 
 
 class ReportsAPITest(APITestCase):
@@ -479,3 +496,145 @@ class DeliveryApiTests(APITestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class _FakeInventory:
+    """In-memory stand-in for inventory-service's stock endpoints (same rules, one request = one transaction)."""
+
+    def __init__(self, stock):
+        self.stock = stock
+
+    def post(self, url, payload, headers):
+        path = url.split("/api/", 1)[1]
+        if path == "stock/deduct_batch/":
+            return self._batch(payload)
+        row = self.stock[payload["product_id"]]
+        q = payload["quantity"]
+        if path == "stock/deduct/":
+            if row["quantity"] - row["reserved"] < q:
+                return _FakeResponse(400, {"error": "Insufficient available stock"})
+            row["reserved"] -= min(row["reserved"], q)
+            row["quantity"] -= q
+        elif path == "stock/release/":
+            if row["reserved"] < q:
+                return _FakeResponse(400, {"error": "Cannot release more than reserved"})
+            row["reserved"] -= q
+        return _FakeResponse(200, row)
+
+    def _batch(self, payload):
+        rows = {i["product_id"]: dict(self.stock[i["product_id"]]) for i in payload["items"]}
+        for item in payload["items"]:
+            row, q = rows[item["product_id"]], item["quantity"]
+            if payload.get("from_reserved"):
+                if row["reserved"] < q or row["quantity"] < q:
+                    return _FakeResponse(400, {"error": "Insufficient reserved stock"})
+                row["reserved"] -= q
+            elif row["quantity"] - row["reserved"] < q:
+                return _FakeResponse(400, {"error": "Insufficient available stock"})
+            row["quantity"] -= q
+        self.stock.update(rows)
+        return _FakeResponse(200, {"items": list(rows.values())})
+
+
+class _FakeResponse:
+    def __init__(self, status_code, data):
+        self.status_code, self._data = status_code, data
+
+    def json(self):
+        return self._data
+
+
+class DeductCompensationTest(APITestCase):
+    """A failed write-off of the 2nd item must leave the 1st item's stock untouched (fix #2)."""
+
+    def setUp(self):
+        user = User.objects.create_superuser("admin", "admin@test.com", "password123")
+        self.client.force_authenticate(user=user)
+
+    def test_failed_delivery_deduct_restores_first_item(self):
+        inventory = _FakeInventory({1: {"quantity": 5, "reserved": 1}, 2: {"quantity": 0, "reserved": 1}})
+        order = _create_order(status=Order.PAID, warehouse_id=1)
+        _create_order_item(order, product_id=1, quantity=1)
+        _create_order_item(order, product_id=2, quantity=1)
+        with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
+            response = self.client.patch(f"/api/orders/{order.pk}/status/", {"status": "delivering"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.PAID)
+        self.assertEqual(inventory.stock[1], {"quantity": 5, "reserved": 1})
+
+    def test_delivering_ships_the_reserved_last_unit(self):
+        inventory = _FakeInventory({1: {"quantity": 1, "reserved": 1}})
+        order = _create_order(status=Order.PAID, warehouse_id=1)
+        _create_order_item(order, product_id=1, quantity=1)
+        with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
+            response = self.client.patch(f"/api/orders/{order.pk}/status/", {"status": "delivering"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(inventory.stock[1], {"quantity": 0, "reserved": 0})
+
+    def test_failed_pos_deduct_restores_first_item(self):
+        inventory = _FakeInventory({1: {"quantity": 5, "reserved": 2}, 2: {"quantity": 0, "reserved": 0}})
+        with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
+            response = self.client.post("/api/orders/pos/", {
+                "warehouse_id": 1, "customer_name": "POS",
+                "items": [{"product_id": 1, "quantity": 1, "price": "10.00"},
+                          {"product_id": 2, "quantity": 1, "price": "10.00"}],
+            }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertEqual(inventory.stock[1], {"quantity": 5, "reserved": 2})
+
+
+class ReserveFailureCancellationTest(APITestCase):
+    """A failed reservation cancels the order through update_order_status, so order.cancelled is published (fix #3)."""
+
+    @mock.patch("orders.order_service.publish_event")
+    @mock.patch("orders.views.release_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.order_service.release_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.order_service.reserve_stock", side_effect=[INVENTORY_OK, (None, "Insufficient available stock")])
+    @mock.patch("orders.serializers.check_availability", return_value=(True, None))
+    @mock.patch("orders.views.check_availability", return_value=(True, None))
+    def test_failed_reserve_publishes_order_cancelled(self, _cv, _cs, _reserve, svc_release, view_release, publish):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post("/api/orders/", {
+                "warehouse_id": 1, "customer_name": "John", "customer_email": "john@test.com",
+                "items": [{"product_id": 1, "quantity": 1, "price": "10.00"},
+                          {"product_id": 2, "quantity": 1, "price": "10.00"}],
+            }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        order = Order.objects.get()
+        self.assertEqual(order.status, Order.CANCELLED)
+        self.assertIn("Stock reservation failed", order.notes)
+        self.assertIn("order.cancelled", [c.args[0] for c in publish.call_args_list])
+        # only the reserved item is released, once; the item that was never reserved is left alone
+        released = [c.kwargs["product_id"] for c in svc_release.call_args_list + view_release.call_args_list]
+        self.assertEqual(released, [1])
+
+
+class EventOutboxTest(TestCase):
+    """Events RabbitMQ rejects are kept in the outbox and re-sent once it is back (fix #4)."""
+
+    def test_failed_publish_is_queued_then_relayed(self):
+        from shared_eventbus import outbox, publisher
+        from shared_eventbus.models import OutboxEvent
+
+        with mock.patch.object(publisher, "get_channel", side_effect=ConnectionError("broker down")), \
+                mock.patch.object(outbox, "_ensure_relay") as relay_started:
+            ok, _ = publisher.publish_event("order.created", {"event_id": "e1", "total": Decimal("9.99")})
+        self.assertFalse(ok)
+        relay_started.assert_called_once()
+        self.assertEqual(OutboxEvent.objects.get().payload, {"event_id": "e1", "total": "9.99"})
+
+        sent = []
+        with mock.patch.object(publisher, "send", side_effect=lambda key, data, own_connection=False: sent.append((key, data))):
+            self.assertEqual(outbox.relay_pending(), 0)
+        self.assertEqual(sent, [("order.created", {"event_id": "e1", "total": "9.99"})])
+        self.assertFalse(OutboxEvent.objects.exists())
+
+    def test_relay_keeps_events_while_broker_is_down(self):
+        from shared_eventbus import outbox, publisher
+        from shared_eventbus.models import OutboxEvent
+
+        OutboxEvent.objects.create(routing_key="order.created", payload={"event_id": "e2"})
+        with mock.patch.object(publisher, "send", side_effect=ConnectionError("still down")):
+            self.assertEqual(outbox.relay_pending(), 1)
+        self.assertEqual(OutboxEvent.objects.get().attempts, 1)

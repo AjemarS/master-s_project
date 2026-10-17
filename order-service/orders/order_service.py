@@ -11,7 +11,7 @@ from django.db import IntegrityError, transaction
 
 from orders.models import Order, OrderItem
 from orders.eventbus import publish_event
-from orders.inventory_client import reserve_stock, deduct_stock, release_stock
+from orders.inventory_client import reserve_stock, deduct_stock_batch, release_stock
 from orders.event_builder import build_order_event
 
 logger = logging.getLogger(__name__)
@@ -87,9 +87,10 @@ def create_order(serializer_data, items_data, channel, user_id):
             continue
 
 
-def update_order_status(order, new_status, request=None):
+def update_order_status(order, new_status, request=None, release_reserved=True):
     """
     Update order status with inventory side effects.
+    release_reserved=False: the caller already released what this order had reserved (failed saga).
     Returns (order, error_response) where error_response is None on success.
     """
     if not order.can_transition_to(new_status):
@@ -108,24 +109,12 @@ def update_order_status(order, new_status, request=None):
             transaction.on_commit(lambda: publish_event("order.cancelled", build_order_event(order)))
 
     # Release stock on cancellation
-    if new_status == Order.CANCELLED and order.warehouse_id:
+    if new_status == Order.CANCELLED and order.warehouse_id and release_reserved:
         release_order_stock(order, request)
 
-    # Deduct stock on shipping — revert status on failure
+    # Deduct reserved stock on shipping — all items or none, revert status on failure
     if new_status == Order.DELIVERING and order.warehouse_id:
-        all_success, succeeded = deduct_order_stock(order, request)
-        if not all_success:
-            # Compensate already-deducted items
-            for pid, qty in succeeded:
-                release_stock(
-                    product_id=pid,
-                    warehouse_id=order.warehouse_id,
-                    quantity=qty,
-                    reference_type="order",
-                    reference_id=str(order.id),
-                    idempotency_key=f"compensate-deduct-{order.id}-{pid}",
-                    request=request,
-                )
+        if not deduct_order_stock(order, from_reserved=True, request=request):
             order.status = old_status
             order.save(update_fields=["status"])
             logger.error(
@@ -157,32 +146,24 @@ def release_order_stock(order, request=None):
             )
 
 
-def deduct_order_stock(order, request=None):
+def deduct_order_stock(order, from_reserved, request=None):
     """
-    Deduct stock for shipping. Returns (all_success, succeeded_items).
-    succeeded_items can be used for compensation on partial failure.
+    Write off all order items in one inventory transaction, so a failure leaves nothing to compensate.
+    from_reserved: the units were reserved for this order (shipping) rather than sold directly (POS).
+    Returns True when every item was deducted.
     """
-    all_success = True
-    succeeded = []
-    for item in order.items.all():
-        result, error = deduct_stock(
-            product_id=item.product_id,
-            warehouse_id=order.warehouse_id,
-            quantity=item.quantity,
-            reference_type="order",
-            reference_id=str(order.id),
-            idempotency_key=f"deduct-{order.id}-{item.product_id}",
-            request=request,
-        )
-        if error:
-            logger.error(
-                "Stock deduct failed | order=%s product=%s error=%s",
-                order.order_number, item.product_id, error,
-            )
-            all_success = False
-        else:
-            succeeded.append((item.product_id, item.quantity))
-    return all_success, succeeded
+    result, error = deduct_stock_batch(
+        warehouse_id=order.warehouse_id,
+        items=[{"product_id": item.product_id, "quantity": item.quantity} for item in order.items.all()],
+        from_reserved=from_reserved,
+        reference_type="order",
+        reference_id=str(order.id),
+        idempotency_key=f"deduct-{order.id}",
+        request=request,
+    )
+    if error:
+        logger.error("Stock deduct failed | order=%s error=%s", order.order_number, error)
+    return error is None
 
 
 def reserve_order_stock(order, request=None):

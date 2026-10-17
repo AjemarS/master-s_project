@@ -161,6 +161,8 @@ services:
       GITHUB_REDIRECT_URL: ${GITHUB_REDIRECT_URL:-}
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-Admin}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
@@ -270,7 +272,6 @@ services:
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       NOTIFICATIONS_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@logging_db:5432/${LOGGING_DB_NAME:-logging_db}
-      AUTH_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@auth_db:5432/${AUTH_DB_NAME}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -336,38 +337,6 @@ services:
       - microservices_network
     command: python manage.py consume_events
 
-  # Inventory Event Consumer (RabbitMQ)
-  inventory-consumer:
-    build:
-      context: .
-      dockerfile: inventory-service/Dockerfile
-      target: dev
-    container_name: inventory_consumer
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@inventory_db:5432/${INVENTORY_DB_NAME}
-      DB_NAME: ${INVENTORY_DB_NAME}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_HOST: inventory_db
-      DB_PORT: "5432"
-      DJANGO_SETTINGS_MODULE: inventory_service.settings
-      DJANGO_SECRET_KEY: ${INVENTORY_DJANGO_SECRET_KEY}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
-      DEBUG: ${DEBUG}
-      RABBITMQ_URL: ${RABBITMQ_URL}
-    volumes:
-      - ./inventory-service:/app
-      - ./shared-lib:/shared-lib
-    depends_on:
-      inventory_db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - microservices_network
-    command: python manage.py consume_events
-
   # API Gateway (Nginx)
   gateway:
     build:
@@ -416,7 +385,7 @@ services:
 
   # RabbitMQ (event bus)
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:4.1-management-alpine
     container_name: rabbitmq
     restart: unless-stopped
     environment:

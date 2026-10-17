@@ -4,6 +4,22 @@
 > **Audience:** Developer-operators who built the dev setup and need to take it live.
 > **Prerequisites:** OCI account with CLI installed and configured, Docker, access to the project repository.
 
+## Free-tier target (recommended)
+
+Of the free options checked, only this one runs the whole system: **one OCI Always Free VM,
+`VM.Standard.A1.Flex` (Ampere ARM, 4 OCPU, 24 GB RAM)**, running
+`docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d`. Databases, RabbitMQ, Redis and
+the event consumers run as containers on that VM.
+
+- **Images must be arm64.** Every base image (python:3.13-slim, node:24-alpine, postgres:15-alpine,
+  rabbitmq:4.1-management-alpine, redis:7-alpine, nginx:alpine) publishes arm64, so building on the VM
+  works as is. When building elsewhere, use `docker buildx build --platform linux/arm64`.
+- The paid pieces described below (`VM.Standard2.2`, OCI Database with PostgreSQL, Load Balancer, Vault)
+  are optional upgrades, not needed for the free setup.
+- A multi-cloud split (Render + Fly.io + Neon + Vercel, see `migration-runbook.md`) does not fit free
+  tiers: Fly.io has no free tier for new accounts, Render's free plan has no background workers for the
+  event consumers, and a Render free Postgres expires after 30 days.
+
 ---
 
 ## Table of Contents
@@ -649,17 +665,6 @@ services:
   # ── Consumers ──
 
   product-consumer:
-    volumes: []
-    environment:
-      DEBUG: "False"
-      DJANGO_LOG_LEVEL: "INFO"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: "192M"
-
-  inventory-consumer:
     volumes: []
     environment:
       DEBUG: "False"

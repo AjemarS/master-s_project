@@ -1,7 +1,7 @@
 # ----------------------
 # BUILD stage
 # ----------------------
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 RUN apk add --no-cache python3 build-base
 
@@ -19,7 +19,7 @@ RUN npm prune --omit=dev
 # ----------------------
 # DEV stage
 # ----------------------
-FROM node:22-alpine AS dev
+FROM node:24-alpine AS dev
 
 USER root
 WORKDIR /app
@@ -31,7 +31,7 @@ CMD ["npm", "run", "dev"]
 # ----------------------
 # PROD stage
 # ----------------------
-FROM node:22-alpine AS prod
+FROM node:24-alpine AS prod
 
 RUN addgroup -S appuser && adduser -S -G appuser -h /app appuser
 

@@ -170,24 +170,41 @@ export async function handleEvent(routingKey: string, event: Record<string, unkn
   }
 }
 
+let stopping = false;
+
+function scheduleReconnect(): void {
+  reconnectAttempt++;
+  const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt - 1), RECONNECT_MAX) + Math.random() * 1000;
+  logger.error("RabbitMQ unavailable — reconnecting", { delay: Math.round(delay), attempt: reconnectAttempt });
+  setTimeout(connectOrRetry, delay);
+}
+
 export async function startConsumer(): Promise<void> {
   await initTables();
+  await connectOrRetry();
+}
 
+// Never rejects: a broker that is down (at startup or later) is retried with backoff instead of killing the process
+async function connectOrRetry(): Promise<void> {
+  try {
+    await connect();
+  } catch (err) {
+    logger.error("RabbitMQ connect failed", { error: (err as Error).message });
+    channel = null;
+    scheduleReconnect();
+  }
+}
+
+async function connect(): Promise<void> {
   connection = await amqp.connect(RABBITMQ_URL);
   reconnectAttempt = 0;
+  // amqplib emits "close" after every "error", so only "close" reconnects (one consumer, not two)
   connection.on("close", () => {
-    reconnectAttempt++;
-    const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt - 1), RECONNECT_MAX) + Math.random() * 1000;
-    logger.error("RabbitMQ connection closed — reconnecting", { delay: Math.round(delay), attempt: reconnectAttempt });
     channel = null;
-    setTimeout(startConsumer, delay);
+    if (!stopping) scheduleReconnect();
   });
   connection.on("error", (err) => {
-    reconnectAttempt++;
-    const delay = Math.min(RECONNECT_BASE * Math.pow(2, reconnectAttempt - 1), RECONNECT_MAX) + Math.random() * 1000;
-    logger.error("RabbitMQ connection error", { error: err.message, delay: Math.round(delay), attempt: reconnectAttempt });
-    channel = null;
-    setTimeout(startConsumer, delay);
+    logger.error("RabbitMQ connection error", { error: err.message });
   });
 
   channel = await connection.createChannel();
@@ -235,6 +252,7 @@ export function getHealthStatus(): { connected: boolean } {
 
 export async function stopConsumer(): Promise<void> {
   logger.info("[shutdown] Draining consumer...");
+  stopping = true;
   if (channel) {
     try { await channel.close(); } catch { }
   }

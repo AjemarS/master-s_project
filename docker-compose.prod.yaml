@@ -69,7 +69,7 @@ services:
                --access-logfile -
                --error-logfile -"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/inventory/')\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health/')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -103,7 +103,7 @@ services:
                --access-logfile -
                --error-logfile -"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/api/health/')\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/api/orders/health/')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -172,7 +172,7 @@ services:
 
   # API Gateway (Nginx)
   gateway:
-    ports: !reset
+    ports: !override
       - "80:8080"
     deploy:
       resources:
@@ -235,28 +235,9 @@ services:
           cpus: "0.25"
           memory: "128M"
 
-  # Inventory Event Consumer
-  inventory-consumer:
-    build:
-      context: .
-      dockerfile: inventory-service/Dockerfile
-      target: prod
-    volumes: !reset []
-    environment:
-      DEBUG: "False"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "256M"
-        reservations:
-          cpus: "0.25"
-          memory: "128M"
-
   # RabbitMQ (event bus)
   rabbitmq:
-    ports: !reset
-      - "5672:5672"
+    ports: !reset []
     deploy:
       resources:
         limits:

@@ -19,6 +19,7 @@ from shared_auth.permissions import IsAdminOrWarehouseWorker
 from .serializers import (
     ActivityEventSerializer,
     AdjustStockSerializer,
+    DeductBatchSerializer,
     DeductStockSerializer,
     GoodsReceiptNoteCreateSerializer,
     GoodsReceiptNoteSerializer,
@@ -80,6 +81,18 @@ def _stock_action(request, serializer_cls, movement_type, check_and_update, post
     return Response(StockSerializer(stock).data)
 
 
+def _publish_deducted(product_id, warehouse_id, quantity, warehouse_name):
+    current = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
+    publish_event("inventory.stock.changed", {
+        "event_id": str(uuid4()),
+        "product_id": product_id,
+        "warehouse_id": warehouse_id,
+        "quantity": current.quantity,
+        "change": -quantity,
+    })
+    _check_and_publish_low_stock(product_id, warehouse_id, current.quantity, warehouse_name=warehouse_name)
+
+
 class WarehouseViewSet(viewsets.ModelViewSet):
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
@@ -127,7 +140,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
-            return [IsAuthenticatedOrReadOnly()]
+            return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
     def perform_create(self, serializer):
@@ -153,11 +166,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["product_id"]
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve", "movements"):
+        if self.action in ("list", "retrieve"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("reserve", "deduct", "release"):
+        if self.action in ("reserve", "deduct", "deduct_batch", "release"):
             return [IsAuthenticated()]
-        if self.action in ("transfer", "adjust"):
+        if self.action in ("transfer", "adjust", "movements"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
@@ -195,19 +208,57 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             logger.info("Stock deducted | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
 
         def post_action(product_id, warehouse_id, quantity, stock):
-            def publish_stock_changed():
-                current = Stock.objects.get(product_id=product_id, warehouse_id=warehouse_id)
-                publish_event("inventory.stock.changed", {
-                    "event_id": str(uuid4()),
-                    "product_id": product_id,
-                    "warehouse_id": warehouse_id,
-                    "quantity": current.quantity,
-                    "change": -quantity,
-                })
-                _check_and_publish_low_stock(product_id, warehouse_id, current.quantity, warehouse_name=stock.warehouse.name)
-            transaction.on_commit(publish_stock_changed)
+            transaction.on_commit(lambda: _publish_deducted(product_id, warehouse_id, quantity, stock.warehouse.name))
 
         return _stock_action(request, DeductStockSerializer, StockMovement.DEDUCT, check_and_update, post_action=post_action)
+
+    @action(detail=False, methods=["post"])
+    def deduct_batch(self, request):
+        """Write off all items of one order in a single transaction: every item or none."""
+        serializer = DeductBatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        warehouse_id, key, from_reserved = data["warehouse_id"], data["idempotency_key"], data["from_reserved"]
+        wanted = {}
+        for item in data["items"]:
+            wanted[item["product_id"]] = wanted.get(item["product_id"], 0) + item["quantity"]
+
+        with transaction.atomic():
+            # Lock rows in product order so concurrent batches cannot deadlock
+            stocks = {s.product_id: s for s in Stock.objects.select_for_update().select_related("warehouse")
+                      .filter(warehouse_id=warehouse_id, product_id__in=wanted).order_by("product_id")}
+            item_keys = {pid: f"{key}-{pid}" for pid in wanted} if key else {}
+            if item_keys and StockMovement.objects.filter(type=StockMovement.DEDUCT, idempotency_key__in=item_keys.values()).exists():
+                return Response({"items": StockSerializer(stocks.values(), many=True).data}, status=status.HTTP_409_CONFLICT)
+
+            for pid, qty in wanted.items():
+                stock = stocks.get(pid)
+                if stock is None:
+                    return Response({"error": "No stock record", "product_id": pid}, status=status.HTTP_400_BAD_REQUEST)
+                enough = (stock.reserved >= qty and stock.quantity >= qty) if from_reserved else stock.available >= qty
+                if not enough:
+                    return Response({
+                        "error": "Insufficient reserved stock" if from_reserved else "Insufficient available stock",
+                        "product_id": pid, "quantity": stock.quantity, "reserved": stock.reserved, "requested": qty,
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            for pid, qty in wanted.items():
+                Stock.objects.filter(pk=stocks[pid].pk).update(
+                    quantity=F("quantity") - qty,
+                    reserved=F("reserved") - (qty if from_reserved else 0),
+                )
+                StockMovement.objects.create(
+                    product_id=pid, from_warehouse_id=warehouse_id, quantity=qty, type=StockMovement.DEDUCT,
+                    reference_type=data["reference_type"], reference_id=data["reference_id"],
+                    idempotency_key=item_keys.get(pid, ""),
+                    created_by=request.user.username if request.user.is_authenticated else "",
+                )
+                transaction.on_commit(lambda pid=pid, qty=qty: _publish_deducted(pid, warehouse_id, qty, stocks[pid].warehouse.name))
+            logger.info("Stock batch deducted | warehouse=%s items=%s from_reserved=%s", warehouse_id, wanted, from_reserved)
+
+        for stock in stocks.values():
+            stock.refresh_from_db()
+        return Response({"items": StockSerializer(stocks.values(), many=True).data})
 
     @action(detail=False, methods=["post"])
     def transfer(self, request):
@@ -354,7 +405,7 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-created_at"]
 
     def get_permissions(self):
-        return [IsAuthenticatedOrReadOnly()]
+        return [IsAdminOrWarehouseWorker()]
 
 
 class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
@@ -374,9 +425,7 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
         return GoodsReceiptNoteSerializer
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve"):
-            return [IsAuthenticatedOrReadOnly()]
-        if self.action == "create":
+        if self.action in ("list", "retrieve", "create", "product_info"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
