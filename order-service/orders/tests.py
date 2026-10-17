@@ -234,7 +234,7 @@ class POSAPITest(APITestCase):
         self.client.force_authenticate(user=user)
         return user
 
-    @mock.patch("orders.order_service.deduct_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.order_service.deduct_stock_batch", return_value=INVENTORY_OK)
     def test_pos_order(self, deduct):
         self._auth_admin()
         response = self.client.post(
@@ -266,7 +266,7 @@ class POSAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @mock.patch("orders.order_service.deduct_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.order_service.deduct_stock_batch", return_value=INVENTORY_OK)
     def test_status_transition_paid_to_delivering(self, deduct):
         """Status to delivering triggers deduct saga."""
         self._auth_admin()
@@ -280,7 +280,8 @@ class POSAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.status, Order.DELIVERING)
-        self.assertEqual(deduct.call_args.kwargs["quantity"], 3)
+        self.assertEqual(deduct.call_args.kwargs["items"], [{"product_id": 1, "quantity": 3}])
+        self.assertTrue(deduct.call_args.kwargs["from_reserved"])
 
     @mock.patch("orders.order_service.release_stock", return_value=(None, "inventory unreachable"))
     def test_create_order_cancel_releases_stock(self, release):
@@ -495,3 +496,89 @@ class DeliveryApiTests(APITestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class _FakeInventory:
+    """In-memory stand-in for inventory-service's stock endpoints (same rules, one request = one transaction)."""
+
+    def __init__(self, stock):
+        self.stock = stock
+
+    def post(self, url, payload, headers):
+        path = url.split("/api/", 1)[1]
+        if path == "stock/deduct_batch/":
+            return self._batch(payload)
+        row = self.stock[payload["product_id"]]
+        q = payload["quantity"]
+        if path == "stock/deduct/":
+            if row["quantity"] - row["reserved"] < q:
+                return _FakeResponse(400, {"error": "Insufficient available stock"})
+            row["reserved"] -= min(row["reserved"], q)
+            row["quantity"] -= q
+        elif path == "stock/release/":
+            if row["reserved"] < q:
+                return _FakeResponse(400, {"error": "Cannot release more than reserved"})
+            row["reserved"] -= q
+        return _FakeResponse(200, row)
+
+    def _batch(self, payload):
+        rows = {i["product_id"]: dict(self.stock[i["product_id"]]) for i in payload["items"]}
+        for item in payload["items"]:
+            row, q = rows[item["product_id"]], item["quantity"]
+            if payload.get("from_reserved"):
+                if row["reserved"] < q or row["quantity"] < q:
+                    return _FakeResponse(400, {"error": "Insufficient reserved stock"})
+                row["reserved"] -= q
+            elif row["quantity"] - row["reserved"] < q:
+                return _FakeResponse(400, {"error": "Insufficient available stock"})
+            row["quantity"] -= q
+        self.stock.update(rows)
+        return _FakeResponse(200, {"items": list(rows.values())})
+
+
+class _FakeResponse:
+    def __init__(self, status_code, data):
+        self.status_code, self._data = status_code, data
+
+    def json(self):
+        return self._data
+
+
+class DeductCompensationTest(APITestCase):
+    """A failed write-off of the 2nd item must leave the 1st item's stock untouched (fix #2)."""
+
+    def setUp(self):
+        user = User.objects.create_superuser("admin", "admin@test.com", "password123")
+        self.client.force_authenticate(user=user)
+
+    def test_failed_delivery_deduct_restores_first_item(self):
+        inventory = _FakeInventory({1: {"quantity": 5, "reserved": 1}, 2: {"quantity": 0, "reserved": 1}})
+        order = _create_order(status=Order.PAID, warehouse_id=1)
+        _create_order_item(order, product_id=1, quantity=1)
+        _create_order_item(order, product_id=2, quantity=1)
+        with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
+            response = self.client.patch(f"/api/orders/{order.pk}/status/", {"status": "delivering"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.PAID)
+        self.assertEqual(inventory.stock[1], {"quantity": 5, "reserved": 1})
+
+    def test_delivering_ships_the_reserved_last_unit(self):
+        inventory = _FakeInventory({1: {"quantity": 1, "reserved": 1}})
+        order = _create_order(status=Order.PAID, warehouse_id=1)
+        _create_order_item(order, product_id=1, quantity=1)
+        with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
+            response = self.client.patch(f"/api/orders/{order.pk}/status/", {"status": "delivering"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(inventory.stock[1], {"quantity": 0, "reserved": 0})
+
+    def test_failed_pos_deduct_restores_first_item(self):
+        inventory = _FakeInventory({1: {"quantity": 5, "reserved": 2}, 2: {"quantity": 0, "reserved": 0}})
+        with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
+            response = self.client.post("/api/orders/pos/", {
+                "warehouse_id": 1, "customer_name": "POS",
+                "items": [{"product_id": 1, "quantity": 1, "price": "10.00"},
+                          {"product_id": 2, "quantity": 1, "price": "10.00"}],
+            }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertEqual(inventory.stock[1], {"quantity": 5, "reserved": 2})

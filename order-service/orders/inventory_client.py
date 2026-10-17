@@ -70,14 +70,14 @@ def reserve_stock(product_id, warehouse_id, quantity, reference_type, reference_
         return None, str(e)
 
 
-def deduct_stock(product_id, warehouse_id, quantity, reference_type, reference_id, idempotency_key, request=None):
-    """Deduct stock for a product at a warehouse."""
-    url = inventory_url("stock/deduct/")
+def deduct_stock_batch(warehouse_id, items, from_reserved, reference_type, reference_id, idempotency_key, request=None):
+    """Write off all items in one inventory transaction: every item or none."""
+    url = inventory_url("stock/deduct_batch/")
     headers = _build_headers(request, idempotency_key)
     payload = {
-        "product_id": product_id,
         "warehouse_id": warehouse_id,
-        "quantity": quantity,
+        "items": items,
+        "from_reserved": from_reserved,
         "reference_type": reference_type,
         "reference_id": reference_id,
         "idempotency_key": idempotency_key,
@@ -85,7 +85,7 @@ def deduct_stock(product_id, warehouse_id, quantity, reference_type, reference_i
     try:
         return _parse_response(_post(url, payload, headers))
     except requests.RequestException as e:
-        logger.error("deduct_stock failed: product=%s error=%s", product_id, e)
+        logger.error("deduct_stock_batch failed: reference=%s error=%s", reference_id, e)
         return None, str(e)
 
 

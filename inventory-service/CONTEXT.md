@@ -48,7 +48,8 @@ python manage.py test
 | GET | `/api/inventory/warehouses/{id}/stock/` | Any | Stock by warehouse |
 | GET | `/api/inventory/stock/` | Any | Stock query (`?warehouse_id=&product_id=`) |
 | POST | `/api/inventory/stock/reserve/` | Internal | Reserve stock (called by order-service) |
-| POST | `/api/inventory/stock/deduct/` | Internal | Deduct stock (called by order-service) |
+| POST | `/api/inventory/stock/deduct/` | Internal | Deduct one product |
+| POST | `/api/inventory/stock/deduct_batch/` | Internal | Write off all items of an order in one transaction (all or none); `from_reserved` consumes the order's reservation (shipping), otherwise only unreserved units are sold (POS) |
 | POST | `/api/inventory/stock/release/` | Internal | Release reserved stock |
 | GET | `/api/inventory/stock/movements/` | Any | Stock movement audit log |
 | GET | `/api/inventory/suppliers/` | Any | Supplier list |

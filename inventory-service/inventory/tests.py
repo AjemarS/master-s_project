@@ -478,3 +478,55 @@ class InventoryReadAccessTest(APITestCase):
     def test_storefront_availability_and_showrooms_stay_public(self):
         self.assertEqual(self.client.get("/api/stock/").status_code, 200)
         self.assertEqual(self.client.get("/api/warehouses/").status_code, 200)
+
+
+class DeductBatchTest(APITestCase):
+    """All items of an order are written off in one transaction, or none are (fix #2)."""
+
+    def setUp(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        self.warehouse = _create_warehouse()
+        self.a = _create_stock(product_id=1, warehouse=self.warehouse, quantity=5)
+        self.b = _create_stock(product_id=2, warehouse=self.warehouse, quantity=1)
+
+    def _deduct(self, items, from_reserved=False, key="deduct-7"):
+        return self.client.post("/api/stock/deduct_batch/", {
+            "warehouse_id": self.warehouse.pk, "reference_type": "order", "reference_id": "7",
+            "idempotency_key": key, "from_reserved": from_reserved, "items": items,
+        }, format="json")
+
+    def _levels(self, stock):
+        stock.refresh_from_db()
+        return stock.quantity, stock.reserved
+
+    def test_failing_second_item_leaves_first_item_untouched(self):
+        Stock.objects.filter(pk=self.a.pk).update(reserved=1)
+        response = self._deduct([{"product_id": 1, "quantity": 1}, {"product_id": 2, "quantity": 3}])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._levels(self.a), (5, 1))
+        self.assertEqual(self._levels(self.b), (1, 0))
+        self.assertFalse(StockMovement.objects.filter(type=StockMovement.DEDUCT).exists())
+
+    def test_reserved_last_unit_can_be_shipped(self):
+        Stock.objects.filter(pk=self.b.pk).update(reserved=1)
+        response = self._deduct([{"product_id": 2, "quantity": 1}], from_reserved=True)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._levels(self.b), (0, 0))
+
+    def test_sale_without_reservation_keeps_other_reservations(self):
+        Stock.objects.filter(pk=self.a.pk).update(reserved=2)
+        response = self._deduct([{"product_id": 1, "quantity": 3}])
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._levels(self.a), (2, 2))
+
+    def test_sale_cannot_take_reserved_units(self):
+        Stock.objects.filter(pk=self.a.pk).update(reserved=4)
+        response = self._deduct([{"product_id": 1, "quantity": 2}])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._levels(self.a), (5, 4))
+
+    def test_replay_with_same_key_is_not_deducted_twice(self):
+        items = [{"product_id": 1, "quantity": 2}]
+        self.assertEqual(self._deduct(items).status_code, status.HTTP_200_OK)
+        self.assertEqual(self._deduct(items).status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(self._levels(self.a), (3, 0))

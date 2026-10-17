@@ -343,18 +343,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             user_id=user_id,
         )
 
-        all_success, succeeded = svc.deduct_order_stock(order, request)
-        if not all_success:
-            for pid, qty in succeeded:
-                release_stock(
-                    product_id=pid,
-                    warehouse_id=order.warehouse_id,
-                    quantity=qty,
-                    reference_type="order",
-                    reference_id=str(order.id),
-                    idempotency_key=f"compensate-pos-{order.id}-{pid}",
-                    request=request,
-                )
+        if not svc.deduct_order_stock(order, from_reserved=False, request=request):
             order.status = Order.CANCELLED
             order.save(update_fields=["status"])
             logger.error("POS sale cancelled — deduct failure | number=%s", order.order_number)

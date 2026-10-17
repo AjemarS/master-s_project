@@ -193,6 +193,21 @@ class DeductStockSerializer(serializers.Serializer):
         return value
 
 
+class DeductBatchItemSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class DeductBatchSerializer(serializers.Serializer):
+    warehouse_id = serializers.IntegerField()
+    items = DeductBatchItemSerializer(many=True, allow_empty=False)
+    # True when the units were reserved for this order (shipping); False for a direct sale (POS)
+    from_reserved = serializers.BooleanField(default=False)
+    reference_type = serializers.CharField(required=False, allow_blank=True, default="order")
+    reference_id = serializers.CharField(required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(required=False, allow_blank=True, default="")
+
+
 class TransferStockSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     from_warehouse_id = serializers.IntegerField()

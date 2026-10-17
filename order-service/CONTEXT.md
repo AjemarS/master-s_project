@@ -67,12 +67,12 @@ Transitions enforced in `Order.can_transition_to()`.
 
 ### Synchronous HTTP Flow
 1. **Create order:** order-service → `POST /api/inventory/stock/reserve/` (with `product_id`, `quantity`, `warehouse_id`)
-2. **Ship order:** order-service → `POST /api/inventory/stock/deduct/` (converts reserve → deduction)
+2. **Ship order:** order-service → `POST /api/inventory/stock/deduct_batch/` with `from_reserved=true` (converts reserve → deduction, all items or none)
 3. **Cancel order:** order-service → `POST /api/inventory/stock/release/` (releases reserved stock)
 
 ### Saga Integration (Reserve on Create)
 - **Create order:** stock reserve with saga compensation on failure (rollback + cancel order)
-- **Ship order:** stock deduct with partial-failure compensation (revert status + release)
+- **Ship order / POS sale:** one batch deduct for all items; on failure nothing was written off, so only the status is reverted (shipping) or the sale cancelled (POS)
 - **Cancel order:** stock release via `release_stock` (best-effort, idempotency keys prevent double-release)
 - **Idempotency keys:** all inventory client calls include `idempotency_key` for safe retry
 - **Stock pre-check:** `check_availability` before order creation (returns 400 if insufficient)
