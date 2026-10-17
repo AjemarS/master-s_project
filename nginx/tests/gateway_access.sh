@@ -67,4 +67,18 @@ case "$O" in http://localhost*|https://localhost*) echo "note: $O is always allo
 acao=$(curl -s -o /dev/null -D - -H "Origin: $O" "$G/gateway" | tr -d '\r' | sed -n 's/^[Aa]ccess-[Cc]ontrol-[Aa]llow-[Oo]rigin: //p')
 [ "$acao" = "$O" ] && echo "ok   Origin $O allowed" || { echo "FAIL Origin $O: Access-Control-Allow-Origin='$acao'"; fail=1; }
 
+echo "# 10. CSP on storefront HTML"
+hdrs=$(curl -s -o /dev/null -D - "$G/ua" | tr -d '\r')
+csp=$(echo "$hdrs" | grep -i '^content-security-policy:')
+script_src=$(echo "$csp" | tr ';' '\n' | grep "script-src")
+[ "$(echo "$csp" | grep -c .)" = 1 ] && echo "ok   one CSP header" || { echo "FAIL expected one CSP header, got: $csp"; fail=1; }
+case "$script_src" in
+  *"'nonce-"*) case "$script_src" in
+    *"'unsafe-inline'"*) echo "FAIL script-src still allows 'unsafe-inline'"; fail=1 ;;
+    *) echo "ok   script-src uses a nonce, no 'unsafe-inline'" ;;
+  esac ;;
+  *) echo "FAIL script-src has no nonce: $script_src"; fail=1 ;;
+esac
+echo "$hdrs" | grep -qi '^x-xss-protection:' && { echo "FAIL X-XSS-Protection still sent"; fail=1; } || echo "ok   no X-XSS-Protection"
+
 exit $fail

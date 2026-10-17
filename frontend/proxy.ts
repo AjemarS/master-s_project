@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import createIntlMiddleware from "next-intl/middleware";
 
 const intlMiddleware = createIntlMiddleware({
@@ -28,6 +27,40 @@ const roleRouteAccess: Record<string, string[]> = {
   "/admin/users": ["admin"],
   "/admin/reports": ["admin"],
 };
+
+const apiOrigins = [...new Set(
+  // same fallbacks as app/lib/api/client.ts, or the browser's API calls are blocked
+  [
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost/api",
+    process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost/auth",
+  ].flatMap((url) => {
+    try {
+      return [new URL(url).origin];
+    } catch {
+      return [];
+    }
+  }),
+)].join(" ");
+
+// Per-request nonce instead of 'unsafe-inline': Next.js reads it from the request's CSP header and
+// stamps it on its inline scripts. No 'strict-dynamic': streamed chunk <script src> tags carry no nonce,
+// so same-origin files stay allowed by 'self'. 'unsafe-eval' only in development (React dev tooling).
+function contentSecurityPolicy(nonce: string) {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://js.stripe.com${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    // images.unsplash.com: the remote image host allowed in next.config.js
+    `img-src 'self' data: blob: ${apiOrigins} https://images.unsplash.com`,
+    "font-src 'self'",
+    `connect-src 'self' ${apiOrigins} https://api.stripe.com`,
+    "frame-src https://js.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
 
 async function redirectToSignIn(request: NextRequest) {
   const locale = request.cookies.get("NEXT_LOCALE")?.value || "ua";
@@ -79,11 +112,17 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Step 2: Handle i18n locale detection via next-intl
-  const intlResponse = await intlMiddleware(request);
-  if (intlResponse) return intlResponse;
+  // Step 2: CSP nonce, forwarded as request headers (next-intl passes them on) and set on the response
+  const nonce = btoa(crypto.randomUUID());
+  const csp = contentSecurityPolicy(nonce);
+  const headers = new Headers(request.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("Content-Security-Policy", csp);
 
-  return NextResponse.next();
+  // Step 3: Handle i18n locale detection via next-intl
+  const response = (await intlMiddleware(new NextRequest(request, { headers }))) ?? NextResponse.next({ request: { headers } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
 }
 
 export const config = {
