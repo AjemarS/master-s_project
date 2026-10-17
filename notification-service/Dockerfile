@@ -45,6 +45,6 @@ USER appuser
 EXPOSE 8003
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8003/api/notifications/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8003/health || exit 1
 
 CMD ["node", "dist/index.js"]

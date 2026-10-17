@@ -47,6 +47,6 @@ USER app
 EXPOSE 8002
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/health/')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/api/orders/health/')" || exit 1
 
 CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8002"]
