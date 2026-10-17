@@ -105,4 +105,4 @@ Transitions enforced in `Order.can_transition_to()`.
 
 ## Known Issues
 - No product validation (accepts any `product_id` without cross-referencing product-service)
-- `order_number` retry loop handles collisions but no DB-level unique guarantee (column has `unique=True` for future enforcement)
+- `order_number` uniqueness is enforced by the DB (`unique=True` since migration 0001); `create_order` retries up to 3 times on `IntegrityError`

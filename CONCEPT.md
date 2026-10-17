@@ -166,7 +166,9 @@ Routes processed by `nginx/auth.js` `checkAndProxy`:
 
 - **Product**: `name_uk`/`name_en`, `description_uk`/`description_en`
 - **Category**: `name_uk`/`name_en`, `description_uk`/`description_en`
-- **Pricing**: UAH (default), USD when `Accept-Language: en` (`UAH_TO_USD_RATE = 41.5`)
+- **Pricing**: UAH (default), USD when `Accept-Language: en`. Rate: live from exchangerate-api.com, cached 1 h
+  (`products/currency.py`); fallback 0.0241 USD per 1 UAH. The `UAH_TO_USD_RATE` env var pins the rate and is
+  also **USD per 1 UAH** (e.g. `0.0241`, not `41.5`)
 - **Serializer**: `to_representation()` reads `Accept-Language` header, falls back to `name`/`description`
 - **Gateway**: passes `Accept-Language` through to backend
 
