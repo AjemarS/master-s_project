@@ -285,6 +285,12 @@ Managed by Better Auth:
 - `account`: linked OAuth accounts
 - `verification`: email/2FA codes
 
+### 5.5 Audit and Notification Services (logging_db, PostgreSQL)
+
+Deliberate compromise against database-per-service: audit-service (`audit_logs`) and
+notification-service (`notifications`, preferences) share `logging_db`. Both are append-mostly logs and
+never touch each other's tables. notification-service also reads `auth_db` directly to find admin recipients.
+
 ---
 
 ## 6. Event-Driven Integration (RabbitMQ)
