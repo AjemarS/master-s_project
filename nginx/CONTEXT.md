@@ -81,7 +81,8 @@ docker run --rm nginx-test nginx -t
 ## Key Nginx Config Points
 - Header stripping: `proxy_hide_header` for content-encoding, content-length, transfer-encoding, connection, keep-alive, and CORS headers from upstream
 - Redirect rewriting: `proxy_redirect` maps internal URLs → public `$scheme://$http_host/`
-- Rate limiting: `limit_req_zone` for `orders_create` (burst 5, 1r/s)
+- Rate limiting: `limit_req_zone` `orders_create` = 10 requests/min per IP, burst 5, HTTP 429; applies only to
+  online order creation (`POST /api/orders/`). POS sales, order lists and status changes are not limited.
 - WebSocket: `$connection_upgrade` map, only used for frontend proxy
 
 ## Known Issues
