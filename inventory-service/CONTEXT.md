@@ -15,7 +15,7 @@
 ## Quick Start
 ```bash
 python manage.py runserver 0.0.0.0:8001
-python manage.py test
+python manage.py test --noinput
 ```
 
 ## Apps
@@ -32,10 +32,11 @@ python manage.py test
 
 #### Viewsets
 - `WarehouseViewSet` — CRUD
-- `StockViewSet` — list/filter by warehouse and product. Custom `@action` endpoints: `reserve`, `deduct`, `release` (business-critical, atomic).
-- `StockMovementViewSet` — list/filter (audit log)
-- `SupplierViewSet` — CRUD
-- `GoodsReceiptNoteViewSet` — CRUD (create auto-adds stock)
+- `StockViewSet` — list/filter by warehouse and product. Custom `@action` endpoints: `reserve`, `deduct`, `deduct_batch`, `release` (business-critical, atomic), `transfer`, `adjust`, `{id}/movements`.
+- `StockMovementViewSet` — list/filter (audit log, staff only)
+- `SupplierViewSet` — CRUD (reads staff only)
+- `GoodsReceiptNoteViewSet` — list, retrieve, create only (`http_method_names` = GET/POST; a GRN is never edited or deleted, so stock changes are never reversed silently); `product_info` returns the last cost price
+- `ActivityEventViewSet` — admin activity feed (GET list, POST)
 
 ## API Endpoints
 
@@ -51,11 +52,16 @@ python manage.py test
 | POST | `/api/inventory/stock/deduct/` | Internal | Deduct one product |
 | POST | `/api/inventory/stock/deduct_batch/` | Internal | Write off all items of an order in one transaction (all or none); `from_reserved` consumes the order's reservation (shipping), otherwise only unreserved units are sold (POS) |
 | POST | `/api/inventory/stock/release/` | Internal | Release reserved stock |
-| GET | `/api/inventory/stock/movements/` | Any | Stock movement audit log |
-| GET | `/api/inventory/suppliers/` | Any | Supplier list |
+| POST | `/api/inventory/stock/transfer/` | Admin / Warehouse Worker | Move stock between warehouses (available units only) |
+| POST | `/api/inventory/stock/adjust/` | Admin / Warehouse Worker | Set counted quantity (stocktake / write-off), logs `adjustment` |
+| GET | `/api/inventory/stock/movements/` | Admin / Warehouse Worker | Stock movement audit log |
+| GET | `/api/inventory/stock/{id}/movements/` | Admin / Warehouse Worker | Last 100 movements of a product |
+| GET | `/api/inventory/suppliers/` | Admin / Warehouse Worker | Supplier list |
 | POST | `/api/inventory/suppliers/` | Admin | Create supplier |
-| GET | `/api/inventory/goods-receipts/` | Any | GRN list |
-| POST | `/api/inventory/goods-receipts/` | Warehouse Worker | Create GRN (adds stock) |
+| GET | `/api/inventory/goods-receipts/` | Admin / Warehouse Worker | GRN list (purchase prices) |
+| GET | `/api/inventory/goods-receipts/product_info/` | Admin / Warehouse Worker | Last cost price and stock of a product |
+| POST | `/api/inventory/goods-receipts/` | Admin / Warehouse Worker | Create GRN (adds stock) |
+| GET | `/api/inventory/health/` | Any | Health check with DB probe |
 | GET | `/api/docs/` | Any | Swagger UI |
 | GET | `/api/redoc/` | Any | ReDoc |
 
@@ -79,19 +85,16 @@ a second, event-driven reservation double-counted `reserved` and could take the 
 
 ## Auth & Permissions
 - `GatewayAuthentication` — base class for all Django services
-- `IsAdminUser` — for sensitive operations (suppliers, warehouse create)
-- `IsAdminOrWarehouseWorker` — for GRN create, stock adjustments
-- `IsAuthenticatedOrReadOnly` — general pattern
+- `IsAdminUser` — for sensitive operations (supplier and warehouse writes)
+- `IsAdminOrWarehouseWorker` — GRN create, transfer, adjust, and reads of suppliers, GRNs and movements
+- `IsAuthenticatedOrReadOnly` — warehouses and stock levels (public: storefront availability, checkout showrooms)
+- The gateway (njs) applies the same staff-only rule to supplier, GRN and movement reads
 
 ## Tests
 - **Framework:** Django `TestCase` + `APITestCase`
 - **Coverage:** models (Warehouse, Supplier, Stock, StockMovement, GRN), API (warehouse CRUD, stock reserve/deduct/release, GRN creation)
-- **Run:** `python manage.py test`
+- **Run:** `python manage.py test --noinput`
 
 ## Known Issues
-- No internal transfer endpoint (CONCEPT §4.2)
-- No stock adjustment / write-off endpoints
-- GRN delete doesn't reverse stock changes
-- Health endpoint: GET /api/inventory/health/ (AllowAny, DB probe)
-- No product validation (accepts any `product_id` without verification against product-service)
+- Product validation on reserve/deduct calls product-service and is skipped (fails open) when it is unreachable
 - DRF validation errors in English, not Ukrainian
