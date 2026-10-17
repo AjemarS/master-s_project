@@ -7,6 +7,9 @@ const withNextIntl = createNextIntlPlugin("./app/i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    // The optimizer runs inside the container: it can't reach the gateway at localhost/media,
+    // and Next 16 refuses local IPs anyway. The browser loads images from the gateway directly.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
