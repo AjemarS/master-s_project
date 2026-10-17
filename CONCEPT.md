@@ -1,6 +1,6 @@
 # TechHub — Master's Project Concept
 
-> **Thesis**: *"Development and Deployment of an Information System for Household Appliances Retail"*
+> **Thesis**: *"Design and Implementation of an Information System for Household Appliances Retail"*
 
 ## Current State (June 2026)
 
@@ -216,10 +216,10 @@ Customer → Browse → Cart → Checkout → Reserve → Ship → Deduct
 |------|--------|---------|
 | 1 | Browse catalog, add to cart | Product |
 | 2 | Checkout (order create) | Order (via Gateway) |
-| 3 | Order created with status `pending` | Order |
+| 3 | Order created with status `unpaid` | Order |
 | 4 | Order calls Inventory → **reserve** stock | Inventory (HTTP) |
 | 5 | `order.created` published | → RabbitMQ |
-| 6 | Admin changes status to `shipped` | Order |
+| 6 | After payment (`paid`) admin changes status to `delivering` | Order |
 | 7 | Order calls Inventory → **deduct** stock | Inventory (HTTP) |
 | 8 | `inventory.stock.changed` published | → RabbitMQ |
 | 9 | Status → `delivered` → `completed` | Order |
@@ -235,15 +235,15 @@ Customer in showroom → Cashier via POS → Search → Sale → Deduct
 | 1 | Cashier searches product in POS | Frontend → Product |
 | 2 | Cashier adds items to POS receipt, enters buyer info | Frontend |
 | 3 | Cashier confirms sale | Order (via Gateway) |
-| 4 | Order created: `channel=offline`, `status=delivered` | Order |
-| 5 | Order calls Inventory → **deduct** from showroom | Inventory (HTTP) |
+| 4 | Order created: `channel=offline`, `status=unpaid` | Order |
+| 5 | Order calls Inventory → **deduct_batch** from showroom (all items or none; on failure the sale is cancelled) | Inventory (HTTP) |
 
 ### 4.5 Order Cancellation
 
 | Step | Action | Service |
 |------|--------|---------|
 | 1 | Admin sets status to `cancelled` | Order |
-| 2 | Order calls Inventory → **return** reserved stock | Inventory (HTTP) |
+| 2 | Order calls Inventory → **release** reserved stock | Inventory (HTTP) |
 | 3 | `order.cancelled` published | → RabbitMQ |
 
 ---
@@ -296,15 +296,15 @@ Managed by Better Auth:
 | `inventory.stock.changed` | Inventory | Product, notification | Stock level changed → sync Product.stock, notify low stock |
 | `inventory.goods_received` | Inventory | Product | GRN created → sync Product.stock |
 | `inventory.low_stock` | Inventory | Notification | Stock below threshold → email + SSE alert |
-| `order.created` | Order | Inventory, notification | New order → async reserve stock, confirm email |
-| `order.cancelled` | Order | Inventory, notification | Order cancelled → release stock, notify customer |
+| `order.created` | Order | Notification, audit | New order → confirmation email (stock is reserved over HTTP, not by this event) |
+| `order.cancelled` | Order | Notification, audit | Order cancelled → notify customer (stock is released over HTTP) |
 | `order.status_changed` | Order | Notification | Status transition → notify customer |
 
 ### 6.2 Saga Pattern
 
 Critical multi-service operations use Saga:
 ```
-1. Order Service: Create order (status=pending)
+1. Order Service: Create order (status=unpaid)
 2. Order → Inventory: Reserve stock (HTTP with idempotency_key)
 3. If success → order confirmed
 4. If failure → Order: Cancel order (compensating action)
@@ -433,6 +433,7 @@ Services:
   auth_db           :5433 (PostgreSQL)
   inventory_db      :5434 (PostgreSQL)
   orders_db         :5435 (PostgreSQL)
+  logging_db        :5436 (PostgreSQL, audit + notifications)
   
   rabbitmq          :5672 (AMQP), :15672 (mgmt)
   redis             :6379
@@ -486,7 +487,7 @@ Network: microservices_network (bridge)
 | Layer | Technology |
 |-------|-----------|
 | **Runtime** | Python 3.11 (Django services), Node.js 20+ (Auth, Frontend) |
-| **Frameworks** | Django 5 + DRF, Next.js 16, Express 5 |
+| **Frameworks** | Django 5 + DRF, Next.js 16, Express 4 |
 | **Database** | PostgreSQL 15 (4 instances) |
 | **Cache** | Redis 7 |
 | **Message broker** | RabbitMQ 3.13 |

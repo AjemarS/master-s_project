@@ -2,7 +2,7 @@
 
 ## Stack
 - **Runtime:** Node.js 22 (Alpine)
-- **Language:** JavaScript (CommonJS)
+- **Language:** TypeScript (run with `tsx` in dev, compiled with `tsc` for prod)
 - **HTTP:** Express 4.21
 - **Database:** PostgreSQL via `pg` 8.22
 - **Message Broker:** RabbitMQ via `amqplib` 0.10
