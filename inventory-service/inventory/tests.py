@@ -441,3 +441,40 @@ class LastUnitReservationRaceTest(TransactionTestCase):
             self.assertEqual(ok, 1, f"round {rnd}: {ok} successful orders")
             self.assertEqual(stock.reserved, 1, f"round {rnd}: reserved={stock.reserved}")
             self.assertLessEqual(stock.reserved, stock.quantity)
+
+
+class InventoryReadAccessTest(APITestCase):
+    """Suppliers, GRNs and the movement log are staff-only; storefront availability stays public (fix #6)."""
+
+    STAFF_ONLY = [
+        "/api/suppliers/",
+        "/api/goods-receipts/",
+        "/api/stock/movements/",
+    ]
+
+    def setUp(self):
+        self.warehouse = _create_warehouse()
+        self.stock = _create_stock(product_id=1, warehouse=self.warehouse, quantity=5)
+        self.urls = self.STAFF_ONLY + [
+            f"/api/stock/{self.stock.pk}/movements/",
+            f"/api/goods-receipts/product_info/?product_id=1&warehouse_id={self.warehouse.pk}",
+        ]
+
+    def _as(self, role):
+        return {"HTTP_X_GATEWAY_USER_ID": f"{role}-1", "HTTP_X_GATEWAY_USER_ROLE": role}
+
+    def test_anonymous_and_customer_cannot_read_staff_data(self):
+        for url in self.urls:
+            for headers in ({}, self._as("user"), self._as("cashier")):
+                response = self.client.get(url, **headers)
+                self.assertIn(response.status_code, (401, 403), f"{url} {headers}")
+
+    def test_warehouse_worker_and_admin_can_read_staff_data(self):
+        for url in self.urls:
+            for role in ("warehouse_worker", "admin"):
+                response = self.client.get(url, **self._as(role))
+                self.assertEqual(response.status_code, 200, f"{url} {role}")
+
+    def test_storefront_availability_and_showrooms_stay_public(self):
+        self.assertEqual(self.client.get("/api/stock/").status_code, 200)
+        self.assertEqual(self.client.get("/api/warehouses/").status_code, 200)

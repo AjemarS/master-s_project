@@ -127,7 +127,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
-            return [IsAuthenticatedOrReadOnly()]
+            return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
     def perform_create(self, serializer):
@@ -153,11 +153,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["product_id"]
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve", "movements"):
+        if self.action in ("list", "retrieve"):
             return [IsAuthenticatedOrReadOnly()]
         if self.action in ("reserve", "deduct", "release"):
             return [IsAuthenticated()]
-        if self.action in ("transfer", "adjust"):
+        if self.action in ("transfer", "adjust", "movements"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
@@ -354,7 +354,7 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-created_at"]
 
     def get_permissions(self):
-        return [IsAuthenticatedOrReadOnly()]
+        return [IsAdminOrWarehouseWorker()]
 
 
 class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
@@ -374,9 +374,7 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
         return GoodsReceiptNoteSerializer
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve"):
-            return [IsAuthenticatedOrReadOnly()]
-        if self.action == "create":
+        if self.action in ("list", "retrieve", "create", "product_info"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 

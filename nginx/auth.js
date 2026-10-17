@@ -24,6 +24,13 @@ function checkAndProxy(r) {
         return;
     }
 
+    // Supplier, goods-receipt and stock-movement reads are staff-only (purchase prices, suppliers)
+    if (apiAccess === "inventory" && /\/(suppliers|goods-receipts|stock\/(\d+\/)?movements)(\/|$)/.test(r.uri)
+        && userRole !== "admin" && userRole !== "warehouse_worker") {
+        deny(r, userId ? 403 : 401, userId ? "Access denied." : "Authentication required");
+        return;
+    }
+
     // Cart is fully open (auth by session_id, not by user)
     if (apiAccess === "cart") {
         r.variables.gateway_user_id = userId;
