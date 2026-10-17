@@ -1,8 +1,11 @@
+import random
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
-from django.test import TestCase
+from django.core.cache import cache
+from django.db import IntegrityError, connections
+from django.test import TestCase, TransactionTestCase
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
@@ -381,3 +384,60 @@ class ActivityEventAPITest(APITestCase):
         # Response is a bare list, not a paginated {count, results} object
         self.assertIsInstance(response.data, list)
         self.assertEqual(len(response.data), 2)
+
+
+def _deliver_order_created(event):
+    """Deliver order.created the way the inventory consumer does, if it subscribes to it."""
+    from . import eventbus
+    handler = getattr(eventbus, "QUEUE_MAP", {}).get("inventory.order.reserve")
+    if handler:
+        handler(event, event["event_id"])
+
+
+class LastUnitReservationRaceTest(TransactionTestCase):
+    """K2: 100 parallel orders for the last unit -> exactly one reservation (fix #1)."""
+
+    ORDERS = 100
+    ROUNDS = 20
+
+    def setUp(self):
+        self.admin = _create_admin_user()
+        self.warehouse = _create_warehouse()
+
+    def _http_reserve(self, order_id):
+        try:
+            client = APIClient()
+            client.force_authenticate(user=self.admin)
+            return client.post("/api/stock/reserve/", {
+                "product_id": 1, "warehouse_id": self.warehouse.pk, "quantity": 1,
+                "reference_type": "order", "reference_id": str(order_id),
+                "idempotency_key": f"reserve-{order_id}-1",
+            }).status_code
+        finally:
+            connections.close_all()
+
+    def _event(self, order_id):
+        try:
+            _deliver_order_created({
+                "event_id": f"evt-{order_id}", "order_id": order_id, "channel": "online",
+                "warehouse_id": self.warehouse.pk, "items": [{"product_id": 1, "quantity": 1}],
+            })
+        finally:
+            connections.close_all()
+
+    def test_last_unit_is_reserved_exactly_once(self):
+        for rnd in range(self.ROUNDS):
+            cache.clear()  # DRF user throttle (300/min) would otherwise reject later rounds
+            Stock.objects.filter(product_id=1).delete()
+            stock = _create_stock(product_id=1, warehouse=self.warehouse, quantity=1)
+            base = rnd * self.ORDERS
+            tasks = [(self._http_reserve, base + i) for i in range(self.ORDERS)]
+            tasks += [(self._event, base + i) for i in range(self.ORDERS)]
+            random.shuffle(tasks)
+            with ThreadPoolExecutor(max_workers=40) as pool:
+                results = [f.result() for f in [pool.submit(fn, oid) for fn, oid in tasks]]
+            ok = results.count(status.HTTP_200_OK)
+            stock.refresh_from_db()
+            self.assertEqual(ok, 1, f"round {rnd}: {ok} successful orders")
+            self.assertEqual(stock.reserved, 1, f"round {rnd}: reserved={stock.reserved}")
+            self.assertLessEqual(stock.reserved, stock.quantity)

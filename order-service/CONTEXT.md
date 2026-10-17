@@ -80,8 +80,8 @@ Transitions enforced in `Order.can_transition_to()`.
 ## RabbitMQ Integration
 
 ### Publisher
-- `order.created` — published after order creation (consumed by inventory-consumer, notification-service)
-- `order.cancelled` — published on cancellation (consumed by inventory-consumer)
+- `order.created` — published after order creation (consumed by notification-service)
+- `order.cancelled` — published on cancellation (stock is released over HTTP, not by this event)
 - `order.status_changed` — published on any status transition (consumed by notification-service)
 - **Exchange:** `techhub.events` (topic)
 

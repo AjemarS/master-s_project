@@ -5,7 +5,7 @@
 - **Framework:** Django 5.2 + DRF 3.16
 - **Database:** PostgreSQL 15 (`inventory_db`, port 5434)
 - **Auth:** `GatewayAuthentication` — reads `X-Gateway-User-*` headers, syncs local Django User
-- **Message Broker:** RabbitMQ (publishes + consumes via `inventory-consumer` container)
+- **Message Broker:** RabbitMQ (publishes only)
 - **Docs:** drf-spectacular (Swagger, ReDoc)
 
 ## Port
@@ -71,11 +71,10 @@ python manage.py test
 - `inventory.low_stock` — published when stock drops below threshold
 - **Exchange:** `techhub.events` (topic)
 
-### Consumer (`inventory-consumer` container)
-- Listens for: `order.created`, `order.cancelled` (from order-service)
-- On `order.created`: async reserve stock (idempotent)
-- On `order.cancelled`: async release stock
-- **Idempotency:** `ProcessedEvent` table stores `event_id` + content hash. Duplicate events are skipped.
+### No consumer
+Stock is reserved and released only by the synchronous HTTP saga from order-service
+(`/api/stock/reserve|release|deduct/` with `Idempotency-Key`). Inventory does not consume `order.*` events:
+a second, event-driven reservation double-counted `reserved` and could take the last unit from the HTTP saga.
 
 ## Auth & Permissions
 - `GatewayAuthentication` — base class for all Django services

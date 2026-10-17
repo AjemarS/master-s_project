@@ -138,8 +138,8 @@ techhub/
 
 TechHub uses a topic exchange `techhub.events` for asynchronous communication:
 
-- **order.created** → consumed by inventory-consumer (reserve stock), notification-service (email receipt)
-- **order.cancelled** → consumed by inventory-consumer (release stock)
+- **order.created** → consumed by notification-service (email receipt); stock is reserved synchronously over HTTP
+- **order.cancelled** → stock is released synchronously over HTTP
 - **order.status_changed** → consumed by notification-service (status update email)
 - **inventory.stock.changed** → consumed by product-consumer (update denormalized stock)
 - **inventory.goods_received** → consumed by product-consumer

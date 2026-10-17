@@ -235,24 +235,6 @@ services:
           cpus: "0.25"
           memory: "128M"
 
-  # Inventory Event Consumer
-  inventory-consumer:
-    build:
-      context: .
-      dockerfile: inventory-service/Dockerfile
-      target: prod
-    volumes: !reset []
-    environment:
-      DEBUG: "False"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: "256M"
-        reservations:
-          cpus: "0.25"
-          memory: "128M"
-
   # RabbitMQ (event bus)
   rabbitmq:
     ports: !reset

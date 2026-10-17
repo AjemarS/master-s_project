@@ -659,17 +659,6 @@ services:
           cpus: "0.25"
           memory: "192M"
 
-  inventory-consumer:
-    volumes: []
-    environment:
-      DEBUG: "False"
-      DJANGO_LOG_LEVEL: "INFO"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.25"
-          memory: "192M"
-
   # ── Gateway ──
 
   gateway:
