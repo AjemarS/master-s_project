@@ -31,6 +31,11 @@ router.post("/api/audit/log", async (req: Request, res: Response) => {
 
 // GET /api/audit/logs — admin query
 router.get("/api/audit/logs", async (req: Request, res: Response) => {
+  // Gateway sets this header after auth; requests that bypass the gateway get nothing
+  if (req.header("x-gateway-user-role") !== "admin") {
+    res.status(403).json({ success: false, message: "Admin only" });
+    return;
+  }
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));

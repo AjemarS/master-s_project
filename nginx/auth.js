@@ -18,6 +18,12 @@ function checkAndProxy(r) {
     var userName = r.variables.auth_user_name || "";
     var apiAccess = r.variables.api_access || "";
 
+    // Audit log is admin-only, reads included
+    if (apiAccess === "audit" && userRole !== "admin") {
+        deny(r, userId ? 403 : 401, userId ? "Access denied." : "Authentication required");
+        return;
+    }
+
     // Cart is fully open (auth by session_id, not by user)
     if (apiAccess === "cart") {
         r.variables.gateway_user_id = userId;
