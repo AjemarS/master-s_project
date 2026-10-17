@@ -5,15 +5,45 @@ import { insertEntry } from "./store";
 const EXCHANGE = "techhub.events";
 const QUEUE = "audit.all";
 
+const RECONNECT_MAX = 30000;
+
 let channel: Channel | null = null;
 let connection: ChannelModel | null = null;
+let reconnectAttempt = 0;
+let stopping = false;
 
+function scheduleReconnect(): void {
+  reconnectAttempt++;
+  const delay = Math.min(1000 * Math.pow(2, reconnectAttempt - 1), RECONNECT_MAX);
+  logger.error("RabbitMQ unavailable — audit consumer reconnecting", { delay, attempt: reconnectAttempt });
+  setTimeout(startConsumer, delay);
+}
+
+// Never rejects: a broker that is down (at startup or later) is retried with backoff
 export async function startConsumer(): Promise<void> {
+  try {
+    await connect();
+    reconnectAttempt = 0;
+  } catch (err) {
+    logger.error("RabbitMQ connect failed", { error: (err as Error).message });
+    channel = null;
+    scheduleReconnect();
+  }
+}
+
+async function connect(): Promise<void> {
   const url = process.env.RABBITMQ_URL || "amqp://rabbitmq:5672";
   connection = await amqp.connect(url);
+  // amqplib emits "close" after every "error"; only "close" reconnects
   connection.on("close", () => {
-    logger.error("RabbitMQ connection closed — audit consumer stopped");
     channel = null;
+    if (!stopping) {
+      logger.error("RabbitMQ connection closed");
+      scheduleReconnect();
+    }
+  });
+  connection.on("error", (err) => {
+    logger.error("RabbitMQ connection error", { error: err.message });
   });
 
   channel = await connection.createChannel();
@@ -49,6 +79,7 @@ export async function startConsumer(): Promise<void> {
 }
 
 export async function stopConsumer(): Promise<void> {
+  stopping = true;
   if (channel) { try { await channel.close(); } catch { /* ignore */ } }
   if (connection) { try { await connection.close(); } catch { /* ignore */ } }
 }

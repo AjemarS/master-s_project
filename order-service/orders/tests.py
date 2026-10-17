@@ -608,3 +608,33 @@ class ReserveFailureCancellationTest(APITestCase):
         # only the reserved item is released, once; the item that was never reserved is left alone
         released = [c.kwargs["product_id"] for c in svc_release.call_args_list + view_release.call_args_list]
         self.assertEqual(released, [1])
+
+
+class EventOutboxTest(TestCase):
+    """Events RabbitMQ rejects are kept in the outbox and re-sent once it is back (fix #4)."""
+
+    def test_failed_publish_is_queued_then_relayed(self):
+        from shared_eventbus import outbox, publisher
+        from shared_eventbus.models import OutboxEvent
+
+        with mock.patch.object(publisher, "get_channel", side_effect=ConnectionError("broker down")), \
+                mock.patch.object(outbox, "_ensure_relay") as relay_started:
+            ok, _ = publisher.publish_event("order.created", {"event_id": "e1", "total": Decimal("9.99")})
+        self.assertFalse(ok)
+        relay_started.assert_called_once()
+        self.assertEqual(OutboxEvent.objects.get().payload, {"event_id": "e1", "total": "9.99"})
+
+        sent = []
+        with mock.patch.object(publisher, "send", side_effect=lambda key, data, own_connection=False: sent.append((key, data))):
+            self.assertEqual(outbox.relay_pending(), 0)
+        self.assertEqual(sent, [("order.created", {"event_id": "e1", "total": "9.99"})])
+        self.assertFalse(OutboxEvent.objects.exists())
+
+    def test_relay_keeps_events_while_broker_is_down(self):
+        from shared_eventbus import outbox, publisher
+        from shared_eventbus.models import OutboxEvent
+
+        OutboxEvent.objects.create(routing_key="order.created", payload={"event_id": "e2"})
+        with mock.patch.object(publisher, "send", side_effect=ConnectionError("still down")):
+            self.assertEqual(outbox.relay_pending(), 1)
+        self.assertEqual(OutboxEvent.objects.get().attempts, 1)

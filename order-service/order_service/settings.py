@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "orders",
+    "shared_eventbus",
 ]
 
 MIDDLEWARE = [

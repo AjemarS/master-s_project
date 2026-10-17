@@ -18,7 +18,10 @@ shared-lib/
 │   └── test_helpers.py             # create_admin_user, create_cashier_user, etc.
 └── shared_eventbus/
     ├── connection.py               # RabbitMQ connection pool (techhub.events)
-    ├── publisher.py                # publish_event() helper
+    ├── publisher.py                # publish_event() helper (failed publishes go to the outbox)
+    ├── outbox.py                   # outbox store + relay thread (re-sends when RabbitMQ is back)
+    ├── models.py, migrations/      # OutboxEvent (table eventbus_outbox)
+    ├── management/commands/        # relay_outbox: flush the outbox by hand
     └── consumer.py                 # start_consumer() + dedup helpers
 ```
 
@@ -150,6 +153,17 @@ SPECTACULAR_SETTINGS = {**BASE_SPECTACULAR_SETTINGS, "TITLE": "Product Service"}
 Pre-configured DRF defaults: pagination (20/page), GatewayAuthentication, IsAuthenticatedOrReadOnly, throttling (60/min anon, 300/min user), DjangoFilterBackend, JSON-only rendering, drf-spectacular schema.
 
 ---
+
+## Event outbox
+
+`publish_event()` never loses an event because RabbitMQ is down: on failure it stores the event in
+`eventbus_outbox` (the service's own DB) and starts a relay thread that re-sends queued events oldest
+first every 5 s, with the same `event_id`, so consumers' dedup still applies. Every publishing service
+lists `"shared_eventbus"` in `INSTALLED_APPS` (migration creates the table).
+`python manage.py relay_outbox` flushes it by hand, e.g. for rows left by a process that was killed.
+
+Limit: the row is written only when publishing fails, not inside the business transaction, so a process
+killed between commit and publish can still lose that one event.
 
 ## Dependencies
 
