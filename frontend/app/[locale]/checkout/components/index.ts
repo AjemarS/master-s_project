@@ -7,6 +7,5 @@ export { DeliveryMethod } from "./delivery-method";
 export { ReceiverForm } from "./receiver-form";
 export { ConfirmationSection } from "./confirmation-section";
 export { CommentSection } from "./comment-section";
-export { SaveDialog } from "./save-dialog";
-export { GuestPrompt } from "./guest-prompt";
+export { SaveDetails } from "./save-details";
 export { CheckoutEmpty } from "./checkout-empty";

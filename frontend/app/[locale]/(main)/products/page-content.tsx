@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import React from "react";
+import { usePathname, useRouter } from "~/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { ProductCard } from "~/ui/components/product-card";
 import { ProductsFilterSidebar } from "~/ui/components/products-filter-sidebar";
@@ -46,35 +47,48 @@ export default function ProductsPageContent() {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const { addItem } = useCart();
 
-  const [page, setPage] = React.useState(1);
-
-  // Price range: slider value and axis limits
-  const [priceRange, setPriceRange] = React.useState<[number, number]>([0, 100000]);
+  // Price slider axis limits, seeded from the catalogue
   const [priceMin, setPriceMin] = React.useState(0);
   const [priceMax, setPriceMax] = React.useState(100000);
-
-  // Brand & color
-  const [selectedBrand, setSelectedBrand] = React.useState<string | null>(null);
-  const [selectedColor, setSelectedColor] = React.useState<string | null>(null);
-
-  const [onlyInStock, setOnlyInStock] = React.useState(false);
-  const [onSale, setOnSale] = React.useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = React.useState<number | null>(() => {
-    const catParam = searchParams.get("category");
-    if (catParam) {
-      const catId = parseInt(catParam, 10);
-      if (!isNaN(catId)) return catId;
-    }
-    return null;
-  });
-  const [sort, setSort] = React.useState<string>("newest");
-  const [minRating, setMinRating] = React.useState(0);
   const [filterOpen, setFilterOpen] = React.useState(false);
-  const [searchTerm] = React.useState<string>(() => {
-    return searchParams.get("search") || "";
-  });
+
+  // Filters, sort and page live in the URL (BAD_UX H1): Back works, links are shareable
+  const numParam = (key: string) => {
+    const n = Number(searchParams.get(key) ?? "");
+    return searchParams.has(key) && Number.isFinite(n) ? n : null;
+  };
+  const page = Math.max(1, numParam("page") ?? 1);
+  const selectedCategoryId = numParam("category");
+  const selectedBrand = searchParams.get("brand");
+  const selectedColor = searchParams.get("color");
+  const onlyInStock = searchParams.get("inStock") === "1";
+  const onSale = searchParams.get("sale") === "1";
+  const minRating = numParam("rating") ?? 0;
+  const sortParam = searchParams.get("sort") ?? "";
+  const sort: SortKey = sortParam in orderingMap ? (sortParam as SortKey) : "newest";
+  const searchTerm = searchParams.get("search") ?? "";
+  const minPriceParam = numParam("minPrice");
+  const maxPriceParam = numParam("maxPrice");
+  const priceRange = React.useMemo<[number, number]>(
+    () => [minPriceParam ?? priceMin, maxPriceParam ?? priceMax],
+    [minPriceParam, maxPriceParam, priceMin, priceMax],
+  );
+
+  // null removes a param; any filter change except paging goes back to page 1
+  const setParams = (updates: Record<string, string | number | null>, history: "push" | "replace" = "push") => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) next.delete(key);
+      else next.set(key, String(value));
+    }
+    if (!("page" in updates)) next.delete("page");
+    const qs = next.toString();
+    router[history](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   const activeFilterCount = React.useMemo(() => {
     let count = 0;
@@ -124,7 +138,6 @@ export default function ProductsPageContent() {
     /* eslint-disable react-hooks/set-state-in-effect -- intentional: seed slider bounds once from first data arrival (ref-guarded) */
     setPriceMin(minP);
     setPriceMax(maxP);
-    setPriceRange([minP, maxP]);
     /* eslint-enable react-hooks/set-state-in-effect */
     priceInitializedRef.current = true;
   }, [allProductsData]);
@@ -133,7 +146,7 @@ export default function ProductsPageContent() {
     const filters: Record<string, string | number | boolean | undefined> = {
       page,
       pageSize: PAGE_SIZE,
-      ordering: orderingMap[sort as SortKey] ?? orderingMap.newest,
+      ordering: orderingMap[sort],
     };
     if (priceRange[0] > priceMin) filters.minPrice = priceRange[0];
     if (priceRange[1] < priceMax) filters.maxPrice = priceRange[1];
@@ -166,41 +179,32 @@ export default function ProductsPageContent() {
     [addItem, products],
   );
 
-  const handlePageChange = React.useCallback(
-    (newPage: number) => {
-      if (newPage < 1 || newPage > totalPages) return;
-      setPage(newPage);
-    },
-    [totalPages],
-  );
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setParams({ page: newPage === 1 ? null : newPage });
+  };
 
   const filterProps = {
     priceRange, priceMin, priceMax,
-    onPriceRangeChange: (val: [number, number]) => { setPriceRange(val); setPage(1); },
+    // The slider fires while dragging: replace, so Back does not step through every position
+    onPriceRangeChange: (val: [number, number]) =>
+      setParams({ minPrice: val[0] > priceMin ? val[0] : null, maxPrice: val[1] < priceMax ? val[1] : null }, "replace"),
     categories, selectedCategoryId,
-    onCategorySelect: (id: number | null) => { setSelectedCategoryId(id); setPage(1); },
+    onCategorySelect: (id: number | null) => setParams({ category: id }),
     brands, selectedBrand,
-    onBrandChange: (val: string | null) => { setSelectedBrand(val); setPage(1); },
+    onBrandChange: (val: string | null) => setParams({ brand: val }),
     colors, selectedColor,
-    onColorChange: (val: string | null) => { setSelectedColor(val); setPage(1); },
+    onColorChange: (val: string | null) => setParams({ color: val }),
     onlyInStock,
-    onInStockChange: (val: boolean) => { setOnlyInStock(val); setPage(1); },
+    onInStockChange: (val: boolean) => setParams({ inStock: val ? 1 : null }),
     onSale,
-    onSaleChange: (val: boolean) => { setOnSale(val); setPage(1); },
+    onSaleChange: (val: boolean) => setParams({ sale: val ? 1 : null }),
     minRating,
-    onMinRatingChange: (val: number) => { setMinRating(val); setPage(1); },
+    onMinRatingChange: (val: number) => setParams({ rating: val > 0 ? val : null }),
     activeFilterCount,
-    onReset: () => {
-      setPriceRange([priceMin, priceMax]);
-      setOnlyInStock(false);
-      setOnSale(false);
-      setSelectedCategoryId(null);
-      setSelectedBrand(null);
-      setSelectedColor(null);
-      setSort("newest");
-      setMinRating(0);
-      setPage(1);
-    },
+    // Keeps ?search=, as before
+    onReset: () =>
+      setParams({ minPrice: null, maxPrice: null, inStock: null, sale: null, category: null, brand: null, color: null, sort: null, rating: null }),
   };
 
   return (
@@ -246,7 +250,7 @@ export default function ProductsPageContent() {
           <div className="flex items-center justify-end mb-6">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground whitespace-nowrap">{t("sortBy")}</span>
-              <Select onValueChange={(val) => { setSort(val); setPage(1); }} value={sort}>
+              <Select onValueChange={(val) => setParams({ sort: val === "newest" ? null : val })} value={sort}>
                 <SelectTrigger className="h-8 w-[150px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
