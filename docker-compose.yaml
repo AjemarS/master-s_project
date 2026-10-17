@@ -272,7 +272,6 @@ services:
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       NOTIFICATIONS_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@logging_db:5432/${LOGGING_DB_NAME:-logging_db}
-      AUTH_DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@auth_db:5432/${AUTH_DB_NAME}
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -51,18 +51,17 @@ Trusts `X-Gateway-User-*` headers from Nginx. Two middleware:
 - `notification_preferences` — per-user notification toggles
 - `processed_events` — dedup log (auto-cleaned after 24h)
 
-### auth_db (cross-service read)
-- `"user"` — email/name lookups (tight coupling, planned for removal)
+### No auth_db access
+User email/name lookups and admin recipients come from auth-service over HTTP (`src/admin.ts`, `AUTH_SERVICE_URL`).
 
 ## Channels
 
 - **In-app:** DB record + SSE push
 - **Email:** Resend.com API
-- **SSE:** GET `/stream` — long-lived HTTP, in-memory `Map<userId, Set<Response>>`
+- **SSE:** GET `/stream` — long-lived HTTP; each instance keeps its own `Map<userId, Set<Response>>`, and pushes go through Redis Pub/Sub so every instance delivers to its own clients
 
 ## Architecture Notes
 
-- Single-process SSE — cannot scale horizontally without Redis Pub/Sub
-- Direct auth DB read — should migrate to auth-service API call
-- Startup schema bootstrap via `CREATE TABLE IF NOT EXISTS` — no migration tool
+- SSE scales horizontally via Redis Pub/Sub (`src/sse.ts`)
+- Schema: one approach, `src/db-init.ts` creates tables idempotently (`CREATE TABLE IF NOT EXISTS`) on start; the unused node-pg-migrate copy of the same schema was removed
 - Old dismissed notifications purged after 3 days via periodic cleanup

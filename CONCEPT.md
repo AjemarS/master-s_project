@@ -289,7 +289,7 @@ Managed by Better Auth:
 
 Deliberate compromise against database-per-service: audit-service (`audit_logs`) and
 notification-service (`notifications`, preferences) share `logging_db`. Both are append-mostly logs and
-never touch each other's tables. notification-service also reads `auth_db` directly to find admin recipients.
+never touch each other's tables. User and admin lookups go to auth-service over HTTP, not to `auth_db`.
 
 ---
 
