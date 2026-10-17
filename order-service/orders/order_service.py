@@ -87,9 +87,10 @@ def create_order(serializer_data, items_data, channel, user_id):
             continue
 
 
-def update_order_status(order, new_status, request=None):
+def update_order_status(order, new_status, request=None, release_reserved=True):
     """
     Update order status with inventory side effects.
+    release_reserved=False: the caller already released what this order had reserved (failed saga).
     Returns (order, error_response) where error_response is None on success.
     """
     if not order.can_transition_to(new_status):
@@ -108,7 +109,7 @@ def update_order_status(order, new_status, request=None):
             transaction.on_commit(lambda: publish_event("order.cancelled", build_order_event(order)))
 
     # Release stock on cancellation
-    if new_status == Order.CANCELLED and order.warehouse_id:
+    if new_status == Order.CANCELLED and order.warehouse_id and release_reserved:
         release_order_stock(order, request)
 
     # Deduct reserved stock on shipping — all items or none, revert status on failure

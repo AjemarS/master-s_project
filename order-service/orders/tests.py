@@ -582,3 +582,29 @@ class DeductCompensationTest(APITestCase):
             }, format="json")
         self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
         self.assertEqual(inventory.stock[1], {"quantity": 5, "reserved": 2})
+
+
+class ReserveFailureCancellationTest(APITestCase):
+    """A failed reservation cancels the order through update_order_status, so order.cancelled is published (fix #3)."""
+
+    @mock.patch("orders.order_service.publish_event")
+    @mock.patch("orders.views.release_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.order_service.release_stock", return_value=INVENTORY_OK)
+    @mock.patch("orders.order_service.reserve_stock", side_effect=[INVENTORY_OK, (None, "Insufficient available stock")])
+    @mock.patch("orders.serializers.check_availability", return_value=(True, None))
+    @mock.patch("orders.views.check_availability", return_value=(True, None))
+    def test_failed_reserve_publishes_order_cancelled(self, _cv, _cs, _reserve, svc_release, view_release, publish):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post("/api/orders/", {
+                "warehouse_id": 1, "customer_name": "John", "customer_email": "john@test.com",
+                "items": [{"product_id": 1, "quantity": 1, "price": "10.00"},
+                          {"product_id": 2, "quantity": 1, "price": "10.00"}],
+            }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        order = Order.objects.get()
+        self.assertEqual(order.status, Order.CANCELLED)
+        self.assertIn("Stock reservation failed", order.notes)
+        self.assertIn("order.cancelled", [c.args[0] for c in publish.call_args_list])
+        # only the reserved item is released, once; the item that was never reserved is left alone
+        released = [c.kwargs["product_id"] for c in svc_release.call_args_list + view_release.call_args_list]
+        self.assertEqual(released, [1])
