@@ -385,7 +385,7 @@ services:
 
   # RabbitMQ (event bus)
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:4.1-management-alpine
     container_name: rabbitmq
     restart: unless-stopped
     environment:

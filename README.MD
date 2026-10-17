@@ -34,7 +34,7 @@ User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
 ## Tech Stack
 
 - **Gateway:** Nginx + njs (NGINX JavaScript module)
-- **Backend:** Python 3.11 / Django 5.2 / DRF 3.16, Node.js 22 / Express 4 / TypeScript
+- **Backend:** Python 3.13 / Django 5.2 / DRF 3.16, Node.js 24 LTS / Express 4 / TypeScript
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui, Framer Motion, next-intl v4.13
 - **Auth:** Better Auth v1.4.3 (sessions, 2FA, OAuth)
 - **Databases:** PostgreSQL 15 (×5), Redis 7

@@ -1,7 +1,7 @@
 # Notification Service
 
 ## Stack
-- **Runtime:** Node.js 22 (Alpine)
+- **Runtime:** Node.js 24 LTS (Alpine)
 - **Language:** TypeScript (run with `tsx` in dev, compiled with `tsc` for prod)
 - **HTTP:** Express 4.21
 - **Database:** PostgreSQL via `pg` 8.22

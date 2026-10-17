@@ -492,11 +492,11 @@ Network: microservices_network (bridge)
 
 | Layer | Technology |
 |-------|-----------|
-| **Runtime** | Python 3.11 (Django services), Node.js 20+ (Auth, Frontend) |
+| **Runtime** | Python 3.13 (Django services), Node.js 24 LTS (Auth, Audit, Notification, Frontend) |
 | **Frameworks** | Django 5 + DRF, Next.js 16, Express 4 |
 | **Database** | PostgreSQL 15 (4 instances) |
 | **Cache** | Redis 7 |
-| **Message broker** | RabbitMQ 3.13 |
+| **Message broker** | RabbitMQ 4.1 |
 | **Gateway** | Nginx + njs (auth plugin) |
 | **Frontend** | React 19, Tailwind CSS v4, shadcn/ui, Framer Motion |
 | **i18n** | next-intl v4.13 |

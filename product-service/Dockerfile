@@ -1,7 +1,7 @@
 # ----------------------
 # BUILD stage
 # ----------------------
-FROM python:3.11-slim AS build
+FROM python:3.13-slim AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -30,7 +30,7 @@ CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0
 # ----------------------
 # PROD stage
 # ----------------------
-FROM python:3.11-slim AS prod
+FROM python:3.13-slim AS prod
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*

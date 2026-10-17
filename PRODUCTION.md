@@ -11,8 +11,8 @@ Of the free options checked, only this one runs the whole system: **one OCI Alwa
 `docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d`. Databases, RabbitMQ, Redis and
 the event consumers run as containers on that VM.
 
-- **Images must be arm64.** Every base image (python:3.11-slim, node:22-alpine, postgres:15-alpine,
-  rabbitmq:3.13-management-alpine, redis:7-alpine, nginx:alpine) publishes arm64, so building on the VM
+- **Images must be arm64.** Every base image (python:3.13-slim, node:24-alpine, postgres:15-alpine,
+  rabbitmq:4.1-management-alpine, redis:7-alpine, nginx:alpine) publishes arm64, so building on the VM
   works as is. When building elsewhere, use `docker buildx build --platform linux/arm64`.
 - The paid pieces described below (`VM.Standard2.2`, OCI Database with PostgreSQL, Load Balancer, Vault)
   are optional upgrades, not needed for the free setup.

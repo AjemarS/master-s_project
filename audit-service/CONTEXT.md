@@ -6,7 +6,7 @@ Centralized audit logging for TechHub — captures HTTP request metadata and Rab
 
 ## Stack
 
-- **Runtime:** Node.js 22 (Alpine in Docker)
+- **Runtime:** Node.js 24 LTS (Alpine in Docker)
 - **Language:** TypeScript (compiled via `tsc`, dev via `tsx watch`)
 - **HTTP:** Express 4.21
 - **Database:** PostgreSQL 15 (`logging_db`, shared with notification-service)

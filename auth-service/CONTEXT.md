@@ -1,7 +1,7 @@
 # Auth Service
 
 ## Stack
-- **Runtime:** Node.js 22 (Alpine in Docker)
+- **Runtime:** Node.js 24 LTS (Alpine in Docker)
 - **Framework:** Express + TypeScript (tsx watch for dev, tsc for build)
 - **Auth Library:** Better Auth v1.4.3
 - **Database:** PostgreSQL 15 (`auth_db`, port 5433)
