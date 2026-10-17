@@ -172,7 +172,7 @@ services:
 
   # API Gateway (Nginx)
   gateway:
-    ports: !reset
+    ports: !override
       - "80:8080"
     deploy:
       resources:
@@ -237,8 +237,7 @@ services:
 
   # RabbitMQ (event bus)
   rabbitmq:
-    ports: !reset
-      - "5672:5672"
+    ports: !reset []
     deploy:
       resources:
         limits:
