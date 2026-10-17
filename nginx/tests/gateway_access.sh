@@ -50,10 +50,16 @@ n=$(limited 30 GET /api/orders/my/)
 [ "$n" = 0 ] && echo "ok   30x GET /api/orders/my/ not limited" || { echo "FAIL 30x GET /api/orders/my/: $n limited"; fail=1; }
 n=$(limited 15 POST /api/orders/pos/ -H "Content-Type: application/json" -d '{}')
 [ "$n" = 0 ] && echo "ok   15x POST /api/orders/pos/ not limited" || { echo "FAIL 15x POST /api/orders/pos/: $n limited"; fail=1; }
-n=$(limited 20 POST /api/orders/ -H "Content-Type: application/json" -d '{}')
-[ "$n" -gt 0 ] && echo "ok   20x POST /api/orders/ limited ($n)" || { echo "FAIL 20x POST /api/orders/: never limited"; fail=1; }
-code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" -d '{}' "$G/api/orders/")
-[ "$code" = 429 ] && echo "ok   limited request gets 429" || { echo "FAIL limited request gets $code, want 429"; fail=1; }
+codes=""; i=0
+while [ $i -lt 20 ]; do
+  codes="$codes $(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" -d '{}' "$G/api/orders/")"
+  i=$((i + 1))
+done
+case "$codes" in
+  *" 429"*) echo "ok   20x POST /api/orders/ limited with 429" ;;
+  *" 503"*) echo "FAIL 20x POST /api/orders/ limited with 503, want 429"; fail=1 ;;
+  *) echo "FAIL 20x POST /api/orders/: never limited"; fail=1 ;;
+esac
 
 echo "# 9. CORS_ORIGINS reaches njs"
 O=${CORS_TEST_ORIGIN:-http://localhost:3000}
