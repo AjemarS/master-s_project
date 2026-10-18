@@ -246,8 +246,9 @@ export default function ProductsPageContent() {
         </div>
 
         <div className="flex-1 lg:min-w-[70vw]">
-          {/* Top bar: sort */}
-          <div className="flex items-center justify-end mb-6">
+          {/* Top bar: page heading + sort */}
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <h1 className="text-2xl font-bold tracking-tight">{t("catalog")}</h1>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground whitespace-nowrap">{t("sortBy")}</span>
               <Select onValueChange={(val) => setParams({ sort: val === "newest" ? null : val })} value={sort}>

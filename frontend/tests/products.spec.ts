@@ -23,6 +23,7 @@ test.describe("Products Page", () => {
 
   test("header logo navigates to home from products", async ({ page }) => {
     await page.locator("header").getByRole("link", { name: /TechHub/i }).click();
-    await expect(page).toHaveURL("/");
+    // the proxy prefixes every path with the locale
+    await expect(page).toHaveURL("/ua");
   });
 });

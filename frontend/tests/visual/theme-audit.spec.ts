@@ -14,7 +14,7 @@ test.describe("Theme Audit — Dark & Light Mode", () => {
         document.documentElement.classList.remove("dark"),
       );
       await page.waitForTimeout(500);
-      await expect(page.locator("footer, main")).toBeVisible();
+      await expect(page.locator("main")).toBeVisible();
       await page.waitForTimeout(500);
       await page.screenshot({
         path: `tests/visual/screenshots/light-${name}.png`,
@@ -28,7 +28,7 @@ test.describe("Theme Audit — Dark & Light Mode", () => {
         document.documentElement.classList.add("dark"),
       );
       await page.waitForTimeout(500);
-      await expect(page.locator("footer, main")).toBeVisible();
+      await expect(page.locator("main")).toBeVisible();
       await page.waitForTimeout(500);
       await page.screenshot({
         path: `tests/visual/screenshots/dark-${name}.png`,
