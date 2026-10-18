@@ -1,39 +1,46 @@
+# Production override. Several stacks (staging, prod) can share one host:
+#   TAG=<git sha> DEPLOY_ENV=prod docker compose -p techhub-prod -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+# container_name is reset so the compose project name keeps containers apart, and images are named
+# ${REGISTRY}/<service>:${TAG} so CI can build them and the host only pulls (deploy/deploy.sh).
+
 services:
   # Databases — Remove host port exposure
   products_db:
+    container_name: !reset null
     ports: !reset []
 
   inventory_db:
+    container_name: !reset null
     ports: !reset []
 
   orders_db:
+    container_name: !reset null
     ports: !reset []
 
   auth_db:
+    container_name: !reset null
     ports: !reset []
 
   logging_db:
+    container_name: !reset null
     ports: !reset []
 
   # Django Product Service
   product-service:
+    image: ${REGISTRY:-techhub}/product-service:${TAG:-latest}
+    container_name: !reset null
     build:
       context: .
       dockerfile: product-service/Dockerfile
       target: prod
-    volumes: !reset []
+    # uploaded product and category images outlive the container
+    volumes: !override
+      - product_media:/app/media
     ports: !reset []
     environment:
       DEBUG: "False"
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn product_service.wsgi:application
-               -w 4
-               --bind 0.0.0.0:8000
-               --log-level info
-               --access-logfile -
-               --error-logfile -"
+    # the image CMD: migrate, collectstatic, gunicorn -w 2
+    command: !reset null
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')\" || exit 1"]
       interval: 30s
@@ -51,6 +58,8 @@ services:
 
   # Django Inventory Service
   inventory-service:
+    image: ${REGISTRY:-techhub}/inventory-service:${TAG:-latest}
+    container_name: !reset null
     build:
       context: .
       dockerfile: inventory-service/Dockerfile
@@ -59,15 +68,8 @@ services:
     ports: !reset []
     environment:
       DEBUG: "False"
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn inventory_service.wsgi:application
-               -w 4
-               --bind 0.0.0.0:8001
-               --log-level info
-               --access-logfile -
-               --error-logfile -"
+    # the image CMD: migrate, collectstatic, gunicorn -w 2
+    command: !reset null
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health/')\" || exit 1"]
       interval: 30s
@@ -85,6 +87,8 @@ services:
 
   # Django Order Service
   order-service:
+    image: ${REGISTRY:-techhub}/order-service:${TAG:-latest}
+    container_name: !reset null
     build:
       context: .
       dockerfile: order-service/Dockerfile
@@ -93,15 +97,8 @@ services:
     ports: !reset []
     environment:
       DEBUG: "False"
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn order_service.wsgi:application
-               -w 4
-               --bind 0.0.0.0:8002
-               --log-level info
-               --access-logfile -
-               --error-logfile -"
+    # the image CMD: migrate, collectstatic, gunicorn -w 2
+    command: !reset null
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/api/orders/health/')\" || exit 1"]
       interval: 30s
@@ -119,9 +116,11 @@ services:
 
   # Auth Service (Better Auth)
   auth-service:
+    image: ${REGISTRY:-techhub}/auth-service:${TAG:-latest}
+    container_name: !reset null
     build:
-      context: ./auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: auth-service/Dockerfile
       target: prod
     volumes: !reset []
     ports: !reset []
@@ -146,17 +145,24 @@ services:
 
   # Next.js Frontend
   frontend:
+    # NEXT_PUBLIC_* are inlined at build time, so each environment has its own frontend image
+    image: ${REGISTRY:-techhub}/frontend:${DEPLOY_ENV:-local}-${TAG:-latest}
+    container_name: !reset null
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       target: prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_AUTH_URL: ${NEXT_PUBLIC_AUTH_URL}
     volumes: !reset []
     ports: !reset []
     environment:
       NODE_ENV: "production"
-    command: npm run start
+    command: node server.js
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      # 127.0.0.1: localhost is ::1 in alpine and Next listens on IPv4 only
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -172,8 +178,11 @@ services:
 
   # API Gateway (Nginx)
   gateway:
+    image: ${REGISTRY:-techhub}/gateway:${TAG:-latest}
+    container_name: !reset null
+    # behind a host TLS proxy, bind e.g. 127.0.0.1:8080 (prod) and 127.0.0.1:8081 (staging)
     ports: !override
-      - "80:8080"
+      - "${GATEWAY_BIND:-80}:8080"
     deploy:
       resources:
         limits:
@@ -185,10 +194,14 @@ services:
 
   # Notification Service
   notification-service:
+    image: ${REGISTRY:-techhub}/notification-service:${TAG:-latest}
+    container_name: !reset null
     build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: notification-service/Dockerfile
       target: prod
+    command: !reset null
+    volumes: !reset []
     environment:
       NODE_ENV: "production"
     deploy:
@@ -202,10 +215,14 @@ services:
 
   # Audit Service
   audit-service:
+    image: ${REGISTRY:-techhub}/audit-service:${TAG:-latest}
+    container_name: !reset null
     build:
-      context: ./audit-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: audit-service/Dockerfile
       target: prod
+    command: !reset null
+    volumes: !reset []
     environment:
       NODE_ENV: "production"
     deploy:
@@ -217,8 +234,13 @@ services:
           cpus: "0.125"
           memory: "64M"
 
-  # Product Event Consumer
+  # Product Event Consumer (same image as product-service)
   product-consumer:
+    # the image HEALTHCHECK probes product-service HTTP, which the consumer does not serve
+    healthcheck:
+      disable: true
+    image: ${REGISTRY:-techhub}/product-service:${TAG:-latest}
+    container_name: !reset null
     build:
       context: .
       dockerfile: product-service/Dockerfile
@@ -237,6 +259,7 @@ services:
 
   # RabbitMQ (event bus)
   rabbitmq:
+    container_name: !reset null
     ports: !reset []
     deploy:
       resources:
@@ -249,6 +272,7 @@ services:
 
   # Redis
   redis:
+    container_name: !reset null
     ports: !reset []
     deploy:
       resources:
@@ -258,6 +282,9 @@ services:
         reservations:
           cpus: "0.125"
           memory: "64M"
+
+volumes:
+  product_media:
 
 networks:
   microservices_network:

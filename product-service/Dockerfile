@@ -39,10 +39,13 @@ RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin -c "App user" 
 
 WORKDIR /app
 
-COPY --from=build /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=build /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
 COPY --from=build /usr/local/bin/ /usr/local/bin/
 
-COPY product-service/ /app/
+COPY --chown=app:app product-service/ /app/
+
+# COPY --chown leaves /app itself root-owned; media is also the volume mount point
+RUN install -d -o app -g app /app/media /app/staticfiles
 
 USER app
 EXPOSE 8000
@@ -50,4 +53,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')" || exit 1
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn product_service.wsgi:application -w 4 --bind 0.0.0.0:8000 --log-level info --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn product_service.wsgi:application -w 2 --bind 0.0.0.0:8000 --log-level info --access-logfile - --error-logfile -"]

@@ -20,6 +20,7 @@ class CartViewSet(viewsets.ViewSet):
 
     def _get_or_create_cart(self, request):
         from django.db import IntegrityError
+
         user_id = request.META.get("HTTP_X_GATEWAY_USER_ID")
         session_id = request.META.get("HTTP_X_SESSION_ID")
 
@@ -33,7 +34,9 @@ class CartViewSet(viewsets.ViewSet):
                     cart = carts[0]
                     for dup in carts[1:]:
                         for item in dup.items.all():
-                            existing_item = CartItem.objects.filter(cart=cart, product=item.product).first()
+                            existing_item = CartItem.objects.filter(
+                                cart=cart, product=item.product
+                            ).first()
                             if existing_item:
                                 existing_item.quantity += item.quantity
                                 existing_item.save()
@@ -60,7 +63,9 @@ class CartViewSet(viewsets.ViewSet):
                     cart = carts[0]
                     for dup in carts[1:]:
                         for item in dup.items.all():
-                            existing_item = CartItem.objects.filter(cart=cart, product=item.product).first()
+                            existing_item = CartItem.objects.filter(
+                                cart=cart, product=item.product
+                            ).first()
                             if existing_item:
                                 existing_item.quantity += item.quantity
                                 existing_item.save()
@@ -101,7 +106,18 @@ class CartViewSet(viewsets.ViewSet):
     def list(self, request):
         cart = self._get_or_create_cart(request)
         if not cart:
-            return Response({"id": None, "user_id": None, "session_id": None, "items": [], "subtotal": 0, "item_count": 0, "created_at": None, "updated_at": None})
+            return Response(
+                {
+                    "id": None,
+                    "user_id": None,
+                    "session_id": None,
+                    "items": [],
+                    "subtotal": 0,
+                    "item_count": 0,
+                    "created_at": None,
+                    "updated_at": None,
+                }
+            )
         serializer = CartSerializer(cart)
         return Response(serializer.data)
 
@@ -109,12 +125,17 @@ class CartViewSet(viewsets.ViewSet):
     def add_item(self, request):
         cart = self._get_cart_or_error(request)
         if not cart:
-            return Response({"error": "Authentication or session required."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "Authentication or session required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         product_id = request.data.get("product_id")
         quantity = self._parse_quantity(request.data.get("quantity"), 1)
         if quantity is None or quantity < 1:
-            return Response({"error": "Quantity must be at least 1."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Quantity must be at least 1."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             product = Product.objects.get(pk=product_id)
@@ -134,13 +155,18 @@ class CartViewSet(viewsets.ViewSet):
     def update_item(self, request):
         cart = self._get_cart_or_error(request)
         if not cart:
-            return Response({"error": "Authentication or session required."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "Authentication or session required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         product_id = request.data.get("product_id")
         quantity = self._parse_quantity(request.data.get("quantity"), 0)
 
         if not product_id:
-            return Response({"error": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         if quantity is None or quantity <= 0:
             CartItem.objects.filter(cart=cart, product_id=product_id).delete()
@@ -153,7 +179,10 @@ class CartViewSet(viewsets.ViewSet):
     def remove_item(self, request):
         cart = self._get_cart_or_error(request)
         if not cart:
-            return Response({"error": "Authentication or session required."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "Authentication or session required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         product_id = request.data.get("product_id")
         CartItem.objects.filter(cart=cart, product_id=product_id).delete()
@@ -164,7 +193,10 @@ class CartViewSet(viewsets.ViewSet):
     def clear(self, request):
         cart = self._get_cart_or_error(request)
         if not cart:
-            return Response({"error": "Authentication or session required."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"error": "Authentication or session required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         cart.items.all().delete()
         return self._cart_response(cart)
@@ -175,7 +207,10 @@ class CartViewSet(viewsets.ViewSet):
         user_id = request.META.get("HTTP_X_GATEWAY_USER_ID")
 
         if not user_id or not session_id:
-            return Response({"error": "Both session and authenticated user required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Both session and authenticated user required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             with transaction.atomic():

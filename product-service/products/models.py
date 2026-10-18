@@ -10,8 +10,12 @@ class Category(models.Model):
     name_uk = models.CharField(max_length=100, blank=True, verbose_name="Назва (укр)")
     name_en = models.CharField(max_length=100, blank=True, verbose_name="Назва (англ)")
     parent = models.ForeignKey(
-        "self", on_delete=models.CASCADE, null=True, blank=True,
-        related_name="children", verbose_name="Батьківська категорія"
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="Батьківська категорія",
     )
     image = models.ImageField(
         upload_to="category_images/",
@@ -87,7 +91,9 @@ class Product(models.Model):
         verbose_name="Рейтинг",
     )
     specs = models.JSONField(default=dict, verbose_name="Специфікації")
-    slug = models.SlugField(max_length=200, unique=True, blank=True, verbose_name="URL-ідентифікатор")
+    slug = models.SlugField(
+        max_length=200, unique=True, blank=True, verbose_name="URL-ідентифікатор"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
@@ -105,7 +111,9 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         # Keep in_stock in sync with stock count
         self.in_stock = self.stock > 0
-        self.is_on_sale = self.original_price > 0 and Decimal(str(self.original_price)) > Decimal(str(self.price))
+        self.is_on_sale = self.original_price > 0 and Decimal(str(self.original_price)) > Decimal(
+            str(self.price)
+        )
         if not self.slug:
             base_slug = slugify(self.name_en or self.name or "")
             if not base_slug:
@@ -120,9 +128,7 @@ class Product(models.Model):
 
 
 class ProcessedEvent(models.Model):
-    event_id = models.CharField(
-        max_length=255, unique=True, verbose_name="ID події"
-    )
+    event_id = models.CharField(max_length=255, unique=True, verbose_name="ID події")
     processed_at = models.DateTimeField(auto_now_add=True, verbose_name="Оброблено")
 
     class Meta:

@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from shared_auth.settings_base import BASE_REST_FRAMEWORK, BASE_SPECTACULAR_SETTINGS
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
@@ -92,7 +94,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUDIT_SERVICE_URL = os.environ.get("AUDIT_SERVICE_URL", "http://audit-service:8005")
 
-from shared_auth.settings_base import BASE_REST_FRAMEWORK, BASE_SPECTACULAR_SETTINGS
 
 REST_FRAMEWORK = {
     **BASE_REST_FRAMEWORK,

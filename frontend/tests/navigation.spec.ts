@@ -4,13 +4,14 @@ test.describe("Navigation", () => {
   test("header logo links to home", async ({ page }) => {
     await page.goto("/products");
     await page.locator("header").getByRole("link", { name: /TechHub/i }).click();
-    await expect(page).toHaveURL("/");
+    // the proxy prefixes every path with the locale
+    await expect(page).toHaveURL("/ua");
   });
 
-  test("header products nav link navigates to /products", async ({ page }) => {
+  // the desktop header has no products link since the July redesign; the footer catalog link does
+  test("footer all-products link navigates to /products", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: /товари/i }).first().waitFor({ state: "visible" });
-    await page.getByRole("link", { name: /товари/i }).first().click();
+    await page.locator("footer").getByRole("link", { name: "Усі товари", exact: true }).click();
     await expect(page).toHaveURL(/products/);
   });
 });
@@ -34,7 +35,7 @@ test.describe("Route Protection", () => {
   test("sign-up page is accessible without auth", async ({ page }) => {
     await page.goto("/sign-up");
     await expect(page).toHaveURL(/sign-up/);
-    await expect(page.locator("#name")).toBeVisible();
+    await expect(page.locator("#repeatPassword")).toBeVisible();
   });
 
   test("products page is accessible without auth", async ({ page }) => {

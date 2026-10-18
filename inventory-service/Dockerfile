@@ -38,10 +38,11 @@ RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin -c "App user" 
 
 WORKDIR /app
 
-COPY --from=build /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=build /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
 COPY --from=build /usr/local/bin/ /usr/local/bin/
 
-COPY inventory-service/ /app/
+COPY --chown=app:app inventory-service/ /app/
+RUN install -d -o app -g app /app/staticfiles
 
 USER app
 EXPOSE 8001
@@ -49,4 +50,4 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health/')" || exit 1
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn inventory_service.wsgi:application -w 4 --bind 0.0.0.0:8001 --log-level info --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn inventory_service.wsgi:application -w 2 --bind 0.0.0.0:8001 --log-level info --access-logfile - --error-logfile -"]

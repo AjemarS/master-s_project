@@ -283,7 +283,9 @@ export function SettingsClient() {
     setEnableError(null);
     try {
       const result = await twoFactor.enable({ password: enablePassword });
-      if (result?.data) {
+      // this flow needs the TOTP secret; an email-OTP response carries none.
+      // auth-service (better-auth 1.4) sends no `method` field, so check the field itself
+      if (result?.data && "totpURI" in result.data) {
         setTotpURI(result.data.totpURI || "");
         setBackupCodes(result.data.backupCodes || []);
         setEnableStep(2);
