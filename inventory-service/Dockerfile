@@ -38,10 +38,11 @@ RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin -c "App user" 
 
 WORKDIR /app
 
-COPY --from=build /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=build /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
 COPY --from=build /usr/local/bin/ /usr/local/bin/
 
-COPY inventory-service/ /app/
+COPY --chown=app:app inventory-service/ /app/
+RUN install -d -o app -g app /app/staticfiles
 
 USER app
 EXPOSE 8001

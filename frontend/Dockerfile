@@ -12,9 +12,12 @@ RUN npm ci
 
 COPY frontend/ ./
 
-RUN npm run build
+# Inlined into the client bundle at build time, so each environment builds its own image
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_AUTH_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_PUBLIC_AUTH_URL=$NEXT_PUBLIC_AUTH_URL
 
-RUN npm prune --omit=dev
+RUN npm run build
 
 # ----------------------
 # DEV stage
@@ -37,17 +40,17 @@ RUN addgroup -S appuser && adduser -S -G appuser -h /app appuser
 
 WORKDIR /app
 
-COPY --from=build /build/package*.json ./
-COPY --from=build /build/node_modules ./node_modules
-COPY --from=build /build/.next ./.next
+ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
+
+# output: "standalone" traces only the node_modules the server needs
+COPY --from=build --chown=appuser:appuser /build/.next/standalone ./
+COPY --from=build /build/.next/static ./.next/static
 COPY --from=build /build/public ./public
-COPY --from=build /build/next.config.* ./
-COPY --from=build /build/app/messages ./app/messages
 
 USER appuser
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

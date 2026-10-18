@@ -39,10 +39,13 @@ RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin -c "App user" 
 
 WORKDIR /app
 
-COPY --from=build /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=build /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
 COPY --from=build /usr/local/bin/ /usr/local/bin/
 
-COPY product-service/ /app/
+COPY --chown=app:app product-service/ /app/
+
+# COPY --chown leaves /app itself root-owned; media is also the volume mount point
+RUN install -d -o app -g app /app/media /app/staticfiles
 
 USER app
 EXPOSE 8000
