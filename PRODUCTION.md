@@ -9,24 +9,24 @@
 Of the free options checked, only this one runs the whole system: **one OCI Always Free VM,
 `VM.Standard.A1.Flex` (Ampere ARM, 2 OCPU, 12 GB RAM)**, running
 `docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d`. Databases, RabbitMQ, Redis and
-the event consumers run as containers on that VM.
+the event consumers run as containers on that VM. **The staging/prod pipeline and host setup are in
+[deploy/README.md](deploy/README.md).**
 
 - **Size for 2 OCPU / 12 GB.** The Ampere A1 allowance used to be 4 OCPU / 24 GB. In 2026 it was reported
   cut to 2 OCPU / 12 GB, and instances above the allowance get stopped on free accounts or billed on
   Pay As You Go. Check the live [Always Free page](https://docs.oracle.com/en-us/iaas/Content/FreeTier/resourceref.htm)
-  before choosing a shape. The stack fits: the prod memory limits add up to ~3.5 GB, plus five Postgres
-  containers.
+  before choosing a shape. The stack fits: an idle prod stack measured ~1 GB of RAM, and staging plus prod
+  together ~2 GB.
 - **Idle reclaim.** Oracle may reclaim an Always Free A1 instance if, over 7 days, its 95th-percentile CPU,
   network *and* memory use all stay under 20%. That is a lightly used demo site. Upgrading the account to
   Pay As You Go lifts reclaim and stays $0 within the allowance, but set a budget alert in case a shape goes over.
 - **"Out of capacity"** errors for A1 are common in busy regions. Retry later or pick a quieter home region
   at sign-up, because the home region can't be changed afterwards.
 - **Images must be arm64.** Every base image (python:3.13-slim, node:24-alpine, postgres:15-alpine,
-  rabbitmq:4.1-management-alpine, redis:7-alpine, nginx:alpine) publishes arm64. Prefer building in CI
-  with `docker buildx build --platform linux/arm64` and pulling on the VM. A `next build` on a 2-OCPU VM is slow
-  and needs a few GB of RAM, so if you build on the VM, add a swap file first.
-- **Paid fallback (~€4–7/month):** a 4 GB VPS such as Hetzner CX23/CAX11, if one is available to order. This is
-  tight for this stack, so lower the gunicorn workers and add swap.
+  rabbitmq:4.1-management-alpine, redis:7-alpine, nginx:alpine) publishes arm64. CI builds them on GitHub's arm64
+  runners and the VM only pulls. A `next build` on a 2-OCPU VM is slow, so if you build there, add a swap file first.
+- **Paid fallback (~€4–7/month):** a 4 GB VPS such as Hetzner CX23/CAX11, if one is available to order. One stack
+  fits; for staging plus prod, add swap.
 - The paid pieces described below (`VM.Standard2.2`, OCI Database with PostgreSQL, Load Balancer, Vault)
   are optional upgrades, not needed for the free setup.
 - A multi-cloud split (Render + Fly.io + Neon + Vercel, see `migration-runbook.md`) does not fit free

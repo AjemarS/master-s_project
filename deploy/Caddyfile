@@ -1,0 +1,9 @@
+# Host TLS proxy: Caddy gets Let's Encrypt certificates and forwards to each stack's gateway.
+# Copy to /etc/caddy/Caddyfile and replace the two domains with yours.
+shop.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
+
+staging.shop.example.com {
+	reverse_proxy 127.0.0.1:8081
+}
