@@ -29,7 +29,7 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn product_service.wsgi:application
-               -w 4
+               -w 2
                --bind 0.0.0.0:8000
                --log-level info
                --access-logfile -
@@ -63,7 +63,7 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn inventory_service.wsgi:application
-               -w 4
+               -w 2
                --bind 0.0.0.0:8001
                --log-level info
                --access-logfile -
@@ -97,7 +97,7 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn order_service.wsgi:application
-               -w 4
+               -w 2
                --bind 0.0.0.0:8002
                --log-level info
                --access-logfile -
