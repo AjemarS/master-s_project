@@ -1,8 +1,6 @@
-from decimal import Decimal
 
 from django.test import TestCase
 
-from ..models import Category
 from ..serializers import CategorySerializer, ProductSerializer
 from .helpers import _create_category, _create_product, _create_sample_image
 
@@ -119,7 +117,6 @@ class ProductSerializerTest(TestCase):
 
     def test_valid_image_type(self):
         image = _create_sample_image()
-        from ..serializers import ProductSerializer as PS
-        inst = PS()
+        inst = ProductSerializer()
         result = inst.validate_image(image)
         self.assertEqual(result, image)

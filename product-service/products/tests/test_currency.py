@@ -37,7 +37,9 @@ class CurrencyTest(TestCase):
         self.assertEqual(result, expected)
 
     def test_get_usd_rate_caches_result(self):
-        with patch("products.currency._fetch_usd_rate", return_value=Decimal("0.030")) as mock_fetch:
+        with patch(
+            "products.currency._fetch_usd_rate", return_value=Decimal("0.030")
+        ) as mock_fetch:
             rate1 = get_usd_rate()
             rate2 = get_usd_rate()
             self.assertEqual(rate1, rate2)

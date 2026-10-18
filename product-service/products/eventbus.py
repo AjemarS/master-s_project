@@ -5,9 +5,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
 from django.utils import timezone
-
 from shared_eventbus.connection import ensure_exchange, get_connection
-from shared_eventbus.consumer import dedup_check, dedup_claim, start_consumer as shared_start_consumer
+from shared_eventbus.consumer import dedup_check, dedup_claim
+from shared_eventbus.consumer import start_consumer as shared_start_consumer
 from shared_eventbus.publisher import publish_event
 
 from .models import ProcessedEvent, Product
@@ -19,6 +19,7 @@ EXCHANGE_NAME = "techhub.events"
 
 def with_dedup(handler):
     """Wrap handler with ProcessedEvent dedup. Handles concurrent-consumer race."""
+
     def wrapped(event, event_id):
         if event_id and dedup_check(event_id, ProcessedEvent):
             logger.info("Duplicate event skipped | event_id=%s", event_id)
@@ -30,22 +31,24 @@ def with_dedup(handler):
                 logger.info("Duplicate event skipped (race) | event_id=%s", event_id)
                 return
         handler(event, event_id)
+
     return wrapped
 
 
 def _adjust_stock(product_id, delta):
     """Atomically adjust stock, sync in_stock, publish alert if zeroed."""
     with transaction.atomic():
-        Product.objects.filter(pk=product_id).update(
-            stock=Greatest(F("stock") + delta, Value(0))
-        )
+        Product.objects.filter(pk=product_id).update(stock=Greatest(F("stock") + delta, Value(0)))
         Product.objects.filter(pk=product_id, stock__gt=0).update(in_stock=True)
         zeroed = Product.objects.filter(pk=product_id, stock=0).update(in_stock=False)
     if zeroed:
-        publish_event("inventory.stock.critical", {
-            "product_id": product_id,
-            "stock": 0,
-        })
+        publish_event(
+            "inventory.stock.critical",
+            {
+                "product_id": product_id,
+                "stock": 0,
+            },
+        )
     return zeroed
 
 
@@ -71,7 +74,9 @@ def _handle_goods_received(event, event_id=None):
         return
     try:
         _adjust_stock(product_id, quantity)
-        logger.info("Goods received processed | product=%s qty=%s cost=%s", product_id, quantity, cost_price)
+        logger.info(
+            "Goods received processed | product=%s qty=%s cost=%s", product_id, quantity, cost_price
+        )
     except Exception as e:
         logger.error("Goods received failed | product=%s error=%s", product_id, e)
 
@@ -90,9 +95,7 @@ def setup_bindings(channel):
         ("product.catalog.update", "inventory.goods_received"),
     ]:
         channel.queue_declare(queue=queue_name, durable=True)
-        channel.queue_bind(
-            queue=queue_name, exchange=EXCHANGE_NAME, routing_key=routing_key
-        )
+        channel.queue_bind(queue=queue_name, exchange=EXCHANGE_NAME, routing_key=routing_key)
 
 
 def start_consumer():

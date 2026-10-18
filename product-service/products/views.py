@@ -9,7 +9,6 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-
 from shared_eventbus.publisher import publish_event
 
 from .filters import ProductFilter
@@ -56,7 +55,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         return [IsAdminUser()]
 
     def retrieve(self, request, *args, **kwargs):
-        pk = kwargs.get('pk')
+        pk = kwargs.get("pk")
         if pk and not pk.isdigit():
             obj = get_object_or_404(Product, slug=pk)
             serializer = self.get_serializer(obj)
@@ -101,9 +100,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if threshold < 0:
             raise ValidationError({"threshold": "Must be a non-negative integer."})
 
-        products = self.filter_queryset(
-            self.queryset.filter(stock__lte=threshold, in_stock=True)
-        )
+        products = self.filter_queryset(self.queryset.filter(stock__lte=threshold, in_stock=True))
         page = self.paginate_queryset(products)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -150,14 +147,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response([])
 
         similar = (
-            Product.objects
-            .select_related("category")
+            Product.objects.select_related("category")
             .filter(category=product.category, in_stock=True)
             .exclude(pk=product.pk)[:8]
         )
-        serializer = ProductListSerializer(
-            similar, many=True, context={"request": request}
-        )
+        serializer = ProductListSerializer(similar, many=True, context={"request": request})
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
@@ -190,18 +184,20 @@ class ProductViewSet(viewsets.ModelViewSet):
                 )
 
             # Use F() for the atomic DB-level update (race-condition safe)
-            Product.objects.filter(pk=product.pk).update(
-                stock=F("stock") + quantity
-            )
+            Product.objects.filter(pk=product.pk).update(stock=F("stock") + quantity)
             product.refresh_from_db()
 
             if product.stock == 0:
                 from uuid import uuid4
-                publish_event("inventory.stock.critical", {
-                    "event_id": str(uuid4()),
-                    "product_id": product.pk,
-                    "stock": 0,
-                })
+
+                publish_event(
+                    "inventory.stock.critical",
+                    {
+                        "event_id": str(uuid4()),
+                        "product_id": product.pk,
+                        "stock": 0,
+                    },
+                )
 
             logger.info(
                 "Stock updated | id=%s delta=%+d new_stock=%d user=%s",
@@ -271,14 +267,20 @@ def health_check(request):
     """Health check with database connectivity probe."""
     try:
         connection.ensure_connection()
-        return Response({
-            "status": "healthy",
-            "service": "product-service",
-            "checks": {"database": "connected"},
-        })
+        return Response(
+            {
+                "status": "healthy",
+                "service": "product-service",
+                "checks": {"database": "connected"},
+            }
+        )
     except Exception:
         logger.exception("Health check failed")
         return Response(
-            {"status": "unhealthy", "service": "product-service", "checks": {"database": "disconnected"}},
+            {
+                "status": "unhealthy",
+                "service": "product-service",
+                "checks": {"database": "disconnected"},
+            },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )

@@ -1,16 +1,15 @@
 import io
+import random
 import textwrap
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 
 from products.models import Category, Product
-
-from django.utils import timezone
-from datetime import timedelta
-import random
 
 
 class Command(BaseCommand):
@@ -22,16 +21,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Seed data created successfully"))
 
     def _create_categories(self):
-        cat_palette = {
-            "Холодильники": ("#e3f2fd", "#1565c0"),
-            "Пральні машини": ("#e8f5e9", "#2e7d32"),
-            "Духовки": ("#fff3e0", "#e65100"),
-            "Мікрохвильовки": ("#f3e5f5", "#6a1b9a"),
-            "Пилососи": ("#e0f7fa", "#00695c"),
-            "Кавоварки": ("#fce4ec", "#c62828"),
-            "Дрібна техніка": ("#fff8e1", "#f57f17"),
-            "Кліматична техніка": ("#e0f2fe", "#0369a1"),
-        }
         for name, name_en in [
             ("Холодильники", "Refrigerators"),
             ("Пральні машини", "Washing Machines"),
@@ -221,7 +210,7 @@ class Command(BaseCommand):
             font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
             draw.text((200, 140), short, fill=fg, font=font_lg, anchor="mm")
             draw.text((200, 260), "TechHub placeholder", fill=fg, font=font_sm, anchor="mm")
-        except (IOError, OSError):
+        except OSError:
             font = ImageFont.load_default()
             draw.text((10, 10), short, fill=fg, font=font)
 
@@ -256,7 +245,7 @@ class Command(BaseCommand):
             font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
             draw.text((200, 110), short, fill=fg, font=font_lg, anchor="mm")
             draw.text((200, 210), "TechHub category", fill=fg, font=font_sm, anchor="mm")
-        except (IOError, OSError):
+        except OSError:
             font = ImageFont.load_default()
             draw.text((10, 10), short, fill=fg, font=font)
 
