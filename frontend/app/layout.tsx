@@ -39,7 +39,7 @@ export default async function RootLayout({
         className={`
           ${geistSans.variable}
           ${geistMono.variable}
-          min-h-screen antialiased
+          font-sans min-h-screen antialiased
           selection:bg-primary/80
         `}
       >
