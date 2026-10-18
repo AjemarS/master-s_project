@@ -3,7 +3,9 @@ from django.db.models import Q
 
 
 class Cart(models.Model):
-    user_id = models.CharField(max_length=255, null=True, blank=True, db_index=True, verbose_name="ID користувача")
+    user_id = models.CharField(
+        max_length=255, null=True, blank=True, db_index=True, verbose_name="ID користувача"
+    )
     session_id = models.UUIDField(null=True, blank=True, db_index=True, verbose_name="ID сесії")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
@@ -12,8 +14,14 @@ class Cart(models.Model):
         verbose_name = "Кошик"
         verbose_name_plural = "Кошики"
         constraints = [
-            models.UniqueConstraint(fields=["user_id"], condition=Q(user_id__isnull=False), name="unique_user_cart"),
-            models.UniqueConstraint(fields=["session_id"], condition=Q(session_id__isnull=False), name="unique_session_cart"),
+            models.UniqueConstraint(
+                fields=["user_id"], condition=Q(user_id__isnull=False), name="unique_user_cart"
+            ),
+            models.UniqueConstraint(
+                fields=["session_id"],
+                condition=Q(session_id__isnull=False),
+                name="unique_session_cart",
+            ),
         ]
 
     def __str__(self):

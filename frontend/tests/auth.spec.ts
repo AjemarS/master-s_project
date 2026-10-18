@@ -44,13 +44,17 @@ test.describe("Auth Pages", () => {
     test("sign up link navigates to /sign-up", async ({ page }) => {
       await page.getByRole("link", { name: /зареєструватися/i }).first().click();
       await page.waitForURL(/sign-up/, { timeout: 10000 });
-      await expect(page.locator("#name")).toBeVisible();
+      await expect(page.locator("#repeatPassword")).toBeVisible();
     });
 
     test("form shows validation with empty submission", async ({ page }) => {
-      await page.getByRole("button", { name: /sign in/i }).click();
-      // Email input should still be focused or show browser validation
-      await expect(page.locator("#email")).toBeVisible();
+      // Submit stays disabled until both email and password are filled
+      const submit = page.getByRole("button", { name: /sign in/i });
+      await expect(submit).toBeDisabled();
+      await page.locator("#email").fill("user@example.com");
+      await expect(submit).toBeDisabled();
+      await page.locator("#password").fill("secret123");
+      await expect(submit).toBeEnabled();
     });
   });
 
@@ -66,9 +70,9 @@ test.describe("Auth Pages", () => {
         page.getByRole("heading", { name: /реєстрація|створити/i })
       ).toBeVisible();
 
-      await expect(page.locator("#name")).toBeVisible();
       await expect(page.locator("#email")).toBeVisible();
       await expect(page.locator("#password")).toBeVisible();
+      await expect(page.locator("#repeatPassword")).toBeVisible();
       await expect(page.locator("#email")).toHaveAttribute("type", "email");
       await expect(page.locator("#password")).toHaveAttribute(
         "type",

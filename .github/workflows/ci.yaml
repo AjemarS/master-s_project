@@ -171,7 +171,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # the images that ship, so a broken prod Dockerfile fails the PR
-      - run: $COMPOSE build
+      - run: |
+          export REGISTRY=${REGISTRY,,}
+          $COMPOSE build
 
   security-scan:
     runs-on: ubuntu-latest

@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
-    # static() serves nothing when DEBUG=False; the gateway proxies /media here and browsers cache it 30 days
+    # static() serves nothing when DEBUG=False;
+    # the gateway proxies /media here and browsers cache it 30 days
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]
