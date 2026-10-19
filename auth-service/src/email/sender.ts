@@ -1,3 +1,4 @@
+import nodemailer from "nodemailer";
 import { Resend } from "resend";
 
 const resendApiKey = process.env.RESEND_API_KEY || "";
@@ -6,6 +7,32 @@ const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
 let resend: Resend | null = null;
 if (resendApiKey) {
   resend = new Resend(resendApiKey);
+}
+
+// SMTP (e.g. Gmail with an app password) wins over Resend, which only mails other people from a verified domain
+const smtpPort = Number(process.env.SMTP_PORT || 465);
+const smtp = process.env.SMTP_HOST
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+    })
+  : null;
+const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+
+/** Sends through SMTP or Resend. Returns false when neither is configured (dev mode); throws if delivery fails. */
+async function deliver(to: string, subject: string, html: string): Promise<boolean> {
+  if (smtp) {
+    await smtp.sendMail({ from: smtpFrom, to, subject, html });
+    return true;
+  }
+  if (resend) {
+    const { error } = await resend.emails.send({ from: fromEmail, to, subject, html });
+    if (error) throw new Error(error.message);
+    return true;
+  }
+  return false;
 }
 
 function wrapHtml(body: string, title: string): string {
@@ -65,18 +92,12 @@ function resetPasswordHtml(url: string): string {
 }
 
 export async function sendVerificationEmail(email: string, url: string): Promise<void> {
-  if (!resend) {
-    console.log("[email] DEV MODE: Verification email URL for", email);
-    console.log("[email]", url);
-    return;
-  }
   try {
-    await resend.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: "Підтвердження email — TechHub",
-      html: verificationEmailHtml(url),
-    });
+    if (!(await deliver(email, "Підтвердження email — TechHub", verificationEmailHtml(url)))) {
+      console.log("[email] DEV MODE: Verification email URL for", email);
+      console.log("[email]", url);
+      return;
+    }
     console.log("[email] Verification email sent to", email);
   } catch (err) {
     console.error("[email] Failed to send verification email:", err);
@@ -84,18 +105,12 @@ export async function sendVerificationEmail(email: string, url: string): Promise
 }
 
 export async function sendResetPasswordEmail(email: string, url: string): Promise<void> {
-  if (!resend) {
-    console.log("[email] DEV MODE: Reset password URL for", email);
-    console.log("[email]", url);
-    return;
-  }
   try {
-    await resend.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: "Скидання паролю — TechHub",
-      html: resetPasswordHtml(url),
-    });
+    if (!(await deliver(email, "Скидання паролю — TechHub", resetPasswordHtml(url)))) {
+      console.log("[email] DEV MODE: Reset password URL for", email);
+      console.log("[email]", url);
+      return;
+    }
     console.log("[email] Reset password email sent to", email);
   } catch (err) {
     console.error("[email] Failed to send reset password email:", err);
@@ -103,10 +118,6 @@ export async function sendResetPasswordEmail(email: string, url: string): Promis
 }
 
 export async function sendImpersonationCode(email: string, code: string): Promise<void> {
-  if (!resend) {
-    console.warn("[email] Resend not configured, skipping impersonation code to", email);
-    return;
-  }
   try {
     const html = wrapHtml(`
       <p>Співробітник TechHub запитує доступ до вашого облікового запису.</p>
@@ -116,12 +127,10 @@ export async function sendImpersonationCode(email: string, code: string): Promis
       </p>
       <p style="font-size: 13px; color: #94a3b8;">Код дійсний 5 хвилин. Якщо ви не запитували цей код, проігноруйте повідомлення.</p>
     `, "Код імперсонації — TechHub");
-    await resend.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: "Код імперсонації — TechHub",
-      html,
-    });
+    if (!(await deliver(email, "Код імперсонації — TechHub", html))) {
+      console.warn("[email] No mail transport configured, skipping impersonation code to", email);
+      return;
+    }
     console.log("[email] Impersonation code sent to", email);
   } catch (err) {
     console.error("[email] Failed to send impersonation code:", err);
@@ -129,34 +138,20 @@ export async function sendImpersonationCode(email: string, code: string): Promis
 }
 
 export async function sendOtpEmail(email: string, otp: string, type: "sign-in" | "email-verification" | "forget-password" | "change-email"): Promise<void> {
-  const resendApiKey = process.env.RESEND_API_KEY;
   const appName = "TechHub";
-
-  if (!resendApiKey) {
-    // Dev mode — log OTP to console
-    console.log(`[email] DEV MODE: OTP for ${email} (${type})`);
-    console.log(`[email] Your OTP code: ${otp}`);
-    return;
-  }
-
-  // Production — send via Resend
   const subject = type === "sign-in"
     ? `Your ${appName} sign-in code`
     : type === "email-verification" || type === "change-email"
       ? `Verify your ${appName} email`
       : `Reset your ${appName} password`;
+  const html = `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`;
 
-  const { Resend } = await import("resend");
-  const resend = new Resend(resendApiKey);
-
-  const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "noreply@techhub.local",
-    to: email,
-    subject,
-    html: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code expires in 5 minutes.</p>`,
-  });
-
-  if (error) {
-    console.error(`[email] Failed to send OTP to ${email}:`, error);
+  try {
+    if (!(await deliver(email, subject, html))) {
+      console.log(`[email] DEV MODE: OTP for ${email} (${type})`);
+      console.log(`[email] Your OTP code: ${otp}`);
+    }
+  } catch (err) {
+    console.error(`[email] Failed to send OTP to ${email}:`, err);
   }
 }
