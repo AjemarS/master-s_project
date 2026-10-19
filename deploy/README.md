@@ -47,6 +47,12 @@ In each checkout create `.env` from `.env.example`, with its own secrets, and al
 TLS: copy `deploy/Caddyfile` to `/etc/caddy/Caddyfile` and put your two domains in it, point both DNS names at the VM, open ports 80, 443 and SSH in the
 provider's firewall and in `ufw` if it is enabled, then `sudo systemctl restart caddy`.
 
+**Email.** Set the `SMTP_*` variables in each `.env` (see `.env.example`). With Gmail, create an app password
+(Google Account → Security → 2-Step Verification → App passwords) and use `smtp.gmail.com`, port 465; Gmail
+allows ~500 messages a day. Without `SMTP_HOST` or `RESEND_API_KEY`, emails are only logged, which suits staging.
+After editing `.env`, recreate the two mail senders: `docker compose -p techhub-<env> -f docker-compose.yaml
+-f docker-compose.prod.yaml up -d --no-build auth-service notification-service` (with `TAG`, `DEPLOY_ENV`, `REGISTRY` as in `deploy/deploy.sh`).
+
 ## One-time GitHub setup
 
 1. **Deploy key.** On the VM: `ssh-keygen -t ed25519 -f ~/.ssh/github_deploy -N ""` and append the `.pub` to
