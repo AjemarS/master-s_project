@@ -1,4 +1,5 @@
 import logger from "./logger";
+import nodemailer from "nodemailer";
 import { Resend } from "resend";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
@@ -8,6 +9,18 @@ let resend: Resend | null = null;
 if (RESEND_API_KEY) {
   resend = new Resend(RESEND_API_KEY);
 }
+
+// SMTP (e.g. Gmail with an app password) wins over Resend, which only mails other people from a verified domain
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const smtp = process.env.SMTP_HOST
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+    })
+  : null;
+const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || "";
 
 export function htmlWrap(body: string, title: string): string {
   return `<!DOCTYPE html>
@@ -72,12 +85,17 @@ export const TEMPLATES: Record<string, (data: Record<string, unknown>) => Templa
 };
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  if (!resend) {
+  if (!smtp && !resend) {
     logger.info(`[dry-run] Email to ${to}: ${subject}`);
     return;
   }
   try {
-    await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+    if (smtp) {
+      await smtp.sendMail({ from: SMTP_FROM, to, subject, html });
+    } else if (resend) {
+      const { error } = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+      if (error) throw new Error(error.message);
+    }
     logger.info(`[email] Sent to ${to}: ${subject}`);
   } catch (err) {
     logger.error(`[email] Failed to send to ${to}: ${(err as Error).message}`);
