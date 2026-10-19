@@ -4,7 +4,12 @@
 > **Audience:** Developer-operators who built the dev setup and need to take it live.
 > **Prerequisites:** OCI account with CLI installed and configured, Docker, access to the project repository.
 
-## Free-tier target (recommended)
+## Chosen host
+
+A **Contabo VPS** (x86, 4 vCPU / 8 GB, 100 GB, ~€6.60/month) runs both staging and prod. The Oracle free
+tier below could not be obtained. Pipeline and host setup: [deploy/README.md](deploy/README.md).
+
+## Free-tier target (Oracle, not used)
 
 Of the free options checked, only this one runs the whole system: **one OCI Always Free VM,
 `VM.Standard.A1.Flex` (Ampere ARM, 2 OCPU, 12 GB RAM)**, running
