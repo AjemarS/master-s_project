@@ -14,7 +14,9 @@ On `main` or a tag it publishes amd64 images to GHCR, tagged with the commit (`p
 `deploy/deploy.sh` and waits for `/health`. Staging and prod run the same backend images.
 
 An idle stack uses about 1 GB of RAM, so both fit on one Contabo VPS (x86, 4 vCPU / 8 GB). For an ARM host
-(Oracle A1, Hetzner CAX), set `runs-on: ubuntu-24.04-arm` in `publish-images` and `deploy.yaml`.
+(Oracle A1, Hetzner CAX), set `runs-on: ubuntu-24.04-arm` in `publish-images` and `deploy.yaml`. Runner images are pinned
+(`ubuntu-24.04`, not `ubuntu-latest`), so a new Ubuntu image never changes CI under you; move to a newer
+one in a PR of its own.
 
 ## One-time host setup
 
