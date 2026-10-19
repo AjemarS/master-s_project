@@ -151,21 +151,21 @@ describe("notification-service", () => {
       await mod.handleEvent("order.created", event as any, "dup-1");
       log.mockClear();
       await mod.handleEvent("order.created", event as any, "dup-1");
-      expect(log).toHaveBeenCalledWith("[dedup] Skipping dup-1 (in-memory)");
+      expect(log).toHaveBeenCalledWith("Duplicate event skipped (in-memory)", { eventId: "dup-1" });
       log.mockRestore();
     });
 
     it("should skip unknown routing keys", async () => {
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
       await mod.handleEvent("unknown.key", {} as any, "evt-3");
-      expect(log).toHaveBeenCalledWith("[unknown] No template for unknown.key");
+      expect(log).toHaveBeenCalledWith("No template for routing key", { routingKey: "unknown.key" });
       log.mockRestore();
     });
 
     it("should skip events with no recipient", async () => {
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
       await mod.handleEvent("order.created", { order_number: "ORD-123", total_amount: "500" } as any, "evt-4");
-      expect(log).toHaveBeenCalledWith(expect.stringContaining("No recipient"));
+      expect(log).toHaveBeenCalledWith("No recipient for event", { routingKey: "order.created", eventId: "evt-4" });
       log.mockRestore();
     });
 
@@ -175,7 +175,7 @@ describe("notification-service", () => {
       const m = await import("../index");
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       await m.handleEvent("inventory.low_stock", { product_id: 42, quantity: 2 } as any, "evt-5");
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining("ADMIN_EMAIL not configured"));
+      expect(warn).toHaveBeenCalledWith("ADMIN_EMAIL not set — low stock alert lost", { product_id: 42 });
       warn.mockRestore();
     });
 
@@ -189,7 +189,7 @@ describe("notification-service", () => {
         total_amount: "100",
         customer_email: "dup@test.com",
       } as any, "dup-db-1");
-      expect(log).toHaveBeenCalledWith("[dedup] Skipping dup-db-1 (db)");
+      expect(log).toHaveBeenCalledWith("Duplicate event skipped (db)", { eventId: "dup-db-1" });
       log.mockRestore();
     });
   });
