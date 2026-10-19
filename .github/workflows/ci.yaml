@@ -207,7 +207,7 @@ jobs:
   publish-images:
     if: github.event_name == 'push'
     needs: [build-docker]
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write

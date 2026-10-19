@@ -9,15 +9,16 @@ One repository, three environments:
 | prod | a `v*` tag, after a reviewer approves | same host, `techhub-prod` stack, gateway on 127.0.0.1:8080 |
 
 CI (`.github/workflows/ci.yaml`) runs lint, tests and a build of the production images on every PR.
-On `main` or a tag it publishes arm64 images to GHCR, tagged with the commit (`publish-images`), then
+On `main` or a tag it publishes amd64 images to GHCR, tagged with the commit (`publish-images`), then
 `deploy.yaml` builds that environment's frontend, checks out the commit on the host, runs
 `deploy/deploy.sh` and waits for `/health`. Staging and prod run the same backend images.
 
-An idle stack uses about 1 GB of RAM, so both fit on one Oracle Always Free A1 VM (2 OCPU / 12 GB).
+An idle stack uses about 1 GB of RAM, so both fit on one Contabo VPS (x86, 4 vCPU / 8 GB). For an ARM host
+(Oracle A1, Hetzner CAX), set `runs-on: ubuntu-24.04-arm` in `publish-images` and `deploy.yaml`.
 
 ## One-time host setup
 
-On an Ubuntu VM (arm64):
+On an Ubuntu VPS:
 
 ```bash
 # Docker and Caddy
@@ -41,8 +42,8 @@ In each checkout create `.env` from `.env.example`, with its own secrets, and al
 | `NODE_ENV` | `production` | `production` |
 | `DEBUG` | `False` | `False` |
 
-TLS: copy `deploy/Caddyfile` to `/etc/caddy/Caddyfile` and put your two domains in it, point both DNS names at the VM, open ports 80 and 443 in the OCI security list and in
-`iptables` (Oracle's Ubuntu images block them by default), then `sudo systemctl restart caddy`.
+TLS: copy `deploy/Caddyfile` to `/etc/caddy/Caddyfile` and put your two domains in it, point both DNS names at the VM, open ports 80, 443 and SSH in the
+provider's firewall and in `ufw` if it is enabled, then `sudo systemctl restart caddy`.
 
 ## One-time GitHub setup
 
