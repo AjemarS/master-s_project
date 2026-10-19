@@ -167,9 +167,25 @@ jobs:
       - run: npx playwright test
         working-directory: frontend
 
+  test-notification-service:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: notification-service/package-lock.json
+      - run: npm ci
+        working-directory: notification-service
+      - run: npx tsc --noEmit
+        working-directory: notification-service
+      - run: npm test
+        working-directory: notification-service
+
   build-docker:
     runs-on: ubuntu-24.04
-    needs: [lint-product-service, lint-auth-service, lint-frontend, test-product-service, test-stock-services, test-auth-service, test-frontend]
+    needs: [lint-product-service, lint-auth-service, lint-frontend, test-product-service, test-stock-services, test-auth-service, test-frontend, test-notification-service]
     steps:
       - uses: actions/checkout@v4
       # the images that ship, so a broken prod Dockerfile fails the PR
