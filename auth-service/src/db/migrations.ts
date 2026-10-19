@@ -1,8 +1,13 @@
-import { pool } from "../auth";
+import { getMigrations } from "better-auth/db/migration";
+import { auth, pool } from "../auth";
 import logger from "../logger";
 
 export async function runMigrations() {
   try {
+    // Better Auth tables (user, session, account, verification, ...): only the dev compose command runs its CLI
+    const { runMigrations: migrateAuthSchema } = await getMigrations(auth.options);
+    await migrateAuthSchema();
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS audit_log (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
