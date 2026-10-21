@@ -95,11 +95,16 @@ app/
 - **Theme:** Dark/light mode via `next-themes`
 - **Admin sidebar:** Responsive sidebar with role-conditional menu items
 - **POS interface:** Product search, cart, receipt, order confirmation flow
+- **Comparison:** `/compare`, up to 4 products (`lib/hooks/use-compare.ts`, a `useSyncExternalStore` store in
+  localStorage shared by the card button, product page and floating `CompareBar`; syncs across tabs).
+  Specs and features are merged into rows; "only differences" hides rows where all values match.
+- **Reviews:** `products/[slug]/product-reviews.tsx`; cards show stars only when `review_count > 0`.
 
 ## Tests
 - **Framework:** Playwright (E2E)
 - **Run:** `npx playwright test`
 - **Location:** `frontend/tests/`
+- **Unit-style specs:** `csv.spec.ts`, `compare.spec.ts` test pure functions with the Playwright runner (no page)
 - **Status:** Coverage and pass rate undocumented
 
 ## Known Issues

@@ -34,6 +34,7 @@ const SEGMENT_LABEL_MAP: Record<string, string> = {
   "reset-password": "common.resetPassword",
   "sign-out": "common.signOut",
   "favorites": "nav.favorites",
+  "compare": "compare.title",
 };
 
 function formatSegment(segment: string): string {

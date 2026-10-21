@@ -1,6 +1,7 @@
 import { Breadcrumbs } from "~/ui/components/breadcrumbs";
 import { Footer } from "~/ui/components/footer";
 import { Header } from "~/ui/components/header/header";
+import { CompareBar } from "~/ui/components/compare-bar";
 
 export default function MainLayout({
   children,
@@ -17,6 +18,7 @@ export default function MainLayout({
         {children}
       </main>
       <Footer />
+      <CompareBar />
     </>
   );
 }

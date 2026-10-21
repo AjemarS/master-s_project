@@ -17,6 +17,7 @@ import { ProductGallery } from "~/ui/components/product-gallery";
 import { productApi } from "~/lib/api/admin-api";
 import { useBreadcrumbSegments } from "~/ui/components/breadcrumbs";
 import { ProductReviews } from "./product-reviews";
+import { CompareButton } from "~/ui/components/compare-button";
 
 const slugify = (str: string) =>
   str
@@ -203,6 +204,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                     }`}
                   />
                 </Button>
+                <CompareButton productId={product.id} />
               </div>
             </div>
           </div>

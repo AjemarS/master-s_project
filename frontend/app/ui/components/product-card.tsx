@@ -13,6 +13,7 @@ import { Button } from "~/ui/primitives/button";
 import { Card, CardContent, CardFooter } from "~/ui/primitives/card";
 import { formatCurrency } from "~/lib/utils/format";
 import { ProductImage } from "~/ui/components/product-image";
+import { CompareButton } from "~/ui/components/compare-button";
 
 type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
   onAddToCart?: (productId: number) => void;
@@ -139,6 +140,7 @@ export const ProductCard = React.memo(function ProductCard({
                 )}
               />
             </button>
+            <CompareButton productId={product.id} look="overlay" className="absolute top-12 right-2 z-30" />
           </div>
 
           <CardContent className="flex-1 p-4 pt-4">
