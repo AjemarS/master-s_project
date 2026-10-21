@@ -384,7 +384,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
       clearCart();
       setCreatedOrderId(newOrderId);
 
-      const pay = await orderApi.pay(newOrderId);
+      const pay = await orderApi.pay(newOrderId, order.data.pay_token);
       if (pay.error) {
         router.push(`/checkout?order_id=${newOrderId}`);
         return;

@@ -251,6 +251,8 @@ export interface OrderDetail extends Order {
   stripe_session_id: string;
   stripe_payment_intent_id: string;
   paid_at: string | null;
+  /** Only in the create response: lets a guest pay for this order */
+  pay_token?: string;
   /** When the buyer got the goods: start of the return and warranty periods */
   delivered_at: string | null;
   notes: string;

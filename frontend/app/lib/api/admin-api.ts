@@ -208,8 +208,9 @@ export const orderApi = {
     return apiCall(`${ORDERS_API_URL}/promo-check/?${q}`);
   },
 
-  async pay(id: number): Promise<ApiResponse<{ checkout_url: string; session_id: string }>> {
-    return apiCall(`${ORDERS_API_URL}/${id}/pay/`, { method: "POST" });
+  /** token: the pay_token from order creation, needed by guests (signed-in buyers are recognised) */
+  async pay(id: number, token?: string): Promise<ApiResponse<{ checkout_url: string; session_id: string }>> {
+    return apiCall(`${ORDERS_API_URL}/${id}/pay/`, { method: "POST", body: JSON.stringify(token ? { token } : {}) });
   },
 
   async getAll(params?: { page?: number; status?: string; channel?: string; search?: string; ordering?: string }): Promise<

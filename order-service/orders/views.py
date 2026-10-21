@@ -6,6 +6,7 @@ import logging
 
 import stripe
 from django.conf import settings
+from django.core import signing
 from django.db import transaction
 from django.utils import timezone as tz
 from django_filters.rest_framework import DjangoFilterBackend
@@ -30,6 +31,20 @@ from shared_auth.permissions import IsAdminOrCashier
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 logger = logging.getLogger(__name__)
+
+
+PAY_TOKEN_SALT = "orders.pay"
+PAY_TOKEN_MAX_AGE = 7 * 24 * 3600
+
+
+def _may_pay(order, request):
+    user = request.user
+    if user.is_authenticated and (user.is_staff or order.created_by == user.username):
+        return True
+    try:
+        return signing.loads(request.data.get("token", ""), salt=PAY_TOKEN_SALT, max_age=PAY_TOKEN_MAX_AGE) == order.id
+    except signing.BadSignature:
+        return False
 
 
 def _is_order_owner(order, request):
@@ -125,7 +140,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         return OrderDetailSerializer
 
     def get_permissions(self):
-        if self.action == "stripe_webhook":
+        if self.action in ("stripe_webhook", "pay"):
+            # pay checks the buyer itself (_may_pay): guests prove it with the token from create
             return [AllowAny()]
         if self.action == "health":
             return [AllowAny()]
@@ -225,7 +241,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.order_number, len(succeeded),
             )
 
-        return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
+        # A guest has no account to own the order: the signed token is what lets them pay for it
+        return Response(
+            {**OrderDetailSerializer(order).data, "pay_token": signing.dumps(order.id, salt=PAY_TOKEN_SALT)},
+            status=status.HTTP_201_CREATED,
+        )
 
     # ── Custom Actions ────────────────────────────────────────────────
 
@@ -247,8 +267,11 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def pay(self, request, pk=None):
-        """Create Stripe checkout session for payment."""
+        """Create Stripe checkout session for payment: the buyer (account or pay_token) or staff."""
         order = self.get_object()
+        if not _may_pay(order, request):
+            # 404, not 403: do not confirm that someone else's order id exists
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if order.payment_status != Order.PAYMENT_UNPAID:
             return Response(

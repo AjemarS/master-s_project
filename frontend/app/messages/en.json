@@ -567,7 +567,9 @@
     "pageSubtitle": "Track your order status and details",
     "customerInfo": "Customer Information",
     "orderTimeline": "Order Timeline",
-    "cancelOrder": "Cancel Order"
+    "cancelOrder": "Cancel Order",
+    "payNow": "Pay now",
+    "payFailed": "Could not open the payment page. Please try again."
   },
   "categories": {
     "title": "Categories",

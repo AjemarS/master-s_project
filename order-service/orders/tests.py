@@ -1047,3 +1047,33 @@ class MetricsEndpointTest(APITestCase):
         # Router URLs are regexes, so that is the route label
         self.assertIn('http_requests_total{method="POST",route="api/orders/$",status="201"}', body)
 
+
+class PayPermissionTest(APITestCase):
+    """Only the buyer can start a Stripe checkout for an order (it used to be admin-only, so nobody could pay)."""
+
+    def _create(self):
+        with mock.patch("orders.views.check_availability", return_value=(True, None)):
+            return self.client.post("/api/orders/", {"customer_email": "g@test.com", "items": [{"product_id": 1, "quantity": 1}]}, format="json").data
+
+    @mock.patch("orders.views.stripe.checkout.Session.create", return_value=mock.Mock(id="cs_1", url="https://stripe.test/cs_1"))
+    def test_guest_pays_with_the_token_from_create(self, _session):
+        order = self._create()
+        response = self.client.post(f"/api/orders/{order['id']}/pay/", {"token": order["pay_token"]}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["checkout_url"], "https://stripe.test/cs_1")
+
+    def test_wrong_or_missing_token_is_not_found(self):
+        order = self._create()
+        other = self._create()
+        for body in ({}, {"token": "forged"}, {"token": other["pay_token"]}):
+            self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", body, format="json").status_code, 404)
+
+    @mock.patch("orders.views.stripe.checkout.Session.create", return_value=mock.Mock(id="cs_2", url="https://stripe.test/cs_2"))
+    def test_signed_in_owner_pays_without_a_token_but_others_cannot(self, _session):
+        owner = User.objects.create_user("gw_9", "o@test.com", "pw")
+        self.client.force_authenticate(user=owner)
+        order = self._create()
+        self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", {}, format="json").status_code, 200)
+        self.client.force_authenticate(user=User.objects.create_user("gw_10", "x@test.com", "pw"))
+        self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", {}, format="json").status_code, 404)
+

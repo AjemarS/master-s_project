@@ -56,6 +56,7 @@ Transitions enforced in `Order.can_transition_to()`.
 | GET | `/api/orders/{id}/` | Any auth | Order detail |
 | PATCH | `/api/orders/{id}/` | Admin | Update order status |
 | GET | `/api/orders/my/` | Auth user | Current user's orders |
+| POST | `/api/orders/{id}/pay/` | Buyer / Admin | Stripe checkout URL. The signed-in owner, staff, or a guest sending `{token}` = `pay_token` from the create response (7 days); anyone else gets 404 |
 | POST | `/api/orders/pos/` | Cashier/Admin | POS sale (offline, immediate deduct, ends `completed` + paid) |
 | GET | `/api/orders/payments/stripe-webhook/` | No auth | Stripe payment callback |
 | GET | `/api/reports/sales/` | Admin | KPIs (revenue, orders, AOV, margin, cancellation rate) + `previous` period of equal length when `from` and `to` are both set (`?from=&to=`, ISO dates, `to` inclusive) |

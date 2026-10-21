@@ -47,6 +47,7 @@ docker run --rm nginx-test nginx -t
 | Catalog (GET) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Cart (all) | ✅ | ✅ | ❌ | ❌ | ✅ |
 | Orders (create) | ✅ | ✅ | ✅ | ❌ | ✅ |
+| Orders (pay, `POST /api/orders/{id}/pay/`) | ✅* | ✅* | ❌ | ❌ | ✅ |
 | Orders (view own) | ❌ | ✅ | ✅ | ❌ | ✅ |
 | Orders (status change) | ❌ | ❌ | ❌ | ❌ | ✅ |
 | POS (create) | ❌ | ❌ | ✅ | ❌ | ✅ |

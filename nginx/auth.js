@@ -43,7 +43,8 @@ function checkAndProxy(r) {
 
     // Anonymous users (no userId) can only create orders (POST /api/orders/ base path)
     // Authenticated users go through role-specific checks below
-    if (!userId && apiAccess === "orders" && method === "POST" && r.uri.match(/^\/api\/orders\/?$/)) {
+    // ...and pay for them: order-service checks the signed pay_token returned on creation
+    if (!userId && apiAccess === "orders" && method === "POST" && r.uri.match(/^\/api\/orders\/(\d+\/pay\/?)?$/)) {
         r.variables.gateway_user_id = userId;
         r.variables.gateway_user_role = userRole;
         r.variables.gateway_user_email = userEmail;

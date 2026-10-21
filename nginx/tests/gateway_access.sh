@@ -61,6 +61,9 @@ case "$codes" in
   *) echo "FAIL 20x POST /api/orders/: never limited"; fail=1 ;;
 esac
 
+echo "# 8a. paying: guests reach order-service, which wants the order's pay_token"
+check "anon POST pay without token" "404" POST /api/orders/999999/pay/ -H "Content-Type: application/json" -d '{}'
+
 echo "# 8b. reviews: signed-in writes only, product moderation stays admin"
 check "anon POST review" "401" POST /api/products/1/reviews/ -H "Content-Type: application/json" -d '{"rating":5}'
 check "anon PATCH review moderation" "401" PATCH /api/reviews/1/ -H "Content-Type: application/json" -d '{"is_published":false}'
