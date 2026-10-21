@@ -316,7 +316,9 @@
     "goShopping": "Start shopping",
     "ratingLabel": "Rated {rating} out of 5 from {count} reviews",
     "reviewsCount": "{count, plural, one {# review} other {# reviews}}",
-    "noReviewsYet": "No reviews yet"
+    "noReviewsYet": "No reviews yet",
+    "addToWishlist": "Add to wishlist",
+    "removeFromWishlist": "Remove from wishlist"
   },
   "orders": {
     "title": "Orders",

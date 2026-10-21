@@ -38,7 +38,7 @@ export function CompareButton({ productId, look = "outline", className }: Compar
         aria-label={label}
         title={label}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-colors hover:bg-background",
+          "flex h-10 w-10 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           className
         )}
       >

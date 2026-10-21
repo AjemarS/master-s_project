@@ -190,11 +190,8 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   size="icon"
                   className="h-12 w-12 shrink-0"
                   onClick={() => toggleItem(product.id)}
-                  aria-label={
-                    isInWishlist(product.id)
-                      ? "Видалити з обраного"
-                      : "Додати до обраного"
-                  }
+                  aria-pressed={isInWishlist(product.id)}
+                  aria-label={isInWishlist(product.id) ? t("removeFromWishlist") : t("addToWishlist")}
                 >
                   <Heart
                     className={`h-5 w-5 ${

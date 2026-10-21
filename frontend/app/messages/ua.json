@@ -316,7 +316,9 @@
     "goShopping": "Перейти до покупок",
     "ratingLabel": "Рейтинг {rating} з 5, відгуків: {count}",
     "reviewsCount": "{count, plural, one {# відгук} few {# відгуки} other {# відгуків}}",
-    "noReviewsYet": "Ще немає відгуків"
+    "noReviewsYet": "Ще немає відгуків",
+    "addToWishlist": "Додати до обраного",
+    "removeFromWishlist": "Видалити з обраного"
   },
   "orders": {
     "title": "Керування замовленнями",

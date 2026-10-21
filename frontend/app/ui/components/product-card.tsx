@@ -1,10 +1,10 @@
 "use client";
 
 import { Heart, ShoppingCart, Star } from "lucide-react";
-import Link from "next/link";
 import * as React from "react";
 import { useTranslations } from "next-intl";
 
+import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/cn";
 import { useWishlist } from "~/lib/hooks/use-wishlist";
 import { Product } from "~/lib/types";
@@ -22,6 +22,10 @@ type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & 
   variant?: "compact" | "default";
 };
 
+/**
+ * The product name is the only link; its ::after stretches over the whole card so the card stays
+ * clickable, while the wishlist, compare and cart buttons sit above it as siblings, not inside it.
+ */
 export const ProductCard = React.memo(function ProductCard({
   className,
   onAddToCart,
@@ -31,196 +35,146 @@ export const ProductCard = React.memo(function ProductCard({
 }: ProductCardProps) {
   const t = useTranslations("products");
   const { isInWishlist, toggleItem } = useWishlist();
-  const [isHovered, setIsHovered] = React.useState(false);
-  const [isAddingToCart, setIsAddingToCart] = React.useState(false);
 
-  const price =
-    typeof product.price === "number" ? product.price : Number(product.price);
-  const originalPrice = product.original_price
-    ? typeof product.original_price === "number"
-      ? product.original_price
-      : Number(product.original_price)
-    : 0;
-  const rating =
-    typeof product.rating === "number" ? product.rating : Number(product.rating);
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onAddToCart) {
-      setIsAddingToCart(true);
-      setTimeout(() => {
-        onAddToCart(product.id);
-        setIsAddingToCart(false);
-      }, 600);
-    }
-  };
+  const price = Number(product.price);
+  const originalPrice = product.original_price ? Number(product.original_price) : 0;
+  const rating = Number(product.rating);
+  const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const inWishlist = isInWishlist(product.id);
+  const canBuy = product.in_stock && !!onAddToCart;
 
-  const discount = originalPrice
-    ? Math.round(((originalPrice - price) / originalPrice) * 100)
-    : 0;
+  const addToCart = () => onAddToCart?.(product.id);
 
-  const renderStars = () => {
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-
-    return (
-      <div className="flex items-center" role="img" aria-label={t("ratingLabel", { rating: rating.toFixed(1), count: product.review_count ?? 0 })}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            className={cn(
-              "h-4 w-4",
-              i < fullStars
-                ? "fill-yellow-400 text-yellow-400"
-                : i === fullStars && hasHalfStar
+  const stars = (
+    <div
+      className="flex items-center"
+      role="img"
+      aria-label={t("ratingLabel", { rating: rating.toFixed(1), count: product.review_count ?? 0 })}
+    >
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          aria-hidden
+          className={cn(
+            "h-4 w-4",
+            i < Math.floor(rating)
+              ? "fill-yellow-400 text-yellow-400"
+              : i === Math.floor(rating) && rating % 1 >= 0.5
                 ? "fill-yellow-400/50 text-yellow-400"
-                : "stroke-muted/40 text-muted"
-            )}
-            key={`star-${product.id}-position-${i + 1}`}
-          />
-        ))}
-        <span className="ml-1 text-xs text-muted-foreground">
-          {rating.toFixed(1)} ({product.review_count})
-        </span>
-      </div>
-    );
-  };
+                : "text-muted-foreground/40"
+          )}
+          key={i}
+        />
+      ))}
+      <span className="ml-1 text-xs text-muted-foreground">
+        {rating.toFixed(1)} ({product.review_count})
+      </span>
+    </div>
+  );
 
   return (
     <div className={cn("group h-full", className)} {...props}>
-      <Link className="block h-full" href={`/products/${product.slug || product.id}`}>
-        <Card
-          className={cn(
-            "relative flex h-full flex-col overflow-hidden rounded-lg py-0 transition-all duration-200 ease-in-out hover:shadow-md",
-            isHovered && "ring-1 ring-primary/20"
-          )}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <div className="relative aspect-square overflow-hidden rounded-t-lg">
-            <ProductImage
-              className={cn(
-                "transition-transform duration-300 ease-in-out",
-                isHovered && "scale-105"
-              )}
-              fill
-              imageUrl={product.image_url}
-              productId={product.id}
-              productName={product.name}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            />
+      <Card className="relative flex h-full flex-col overflow-hidden rounded-lg py-0 transition-shadow duration-200 hover:shadow-md focus-within:ring-2 focus-within:ring-ring">
+        <div className="relative aspect-square overflow-hidden rounded-t-lg">
+          <ProductImage
+            className="transition-transform duration-300 ease-in-out group-hover:scale-105"
+            fill
+            imageUrl={product.image_url}
+            productId={product.id}
+            productName={product.name}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
 
-            <Badge className="absolute top-2 left-2 bg-background/80 backdrop-blur-sm" variant="outline">
-              {product.category_name}
+          <Badge className="absolute top-2 left-2 bg-background/80 backdrop-blur-sm" variant="outline">
+            {product.category_name}
+          </Badge>
+
+          {discount > 0 && (
+            <Badge className="absolute bottom-2 left-2 bg-destructive text-white">
+              {t("off", { discount })}
             </Badge>
-
-            {discount > 0 && (
-              <Badge className="absolute top-2 right-12 bg-destructive text-foreground">
-                {t("off", { discount })}
-              </Badge>
-            )}
-
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleItem(product.id);
-              }}
-              className="absolute top-2 right-2 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-colors hover:bg-background"
-              aria-label={
-                isInWishlist(product.id)
-                  ? "Видалити з обраного"
-                  : "Додати до обраного"
-              }
-            >
-              <Heart
-                className={cn(
-                  "h-4 w-4 transition-colors",
-                  isInWishlist(product.id)
-                    ? "fill-red-500 text-red-500"
-                    : "text-muted-foreground",
-                )}
-              />
-            </button>
-            <CompareButton productId={product.id} look="overlay" className="absolute top-12 right-2 z-30" />
-          </div>
-
-          <CardContent className="flex-1 p-4 pt-4">
-            <div className="min-h-[3rem]">
-              <h3 className="line-clamp-2 text-base font-medium transition-colors group-hover:text-accent-electric">
-                {product.name}
-              </h3>
-            </div>
-
-            {variant === "default" && (
-              <>
-                {/* No stars without reviews: an empty rating is not a bad one */}
-                {!!product.review_count && <div className="mt-1.5">{renderStars()}</div>}
-                <div className="mt-2 flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">{formatCurrency(price)}</span>
-                  {discount > 0 && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      {formatCurrency(originalPrice)}
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-          </CardContent>
-
-          {variant === "default" && (
-            <CardFooter className="p-4 pt-0">
-              <Button
-                className={cn("w-full gap-2 transition-all", isAddingToCart && "opacity-70")}
-                disabled={isAddingToCart}
-                onClick={handleAddToCart}
-              >
-                {isAddingToCart ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                ) : (
-                  <ShoppingCart className="h-4 w-4" />
-                )}
-                {t("addToCart")}
-              </Button>
-            </CardFooter>
-          )}
-
-          {variant === "compact" && (
-            <CardFooter className="p-4 pt-0">
-              <div className="flex w-full items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium text-foreground">{formatCurrency(price)}</span>
-                  {originalPrice > 0 && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      {formatCurrency(originalPrice)}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  className="h-8 w-8 rounded-full"
-                  disabled={isAddingToCart}
-                  onClick={handleAddToCart}
-                  size="icon"
-                  variant="ghost"
-                >
-                  {isAddingToCart ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  ) : (
-                    <ShoppingCart className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">{t("addToCartSr")}</span>
-                </Button>
-              </div>
-            </CardFooter>
           )}
 
           {!product.in_stock && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-              <Badge className="px-3 py-1 text-sm" variant="destructive">
-                {t("outOfStock")}
-              </Badge>
+            // Visual only: the stretched link underneath still opens the product
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/70 backdrop-blur-[2px]">
+              <Badge className="px-3 py-1 text-sm" variant="destructive">{t("outOfStock")}</Badge>
             </div>
           )}
-        </Card>
-      </Link>
+
+          <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => toggleItem(product.id)}
+              aria-pressed={inWishlist}
+              aria-label={inWishlist ? t("removeFromWishlist") : t("addToWishlist")}
+              title={inWishlist ? t("removeFromWishlist") : t("addToWishlist")}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Heart
+                aria-hidden
+                className={cn("h-4 w-4 transition-colors", inWishlist ? "fill-red-500 text-red-500" : "text-muted-foreground")}
+              />
+            </button>
+            <CompareButton productId={product.id} look="overlay" />
+          </div>
+        </div>
+
+        <CardContent className="flex-1 p-4 pt-4">
+          <h3 className="min-h-[3rem] line-clamp-2 text-base font-medium transition-colors group-hover:text-primary">
+            <Link
+              href={`/products/${product.slug || product.id}`}
+              className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+            >
+              {product.name}
+            </Link>
+          </h3>
+
+          {variant === "default" && (
+            <>
+              {/* No stars without reviews: an empty rating is not a bad one */}
+              {!!product.review_count && <div className="mt-1.5">{stars}</div>}
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="font-medium text-foreground">{formatCurrency(price)}</span>
+                {discount > 0 && (
+                  <span className="text-sm text-muted-foreground line-through">{formatCurrency(originalPrice)}</span>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+
+        {variant === "default" && (
+          <CardFooter className="relative z-10 p-4 pt-0">
+            <Button className="w-full gap-2" disabled={!canBuy} onClick={addToCart}>
+              <ShoppingCart className="h-4 w-4" aria-hidden />
+              {product.in_stock ? t("addToCart") : t("outOfStock")}
+            </Button>
+          </CardFooter>
+        )}
+
+        {variant === "compact" && (
+          <CardFooter className="p-4 pt-0">
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-foreground">{formatCurrency(price)}</span>
+                {originalPrice > 0 && (
+                  <span className="text-sm text-muted-foreground line-through">{formatCurrency(originalPrice)}</span>
+                )}
+              </div>
+              <Button
+                className="relative z-10 h-10 w-10 rounded-full"
+                disabled={!canBuy}
+                onClick={addToCart}
+                size="icon"
+                variant="ghost"
+                aria-label={t("addToCartSr")}
+              >
+                <ShoppingCart className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
+          </CardFooter>
+        )}
+      </Card>
     </div>
   );
 });
