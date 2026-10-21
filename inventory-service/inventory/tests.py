@@ -530,3 +530,9 @@ class DeductBatchTest(APITestCase):
         self.assertEqual(self._deduct(items).status_code, status.HTTP_200_OK)
         self.assertEqual(self._deduct(items).status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(self._levels(self.a), (3, 0))
+
+    def test_deduct_reports_unit_cost_of_goods_sold(self):
+        Stock.objects.filter(pk=self.a.pk).update(average_cost=Decimal("123.45"))
+        response = self._deduct([{"product_id": 1, "quantity": 2}])
+        self.assertEqual(response.data["unit_costs"], {"1": "123.45"})
+        self.assertNotIn("average_cost", response.data["items"][0])  # stock rows stay public-safe

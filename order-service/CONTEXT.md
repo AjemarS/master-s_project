@@ -63,6 +63,13 @@ Transitions enforced in `Order.can_transition_to()`.
 | GET | `/api/docs/` | Any | Swagger UI |
 | GET | `/api/redoc/` | Any | ReDoc |
 
+## Pricing (trust boundary)
+- Item `price` and `product_name` are always taken from product-service on create (online and POS);
+  a client-sent `price` is ignored and `cost_price` is not accepted. Stripe charges these server prices.
+- `cost_price` is written when stock is deducted (POS sale, shipping) from inventory's `unit_costs`
+  (weighted-average cost); until then it is 0, so paid-but-unshipped orders show full margin.
+- `shipping_cost` must be ≥ 0.
+
 ## Saga Integration (Order ↔ Inventory)
 
 ### Synchronous HTTP Flow
@@ -104,5 +111,5 @@ Transitions enforced in `Order.can_transition_to()`.
   `autoclobber` prompt, which fails with `EOFError` in a non-interactive shell)
 
 ## Known Issues
-- No product validation (accepts any `product_id` without cross-referencing product-service)
+- Unknown products return 400, and a product-service outage returns 503 (fail closed, `product_client.py`)
 - `order_number` uniqueness is enforced by the DB (`unique=True` since migration 0001); `create_order` retries up to 3 times on `IntegrityError`

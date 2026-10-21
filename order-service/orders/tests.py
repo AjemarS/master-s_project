@@ -16,6 +16,24 @@ User = get_user_model()
 # Inventory is a separate service: unit tests stub its HTTP client instead of depending on a live stack
 INVENTORY_OK = ({"ok": True}, None)
 
+CATALOG_PRICE = Decimal("199.99")
+
+
+def _fake_catalog(product_ids):
+    return {pid: {"price": str(CATALOG_PRICE), "name": f"Catalog product {pid}"} for pid in product_ids}
+
+
+# The catalog is product-service: every order created over the API gets its price from this stub
+_catalog_patch = mock.patch("orders.serializers.get_catalog_items", side_effect=_fake_catalog)
+
+
+def setUpModule():
+    _catalog_patch.start()
+
+
+def tearDownModule():
+    _catalog_patch.stop()
+
 
 def _create_admin_user():
     return User.objects.create_superuser("admin", "admin@test.com", "password123")
@@ -148,7 +166,7 @@ class OrderAPITest(APITestCase):
         self.assertEqual(data["channel"], "online")
         self.assertEqual(data["status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
-        self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+        self.assertEqual(Decimal(data["total_amount"]), CATALOG_PRICE * 2)  # client sent 99.99: ignored
 
     @mock.patch("orders.order_service.reserve_stock", return_value=INVENTORY_OK)
     @mock.patch("orders.serializers.check_availability", return_value=(True, None))
@@ -177,7 +195,7 @@ class OrderAPITest(APITestCase):
         self.assertEqual(data["status"], "unpaid")
         self.assertEqual(data["payment_status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
-        self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+        self.assertEqual(Decimal(data["total_amount"]), CATALOG_PRICE * 2)  # client sent 99.99: ignored
         reserve.assert_called_once()
         self.assertEqual(reserve.call_args.kwargs["quantity"], 2)
 
@@ -638,3 +656,42 @@ class EventOutboxTest(TestCase):
         with mock.patch.object(publisher, "send", side_effect=ConnectionError("still down")):
             self.assertEqual(outbox.relay_pending(), 1)
         self.assertEqual(OutboxEvent.objects.get().attempts, 1)
+
+
+class CatalogPricingTest(APITestCase):
+    """The client never decides what it pays (it used to send the price Stripe charged)."""
+
+    def setUp(self):
+        self.client.force_authenticate(user=_create_admin_user())
+
+    @mock.patch("orders.order_service.deduct_stock_batch", return_value=({"unit_costs": {"1": "120.50"}}, None))
+    def test_pos_uses_catalog_price_and_stores_cost_on_deduct(self, _deduct):
+        response = self.client.post("/api/orders/pos/", {
+            "warehouse_id": 1,
+            "items": [{"product_id": 1, "quantity": 2, "price": "0.01", "cost_price": "999.00"}],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        item = OrderItem.objects.get()
+        self.assertEqual(item.price, CATALOG_PRICE)
+        self.assertEqual(item.product_name, "Catalog product 1")
+        self.assertEqual(item.cost_price, Decimal("120.50"))
+        self.assertEqual(Order.objects.get().total_amount, CATALOG_PRICE * 2)
+
+    @mock.patch("orders.serializers.get_catalog_items", return_value={})
+    def test_unknown_product_is_rejected(self, _):
+        response = self.client.post("/api/orders/", {"items": [{"product_id": 404, "quantity": 1}]}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Order.objects.exists())
+
+    def test_catalog_outage_refuses_the_order(self):
+        from .product_client import CatalogUnavailable
+        with mock.patch("orders.serializers.get_catalog_items", side_effect=CatalogUnavailable("down")):
+            response = self.client.post("/api/orders/", {"items": [{"product_id": 1, "quantity": 1}]}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertFalse(Order.objects.exists())
+
+    def test_negative_shipping_cost_is_rejected(self):
+        response = self.client.post("/api/orders/", {
+            "shipping_cost": "-500.00", "items": [{"product_id": 1, "quantity": 1}],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

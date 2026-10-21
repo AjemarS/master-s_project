@@ -258,7 +258,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         for stock in stocks.values():
             stock.refresh_from_db()
-        return Response({"items": StockSerializer(stocks.values(), many=True).data})
+        return Response({
+            "items": StockSerializer(stocks.values(), many=True).data,
+            # Cost of goods sold for the caller's order lines; deduct is service-only, so cost stays private
+            "unit_costs": {str(pid): str(stocks[pid].average_cost) for pid in wanted},
+        })
 
     @action(detail=False, methods=["post"])
     def transfer(self, request):

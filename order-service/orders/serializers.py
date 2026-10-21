@@ -1,12 +1,39 @@
 import logging
 
+from decimal import Decimal
+
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
 from .models import Order, OrderItem
 from .inventory_client import check_availability
+from .product_client import CatalogUnavailable, get_catalog_items
 
 logger = logging.getLogger(__name__)
+
+
+class CatalogServiceUnavailable(APIException):
+    status_code = 503
+    default_detail = "Product catalog is unavailable, try again later."
+    default_code = "catalog_unavailable"
+
+
+def _apply_catalog_prices(data):
+    """Overwrite each item's price and name with the catalog's: the client never sets what it pays."""
+    items = data.get("items", [])
+    try:
+        catalog = get_catalog_items(item["product_id"] for item in items)
+    except CatalogUnavailable:
+        raise CatalogServiceUnavailable()
+    unknown = sorted({item["product_id"] for item in items} - set(catalog))
+    if unknown:
+        raise ValidationError({"items": f"Unknown products: {unknown}"})
+    for item in items:
+        product = catalog[item["product_id"]]
+        item["price"] = Decimal(product["price"])
+        item["product_name"] = product["name"] or item.get("product_name", "")
+        # Filled in from inventory's weighted-average cost when the stock is written off
+        item["cost_price"] = Decimal("0.00")
 
 
 def _validate_stock(data):
@@ -116,10 +143,8 @@ class OrderCreateItemSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     product_name = serializers.CharField(required=False, allow_blank=True, default="")
     quantity = serializers.IntegerField(min_value=1)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
-    cost_price = serializers.DecimalField(
-        max_digits=10, decimal_places=2, min_value=0, default="0.00"
-    )
+    # Accepted for older clients and ignored: price comes from the catalog, cost from inventory
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, required=False)
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -128,7 +153,7 @@ class OrderCreateSerializer(serializers.Serializer):
     delivery_method = serializers.ChoiceField(choices=Order.DELIVERY_CHOICES, default=Order.PICKUP)
     shipping_city = serializers.CharField(required=False, allow_blank=True, default="")
     shipping_address = serializers.CharField(required=False, allow_blank=True, default="")
-    shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, default="0.00")
+    shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, default="0.00")
     customer_name = serializers.CharField(required=False, allow_blank=True, default="")
     customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
@@ -149,6 +174,7 @@ class OrderCreateSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
+        _apply_catalog_prices(data)
         _validate_stock(data)
         return data
 
@@ -161,7 +187,7 @@ class POSOrderSerializer(serializers.Serializer):
     delivery_method = serializers.ChoiceField(choices=Order.DELIVERY_CHOICES, default=Order.PICKUP)
     shipping_city = serializers.CharField(required=False, allow_blank=True, default="")
     shipping_address = serializers.CharField(required=False, allow_blank=True, default="")
-    shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, default="0.00")
+    shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, default="0.00")
     customer_name = serializers.CharField(required=False, allow_blank=True, default="")
     customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
@@ -174,5 +200,6 @@ class POSOrderSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
+        _apply_catalog_prices(data)
         _validate_stock(data)
         return data

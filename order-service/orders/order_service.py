@@ -163,7 +163,11 @@ def deduct_order_stock(order, from_reserved, request=None):
     )
     if error:
         logger.error("Stock deduct failed | order=%s error=%s", order.order_number, error)
-    return error is None
+        return False
+    # A 409 replay carries no costs; the first successful deduct already stored them
+    for pid, cost in ((result or {}).get("unit_costs") or {}).items():
+        order.items.filter(product_id=int(pid)).update(cost_price=Decimal(cost))
+    return True
 
 
 def reserve_order_stock(order, request=None):
