@@ -355,8 +355,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         # The cashier takes payment at the till and the buyer leaves with the goods: nothing left to track
         order.status = Order.COMPLETED
         order.payment_status = Order.PAYMENT_PAID
-        order.paid_at = tz.now()
-        order.save(update_fields=["status", "payment_status", "paid_at", "updated_at"])
+        order.paid_at = order.delivered_at = tz.now()
+        order.save(update_fields=["status", "payment_status", "paid_at", "delivered_at", "updated_at"])
         svc.record_status_change(order, Order.UNPAID, request)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)

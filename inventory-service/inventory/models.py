@@ -87,6 +87,7 @@ class StockMovement(models.Model):
     RESERVE = "reserve"
     RELEASE = "release"
     DEDUCT = "deduct"
+    RETURN = "return"
 
     TYPE_CHOICES = [
         (RECEIPT, "Оприбуткування"),
@@ -97,6 +98,7 @@ class StockMovement(models.Model):
         (RESERVE, "Резервування"),
         (RELEASE, "Повернення резерву"),
         (DEDUCT, "Списання залишку"),
+        (RETURN, "Повернення від покупця"),
     ]
 
     product_id = models.IntegerField(verbose_name="ID товару")

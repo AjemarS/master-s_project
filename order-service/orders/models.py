@@ -99,6 +99,8 @@ class Order(models.Model):
         max_length=255, blank=True, default="", verbose_name="Stripe Payment Intent ID"
     )
     paid_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата оплати")
+    # Start of the return and warranty periods: delivery for online orders, the sale for POS
+    delivered_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата передачі покупцю")
     notes = models.TextField(blank=True, verbose_name="Примітки")
     created_by = models.CharField(
         max_length=255, blank=True, verbose_name="Створено користувачем"
@@ -143,6 +145,8 @@ class OrderItem(models.Model):
     cost_price = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00"), verbose_name="Собівартість"
     )
+    # Snapshot from the catalog at sale; null for items sold before warranties were tracked
+    warranty_months = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Гарантія, міс.")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
 
     class Meta:
@@ -172,3 +176,69 @@ class OrderStatusHistory(models.Model):
 
     def __str__(self):
         return f"{self.order_id}: {self.from_status} -> {self.to_status}"
+
+
+class ReturnRequest(models.Model):
+    """A customer's return (cooling-off period) or warranty claim for units of one order line."""
+
+    RETURN = "return"
+    WARRANTY = "warranty"
+    KIND_CHOICES = [
+        (RETURN, "Повернення"),
+        (WARRANTY, "Гарантійне звернення"),
+    ]
+
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    RECEIVED = "received"
+    RESOLVED = "resolved"
+    REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (SUBMITTED, "Подано"),
+        (APPROVED, "Схвалено"),
+        (RECEIVED, "Товар отримано"),
+        (RESOLVED, "Вирішено"),
+        (REJECTED, "Відхилено"),
+    ]
+    STATUS_TRANSITIONS = {
+        SUBMITTED: [APPROVED, REJECTED],
+        APPROVED: [RECEIVED, REJECTED],
+        RECEIVED: [RESOLVED, REJECTED],
+        RESOLVED: [],
+        REJECTED: [],
+    }
+
+    REFUND = "refund"
+    REPLACE = "replace"
+    REPAIR = "repair"
+    RESOLUTION_CHOICES = [
+        (REFUND, "Повернення коштів"),
+        (REPLACE, "Заміна"),
+        (REPAIR, "Ремонт"),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="returns", verbose_name="Замовлення")
+    item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name="returns", verbose_name="Позиція")
+    quantity = models.PositiveIntegerField(verbose_name="Кількість")
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, verbose_name="Тип")
+    reason = models.TextField(verbose_name="Причина")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SUBMITTED, verbose_name="Статус")
+    resolution = models.CharField(max_length=20, choices=RESOLUTION_CHOICES, blank=True, verbose_name="Рішення")
+    refund_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Сума повернення"
+    )
+    stripe_refund_id = models.CharField(max_length=255, blank=True, verbose_name="Stripe Refund ID")
+    restocked = models.BooleanField(default=False, verbose_name="Повернуто на склад")
+    admin_comment = models.TextField(blank=True, verbose_name="Коментар магазину")
+    created_by = models.CharField(max_length=255, blank=True, verbose_name="Створено користувачем")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+
+    class Meta:
+        verbose_name = "Звернення (повернення / гарантія)"
+        verbose_name_plural = "Звернення (повернення / гарантія)"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status"])]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} #{self.pk} ({self.order.order_number})"

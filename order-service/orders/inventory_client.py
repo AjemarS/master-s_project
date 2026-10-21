@@ -108,6 +108,25 @@ def release_stock(product_id, warehouse_id, quantity, reference_type, reference_
         return None, str(e)
 
 
+def return_stock(product_id, warehouse_id, quantity, reference_type, reference_id, idempotency_key, request=None):
+    """Put returned units back into a warehouse."""
+    url = inventory_url("stock/return_to_stock/")
+    headers = _build_headers(request, idempotency_key)
+    payload = {
+        "product_id": product_id,
+        "warehouse_id": warehouse_id,
+        "quantity": quantity,
+        "reference_type": reference_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+    }
+    try:
+        return _parse_response(_post(url, payload, headers))
+    except requests.RequestException as e:
+        logger.error("return_stock failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
 def check_availability(product_id, warehouse_id, quantity, request=None):
     """Pre-check if stock is available before order creation."""
     url = inventory_url("stock/")

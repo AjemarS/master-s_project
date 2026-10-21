@@ -3,9 +3,12 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .delivery_api import nova_poshta_warehouses, ukrposhta_warehouses
+from .returns_views import ReturnRequestViewSet
 from .views import OrderViewSet
 
 router = DefaultRouter()
+# Before "orders": otherwise orders/{pk}/ would capture "returns" as an order id
+router.register(r"orders/returns", ReturnRequestViewSet, basename="return")
 router.register(r"orders", OrderViewSet, basename="order")
 
 urlpatterns = [

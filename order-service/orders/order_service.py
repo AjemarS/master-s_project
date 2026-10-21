@@ -8,6 +8,7 @@ import logging
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from orders.models import Order, OrderItem, OrderStatusHistory
 from orders.eventbus import publish_event
@@ -65,6 +66,7 @@ def create_order(serializer_data, items_data, channel, user_id):
                         quantity=item["quantity"],
                         price=item["price"],
                         cost_price=item.get("cost_price", Decimal("0.00")),
+                        warranty_months=item.get("warranty_months"),
                     )
                     for item in items_data
                 ]
@@ -113,6 +115,8 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
 
     with transaction.atomic():
         order.status = new_status
+        if new_status == Order.DELIVERED:
+            order.delivered_at = timezone.now()
         order.save()
         transaction.on_commit(lambda: publish_event("order.status_changed", build_order_event(order)))
         if new_status == Order.CANCELLED:

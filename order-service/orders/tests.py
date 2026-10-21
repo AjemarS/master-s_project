@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from . import order_service as svc
-from .models import Order, OrderItem, OrderStatusHistory
+from .models import Order, OrderItem, OrderStatusHistory, ReturnRequest
 
 User = get_user_model()
 
@@ -23,7 +23,7 @@ CATALOG_PRICE = Decimal("199.99")
 
 
 def _fake_catalog(product_ids):
-    return {pid: {"price": str(CATALOG_PRICE), "name": f"Catalog product {pid}"} for pid in product_ids}
+    return {pid: {"price": str(CATALOG_PRICE), "name": f"Catalog product {pid}", "warranty_months": 24} for pid in product_ids}
 
 
 # The catalog is product-service: every order created over the API gets its price from this stub
@@ -825,6 +825,7 @@ class CatalogPricingTest(APITestCase):
         self.assertEqual(item.price, CATALOG_PRICE)
         self.assertEqual(item.product_name, "Catalog product 1")
         self.assertEqual(item.cost_price, Decimal("120.50"))
+        self.assertEqual(item.warranty_months, 24)
         self.assertEqual(Order.objects.get().total_amount, CATALOG_PRICE * 2)
 
     @mock.patch("orders.serializers.get_catalog_items", return_value={})
@@ -845,3 +846,105 @@ class CatalogPricingTest(APITestCase):
             "shipping_cost": "-500.00", "items": [{"product_id": 1, "quantity": 1}],
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ReturnsAPITest(APITestCase):
+    """Returns (14 days) and warranty claims: eligibility, ownership and what each status change does."""
+
+    URL = "/api/orders/returns/"
+
+    def setUp(self):
+        self.buyer = User.objects.create_user("gw_1", "buyer@test.com", "pw")
+        self.admin = _create_admin_user()
+        self.order = _create_order(status=Order.DELIVERED, warehouse_id=3, delivered_at=timezone.now() - timedelta(days=2))
+        self.item = _create_order_item(self.order, quantity=2, price=Decimal("500.00"))
+        self.client.force_authenticate(user=self.buyer)
+
+    def _claim(self, kind="return", quantity=1, item=None):
+        return self.client.post(self.URL, {
+            "item_id": (item or self.item).pk, "kind": kind, "quantity": quantity, "reason": "Does not fit",
+        }, format="json")
+
+    def _set(self, ret_id, **body):
+        self.client.force_authenticate(user=self.admin)
+        return self.client.post(f"{self.URL}{ret_id}/status/", body, format="json")
+
+    def test_buyer_files_and_sees_own_claim(self):
+        response = self._claim()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], "submitted")
+        self.assertEqual([r["id"] for r in self.client.get(self.URL).data["results"]], [response.data["id"]])
+
+    def test_order_detail_route_still_works(self):
+        self.client.force_authenticate(user=self.admin)
+        self.assertEqual(self.client.get(f"/api/orders/{self.order.pk}/").status_code, status.HTTP_200_OK)
+
+    def test_someone_elses_order_is_not_found(self):
+        self.client.force_authenticate(user=User.objects.create_user("gw_2", "x@test.com", "pw"))
+        self.assertEqual(self._claim().status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.get(self.URL).data["results"], [])
+
+    def test_not_yet_delivered_order_cannot_be_claimed(self):
+        Order.objects.filter(pk=self.order.pk).update(status=Order.DELIVERING)
+        self.assertEqual(self._claim().status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_return_window_is_14_days_but_warranty_goes_on(self):
+        Order.objects.filter(pk=self.order.pk).update(delivered_at=timezone.now() - timedelta(days=20))
+        self.assertEqual(self._claim("return").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._claim("warranty").status_code, status.HTTP_201_CREATED)
+
+    def test_warranty_uses_the_months_snapshotted_at_sale(self):
+        OrderItem.objects.filter(pk=self.item.pk).update(warranty_months=1)
+        Order.objects.filter(pk=self.order.pk).update(delivered_at=timezone.now() - timedelta(days=40))
+        self.assertEqual(self._claim("warranty").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cannot_claim_more_units_than_bought(self):
+        self.assertEqual(self._claim(quantity=2).status_code, status.HTTP_201_CREATED)
+        self.assertEqual(self._claim(quantity=1).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_buyer_cannot_change_status(self):
+        ret_id = self._claim().data["id"]
+        response = self.client.post(f"{self.URL}{ret_id}/status/", {"status": "approved"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @mock.patch("orders.returns.stripe.Refund.create", return_value=mock.Mock(id="re_1"))
+    @mock.patch("orders.returns.return_stock", return_value=INVENTORY_OK)
+    def test_return_flow_restocks_and_refunds_through_stripe(self, restock, refund):
+        Order.objects.filter(pk=self.order.pk).update(stripe_payment_intent_id="pi_1")
+        ret_id = self._claim().data["id"]
+        self.assertEqual(self._set(ret_id, status="approved").status_code, status.HTTP_200_OK)
+        self.assertTrue(self._set(ret_id, status="received").data["restocked"])
+        restock.assert_called_once()
+        self.assertEqual(restock.call_args.kwargs["warehouse_id"], 3)
+        data = self._set(ret_id, status="resolved", resolution="refund").data
+        self.assertEqual(Decimal(data["refund_amount"]), Decimal("500.00"))
+        refund.assert_called_once_with(payment_intent="pi_1", amount=50000, idempotency_key=f"rma-{ret_id}")
+
+    @mock.patch("orders.returns.stripe.Refund.create")
+    def test_failed_refund_leaves_the_claim_unresolved(self, refund):
+        import stripe
+        refund.side_effect = stripe.error.StripeError("card gone")
+        Order.objects.filter(pk=self.order.pk).update(stripe_payment_intent_id="pi_1")
+        ret = ReturnRequest.objects.create(order=self.order, item=self.item, quantity=1, kind="warranty",
+                                           reason="x", status=ReturnRequest.RECEIVED)
+        self.assertEqual(self._set(ret.pk, status="resolved", resolution="refund").status_code, 502)
+        ret.refresh_from_db()
+        self.assertEqual(ret.status, ReturnRequest.RECEIVED)
+
+    def test_warranty_unit_is_not_restocked_by_default_and_repair_frees_the_units(self):
+        ret_id = self._claim("warranty", quantity=2).data["id"]
+        self._set(ret_id, status="approved")
+        self.assertFalse(self._set(ret_id, status="received").data["restocked"])
+        self.assertEqual(self._set(ret_id, status="resolved", resolution="repair").status_code, status.HTTP_200_OK)
+        self.client.force_authenticate(user=self.buyer)
+        self.assertEqual(self._claim("warranty", quantity=2).status_code, status.HTTP_201_CREATED)
+
+    def test_return_cannot_be_resolved_by_repair_and_rejection_needs_a_comment(self):
+        ret_id = self._claim().data["id"]
+        self.assertEqual(self._set(ret_id, status="rejected").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._set(ret_id, status="rejected", comment="Used item").status_code, status.HTTP_200_OK)
+        self.client.force_authenticate(user=self.buyer)
+        self.assertEqual(self._claim().status_code, status.HTTP_201_CREATED)  # rejected units are claimable again
+        ret = ReturnRequest.objects.filter(status=ReturnRequest.SUBMITTED).get()
+        ReturnRequest.objects.filter(pk=ret.pk).update(status=ReturnRequest.RECEIVED)
+        self.assertEqual(self._set(ret.pk, status="resolved", resolution="repair").status_code, status.HTTP_400_BAD_REQUEST)

@@ -532,6 +532,15 @@ class DeductBatchTest(APITestCase):
         self.assertEqual(self._deduct(items).status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(self._levels(self.a), (3, 0))
 
+    def test_return_to_stock_adds_units_once(self):
+        body = {"product_id": 1, "warehouse_id": self.warehouse.pk, "quantity": 2,
+                "reference_type": "return", "reference_id": "9", "idempotency_key": "return-9"}
+        self.assertEqual(self.client.post("/api/stock/return_to_stock/", body, format="json").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.post("/api/stock/return_to_stock/", body, format="json").status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(self._levels(self.a), (7, 0))
+        movement = StockMovement.objects.get(type=StockMovement.RETURN)
+        self.assertEqual((movement.to_warehouse_id, movement.from_warehouse_id), (self.warehouse.pk, None))
+
     def test_deduct_reports_unit_cost_of_goods_sold(self):
         Stock.objects.filter(pk=self.a.pk).update(average_cost=Decimal("123.45"))
         response = self._deduct([{"product_id": 1, "quantity": 2}])

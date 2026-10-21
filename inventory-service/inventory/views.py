@@ -36,7 +36,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-def _stock_action(request, serializer_cls, movement_type, check_and_update, post_action=None):
+def _stock_action(request, serializer_cls, movement_type, check_and_update, post_action=None, inbound=False):
     serializer = serializer_cls(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -68,7 +68,8 @@ def _stock_action(request, serializer_cls, movement_type, check_and_update, post
 
         StockMovement.objects.create(
             product_id=product_id,
-            from_warehouse_id=warehouse_id,
+            # Goods coming in (a customer return) land in the warehouse rather than leave it
+            **({"to_warehouse_id": warehouse_id} if inbound else {"from_warehouse_id": warehouse_id}),
             quantity=quantity,
             type=movement_type,
             reference_type=reference_type,
@@ -170,7 +171,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("reserve", "deduct", "deduct_batch", "release"):
+        if self.action in ("reserve", "deduct", "deduct_batch", "release", "return_to_stock"):
             return [IsAuthenticated()]
         if self.action in ("transfer", "adjust", "movements"):
             return [IsAdminOrWarehouseWorker()]
@@ -196,6 +197,21 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             logger.info("Stock released | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
 
         return _stock_action(request, ReserveStockSerializer, StockMovement.RELEASE, check_and_update)
+
+    @action(detail=False, methods=["post"])
+    def return_to_stock(self, request):
+        """A returned unit goes back on the shelf (service call from order-service returns)."""
+        def check_and_update(stock, product_id, warehouse_id, quantity):
+            Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(quantity=F("quantity") + quantity)
+            logger.info("Stock returned | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
+
+        def publish(product_id, warehouse_id, quantity, stock):
+            transaction.on_commit(lambda: publish_event("inventory.stock.changed", {
+                "event_id": str(uuid4()), "product_id": product_id, "warehouse_id": warehouse_id,
+                "quantity": stock.quantity, "change": quantity,
+            }))
+
+        return _stock_action(request, ReserveStockSerializer, StockMovement.RETURN, check_and_update, publish, inbound=True)
 
     @action(detail=False, methods=["post"])
     def deduct(self, request):

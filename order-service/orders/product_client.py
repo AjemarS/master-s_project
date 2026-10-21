@@ -15,7 +15,7 @@ class CatalogUnavailable(Exception):
 
 def get_catalog_items(product_ids):
     """
-    {product_id: {"price": Decimal-able str, "name": str}} for the products that exist.
+    {product_id: {"price": Decimal-able str, "name": str, "warranty_months": int | None}} for the products that exist.
     Unknown ids are left out; any transport or 5xx error raises CatalogUnavailable.
     """
     # shortcut: one GET per distinct product; an order has a handful, switch to ?ids= once product-service on main has it
@@ -32,5 +32,9 @@ def get_catalog_items(product_ids):
             logger.error("get_catalog_items: product %s returned HTTP %s", pid, resp.status_code)
             raise CatalogUnavailable(f"HTTP {resp.status_code}")
         body = resp.json()
-        found[pid] = {"price": str(body["price"]), "name": body.get("name", "")}
+        found[pid] = {
+            "price": str(body["price"]),
+            "name": body.get("name", ""),
+            "warranty_months": body.get("warranty_months"),
+        }
     return found

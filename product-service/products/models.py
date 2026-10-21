@@ -91,6 +91,10 @@ class Product(models.Model):
         verbose_name="Рейтинг",
     )
     specs = models.JSONField(default=dict, verbose_name="Специфікації")
+    # Seller's warranty; order-service snapshots it per sale for warranty claims
+    warranty_months = models.PositiveSmallIntegerField(
+        default=12, validators=[MaxValueValidator(120)], verbose_name="Гарантія, міс."
+    )
     slug = models.SlugField(
         max_length=200, unique=True, blank=True, verbose_name="URL-ідентифікатор"
     )

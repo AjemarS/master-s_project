@@ -5,7 +5,7 @@ from decimal import Decimal
 from rest_framework import serializers
 from rest_framework.exceptions import APIException, ValidationError
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, ReturnRequest
 from .inventory_client import check_availability
 from .product_client import CatalogUnavailable, get_catalog_items
 
@@ -32,6 +32,7 @@ def _apply_catalog_prices(data):
         product = catalog[item["product_id"]]
         item["price"] = Decimal(product["price"])
         item["product_name"] = product["name"] or item.get("product_name", "")
+        item["warranty_months"] = product.get("warranty_months")
         # Filled in from inventory's weighted-average cost when the stock is written off
         item["cost_price"] = Decimal("0.00")
 
@@ -65,7 +66,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "product_name",
             "quantity",
             "price",
-            "cost_price",
+            # cost_price is the store's purchase cost: never shown to customers
+            "warranty_months",
             "created_at",
         ]
         read_only_fields = ["created_at", "order"]
@@ -114,6 +116,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "status",
             "payment_status",
             "paid_at",
+            "delivered_at",
             "warehouse_id",
             "delivery_method",
             "shipping_city",
@@ -203,3 +206,33 @@ class POSOrderSerializer(serializers.Serializer):
         _apply_catalog_prices(data)
         _validate_stock(data)
         return data
+
+
+class ReturnRequestSerializer(serializers.ModelSerializer):
+    order_number = serializers.CharField(source="order.order_number", read_only=True)
+    product_id = serializers.IntegerField(source="item.product_id", read_only=True)
+    product_name = serializers.CharField(source="item.product_name", read_only=True)
+    unit_price = serializers.DecimalField(source="item.price", max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ReturnRequest
+        fields = [
+            "id", "order", "order_number", "item", "product_id", "product_name", "unit_price",
+            "quantity", "kind", "reason", "status", "resolution", "refund_amount", "restocked",
+            "admin_comment", "created_at", "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class ReturnCreateSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField()
+    kind = serializers.ChoiceField(choices=ReturnRequest.KIND_CHOICES)
+    quantity = serializers.IntegerField(min_value=1, default=1)
+    reason = serializers.CharField(max_length=2000)
+
+
+class ReturnStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ReturnRequest.STATUS_CHOICES)
+    resolution = serializers.ChoiceField(choices=ReturnRequest.RESOLUTION_CHOICES, required=False, default="")
+    restock = serializers.BooleanField(required=False, allow_null=True, default=None)
+    comment = serializers.CharField(required=False, allow_blank=True, default="", max_length=2000)

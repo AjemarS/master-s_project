@@ -104,7 +104,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "price", "original_price",
             "image_url", "stock", "in_stock",
             "features", "specs", "rating",
-            "brand", "color", "is_on_sale",
+            "brand", "color", "is_on_sale", "warranty_months",
             "created_at", "updated_at",
         ]
         read_only_fields = ["slug", "in_stock", "is_on_sale", "created_at", "updated_at"]
