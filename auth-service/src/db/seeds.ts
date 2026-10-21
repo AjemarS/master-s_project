@@ -57,6 +57,9 @@ export async function seedAdminUser() {
 }
 
 export async function seedNonAdminUsers() {
+  // Demo staff accounts share a known password: never in production unless asked for (e.g. staging)
+  if (process.env.NODE_ENV === "production" && process.env.SEED_DEMO_USERS !== "true") return;
+
   const seedUsers = [
     { name: "Cashier", email: "cashier@techhub.local", role: "cashier" },
     { name: "Warehouse Worker", email: "warehouse@techhub.local", role: "warehouse_worker" },
