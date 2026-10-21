@@ -58,6 +58,10 @@ class Stock(models.Model):
     average_cost = models.DecimalField(
         max_digits=12, decimal_places=2, default=0, verbose_name="Середня собівартість"
     )
+    # Reorder when available stock (on hand minus reserved) drops to this; 0 turns reordering off
+    reorder_point = models.PositiveIntegerField(default=0, verbose_name="Точка дозамовлення")
+    # How much to bring the stock above the reorder point with one order
+    reorder_quantity = models.PositiveIntegerField(default=0, verbose_name="Партія дозамовлення")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
 
@@ -148,6 +152,60 @@ class StockMovement(models.Model):
         return f"{self.get_type_display()} | Product {self.product_id} x{self.quantity}"
 
 
+class PurchaseOrder(models.Model):
+    """What the store asked a supplier to deliver; goods receipt notes record what actually arrived."""
+
+    DRAFT = "draft"
+    SENT = "sent"
+    PARTIAL = "partially_received"
+    RECEIVED = "received"
+    CANCELLED = "cancelled"
+    STATUS_CHOICES = [
+        (DRAFT, "Чернетка"),
+        (SENT, "Надіслано постачальнику"),
+        (PARTIAL, "Отримано частково"),
+        (RECEIVED, "Отримано"),
+        (CANCELLED, "Скасовано"),
+    ]
+    # Statuses whose undelivered quantities still count as "on order"
+    OPEN = (SENT, PARTIAL)
+
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="purchase_orders", verbose_name="Постачальник")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="purchase_orders", verbose_name="Склад")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=DRAFT, verbose_name="Статус")
+    expected_date = models.DateField(null=True, blank=True, verbose_name="Очікувана дата")
+    notes = models.TextField(blank=True, verbose_name="Примітки")
+    created_by = models.CharField(max_length=255, blank=True, verbose_name="Створено користувачем")
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name="Надіслано")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+
+    class Meta:
+        verbose_name = "Замовлення постачальнику"
+        verbose_name_plural = "Замовлення постачальникам"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status"])]
+
+    def __str__(self):
+        return f"PO #{self.pk} - {self.supplier.name}"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name="items", verbose_name="Замовлення")
+    product_id = models.IntegerField(verbose_name="ID товару")
+    quantity = models.PositiveIntegerField(verbose_name="Замовлено")
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Очікувана ціна закупівлі")
+    received_quantity = models.PositiveIntegerField(default=0, verbose_name="Отримано")
+
+    class Meta:
+        verbose_name = "Позиція замовлення постачальнику"
+        verbose_name_plural = "Позиції замовлень постачальникам"
+        unique_together = [("purchase_order", "product_id")]
+
+    def __str__(self):
+        return f"PO {self.purchase_order_id}: product {self.product_id} {self.received_quantity}/{self.quantity}"
+
+
 class GoodsReceiptNote(models.Model):
     supplier = models.ForeignKey(
         Supplier,
@@ -160,6 +218,11 @@ class GoodsReceiptNote(models.Model):
         on_delete=models.CASCADE,
         related_name="goods_receipts",
         verbose_name="Склад",
+    )
+    # The order this delivery fulfils, if any; receiving it updates the order's received quantities
+    purchase_order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="goods_receipts", verbose_name="Замовлення постачальнику",
     )
     receipt_date = models.DateField(verbose_name="Дата оприбуткування")
     reference_number = models.CharField(

@@ -16,7 +16,8 @@ from rest_framework.response import Response
 
 from .eventbus import publish_event, _check_and_publish_low_stock
 from .filters import StockFilter, StockMovementFilter
-from .models import ActivityEvent, GoodsReceiptItem, GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
+from .models import ActivityEvent, GoodsReceiptItem, GoodsReceiptNote, PurchaseOrder, Stock, StockMovement, Supplier, Warehouse
+from .purchasing import receive_against_order, reorder_suggestions
 from shared_auth.permissions import IsAdminOrWarehouseWorker
 from .serializers import (
     ActivityEventSerializer,
@@ -26,6 +27,9 @@ from .serializers import (
     GoodsReceiptNoteCreateSerializer,
     GoodsReceiptNoteSerializer,
     ProductInfoInputSerializer,
+    PurchaseOrderSerializer,
+    PurchaseOrderStatusSerializer,
+    ReorderSettingsSerializer,
     ReserveStockSerializer,
     StockMovementSerializer,
     StockSerializer,
@@ -173,9 +177,26 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             return [IsAuthenticatedOrReadOnly()]
         if self.action in ("reserve", "deduct", "deduct_batch", "release", "return_to_stock"):
             return [IsAuthenticated()]
-        if self.action in ("transfer", "adjust", "movements"):
+        if self.action in ("transfer", "adjust", "movements", "reorder", "reorder_suggestions"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
+
+    @action(detail=True, methods=["patch"])
+    def reorder(self, request, pk=None):
+        """Set when (reorder_point) and how much (reorder_quantity) to reorder this stock line."""
+        stock = self.get_object()
+        data = ReorderSettingsSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        Stock.objects.filter(pk=stock.pk).update(**data.validated_data)
+        stock.refresh_from_db()
+        return Response(StockSerializer(stock, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"], url_path="reorder-suggestions")
+    def reorder_suggestions(self, request):
+        warehouse_id = request.query_params.get("warehouse_id")
+        if warehouse_id and not warehouse_id.isdigit():
+            raise ValidationError({"warehouse_id": "Expected an integer"})
+        return Response(reorder_suggestions(int(warehouse_id) if warehouse_id else None))
 
     @action(detail=False, methods=["post"])
     def reserve(self, request):
@@ -605,11 +626,13 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             "current_stock": current_stock,
         })
 
+    @transaction.atomic
     def perform_create(self, serializer):
+        # One transaction: a delivery that does not match its purchase order leaves no stock behind
         instance = serializer.save()
 
         for item in instance.items.all():
-            stock, _ = Stock.objects.get_or_create(
+            stock, _ = Stock.objects.select_for_update().get_or_create(
                 product_id=item.product_id,
                 warehouse=instance.warehouse,
                 defaults={"quantity": 0},
@@ -675,6 +698,9 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
                     },
                 )
             )
+        if instance.purchase_order_id:
+            po = receive_against_order(instance, instance.purchase_order)
+            logger.info("GRN %s received against PO %s -> %s", instance.pk, po.pk, po.status)
         logger.info("GRN created | id=%s supplier=%s", instance.pk, instance.supplier.name)
 
 class ActivityEventViewSet(viewsets.ModelViewSet):
@@ -714,3 +740,49 @@ def health_check(request):
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    """Purchase orders: drafted by staff, sent or cancelled by an admin, received through goods receipts."""
+
+    queryset = PurchaseOrder.objects.select_related("supplier", "warehouse").prefetch_related("items")
+    serializer_class = PurchaseOrderSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["status", "supplier", "warehouse"]
+    ordering_fields = ["created_at", "expected_date"]
+    ordering = ["-created_at"]
+
+    def get_permissions(self):
+        if self.action == "set_status":
+            return [IsAdminUser()]
+        return [IsAdminOrWarehouseWorker()]
+
+    def perform_create(self, serializer):
+        po = serializer.save(created_by=getattr(self.request.user, "username", ""))
+        logger.info("PO created | id=%s supplier=%s items=%d", po.pk, po.supplier_id, po.items.count())
+
+    def perform_update(self, serializer):
+        if serializer.instance.status != PurchaseOrder.DRAFT:
+            raise ValidationError({"status": "Only a draft can be edited."})
+        serializer.save()
+
+    @action(detail=True, methods=["post"], url_path="status")
+    def set_status(self, request, pk=None):
+        po = self.get_object()
+        data = PurchaseOrderStatusSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        new = data.validated_data["status"]
+        allowed = {
+            PurchaseOrder.SENT: (PurchaseOrder.DRAFT,),
+            # Cancelling a partly delivered order closes what is still missing
+            PurchaseOrder.CANCELLED: (PurchaseOrder.DRAFT, PurchaseOrder.SENT, PurchaseOrder.PARTIAL),
+        }[new]
+        if po.status not in allowed:
+            return Response({"error": f"Cannot move order from {po.status} to {new}"}, status=status.HTTP_400_BAD_REQUEST)
+        po.status = new
+        if new == PurchaseOrder.SENT:
+            po.sent_at = timezone.now()
+        po.save(update_fields=["status", "sent_at", "updated_at"])
+        logger.info("PO %s -> %s", po.pk, new)
+        return Response(PurchaseOrderSerializer(po).data)

@@ -4,11 +4,15 @@ from .models import (
     ActivityEvent,
     GoodsReceiptItem,
     GoodsReceiptNote,
+    PurchaseOrder,
+    PurchaseOrderItem,
     Stock,
     StockMovement,
     Supplier,
     Warehouse,
 )
+from shared_auth.permissions import IsAdminOrWarehouseWorker
+
 from .validators import validate_product_exists
 
 
@@ -58,10 +62,26 @@ class StockSerializer(serializers.ModelSerializer):
             "quantity",
             "reserved",
             "available",
+            "reorder_point",
+            "reorder_quantity",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "reserved"]
+        read_only_fields = ["created_at", "updated_at", "reserved", "reorder_point", "reorder_quantity"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Stock levels are public, purchasing plans are not
+        request = self.context.get("request")
+        if not (request and IsAdminOrWarehouseWorker().has_permission(request, None)):
+            data.pop("reorder_point")
+            data.pop("reorder_quantity")
+        return data
+
+
+class ReorderSettingsSerializer(serializers.Serializer):
+    reorder_point = serializers.IntegerField(min_value=0, max_value=100000)
+    reorder_quantity = serializers.IntegerField(min_value=0, max_value=100000)
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
@@ -124,6 +144,7 @@ class GoodsReceiptNoteSerializer(serializers.ModelSerializer):
             "supplier_name",
             "warehouse",
             "warehouse_name",
+            "purchase_order",
             "receipt_date",
             "reference_number",
             "notes",
@@ -147,6 +168,7 @@ class GoodsReceiptNoteCreateSerializer(serializers.ModelSerializer):
         fields = [
             "supplier",
             "warehouse",
+            "purchase_order",
             "receipt_date",
             "reference_number",
             "notes",
@@ -252,3 +274,69 @@ class ActivityEventSerializer(serializers.ModelSerializer):
             "user_email",
             "created_at",
         ]
+
+
+class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+    remaining_quantity = serializers.SerializerMethodField()
+
+    def validate_product_id(self, value):
+        validate_product_exists(value)
+        return value
+
+    def get_remaining_quantity(self, obj):
+        return obj.quantity - obj.received_quantity
+
+    class Meta:
+        model = PurchaseOrderItem
+        fields = ["id", "product_id", "quantity", "unit_cost", "received_quantity", "remaining_quantity"]
+        read_only_fields = ["received_quantity"]
+        extra_kwargs = {"quantity": {"min_value": 1}, "unit_cost": {"min_value": 0}}
+
+
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    """Create and edit a draft; items are replaced as a whole on update."""
+
+    items = PurchaseOrderItemSerializer(many=True)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+    total_amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            "id", "supplier", "supplier_name", "warehouse", "warehouse_name", "status",
+            "expected_date", "notes", "items", "total_amount", "created_by", "sent_at",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["status", "created_by", "sent_at", "created_at", "updated_at"]
+
+    def get_total_amount(self, obj):
+        return str(sum(i.quantity * i.unit_cost for i in obj.items.all()))
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one item is required.")
+        ids = [i["product_id"] for i in value]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("Each product can appear only once.")
+        return value
+
+    def create(self, validated_data):
+        items = validated_data.pop("items")
+        po = PurchaseOrder.objects.create(**validated_data)
+        PurchaseOrderItem.objects.bulk_create(PurchaseOrderItem(purchase_order=po, **i) for i in items)
+        return po
+
+    def update(self, instance, validated_data):
+        items = validated_data.pop("items", None)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+        if items is not None:
+            instance.items.all().delete()
+            PurchaseOrderItem.objects.bulk_create(PurchaseOrderItem(purchase_order=instance, **i) for i in items)
+        return instance
+
+
+class PurchaseOrderStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=[PurchaseOrder.SENT, PurchaseOrder.CANCELLED])
