@@ -108,4 +108,4 @@ app/
 - **Status:** Coverage and pass rate undocumented
 
 ## Known Issues
-- None tracked here; UX and a11y findings are in `BAD_UX.md`
+- None tracked. The UX/a11y review (BAD_UX.md) was worked through and removed; its fixes are in the git history.

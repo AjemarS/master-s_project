@@ -41,30 +41,33 @@ docker run --rm nginx-test nginx -t
 5. If allowed: njs strips original `X-User-*` headers (security), injects `X-Gateway-User-*` headers
 6. Downstream Django services trust `X-Gateway-User-*` via `GatewayAuthentication`
 
-### RBAC Matrix (in `nginx/auth.js`)
+### RBAC Matrix (gateway `nginx/auth.js` + service permissions)
 | Resource | Anonymous | User | Cashier | Warehouse Worker | Admin |
 |----------|:---------:|:----:|:-------:|:----------------:|:-----:|
-| Catalog (GET) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Cart (all) | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Orders (create) | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Orders (pay, `POST /api/orders/{id}/pay/`) | ✅* | ✅* | ❌ | ❌ | ✅ |
-| Orders (view own) | ❌ | ✅ | ✅ | ❌ | ✅ |
-| Orders (status change) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| POS (create) | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Warehouses/Stock | ❌ | ❌ | ❌ | ✅ | ✅ |
-| GRN create | ❌ | ❌ | ❌ | ✅ | ✅ |
-| Suppliers CRUD | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Product/Category write | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Review (POST `/api/products/{id}/reviews/`) | ❌ | ✅* | ✅* | ✅* | ✅ |
-| Review moderation (`/api/reviews/{id}/`) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Returns (file own / process) | ❌ | ✅ / ❌ | ❌ | ❌ | ✅ |
+| Catalog, warehouses, stock levels (read) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cart | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Online order (create) | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Pay for an order (`/api/orders/{id}/pay/`) | ✅ ¹ | ✅ ¹ | ❌ | ❌ | ✅ |
+| Orders (view) | ❌ | own | own | own | all |
+| Order status change | ❌ | ❌ | ❌ | ❌ | ✅ |
+| POS sale | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Return / warranty claim (file) | ❌ | ✅ (own orders) | ❌ | ❌ | ✅ |
+| Return / warranty claim (process) | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Review (write) | ❌ | ✅ ² | ❌ | ❌ | ✅ ² |
+| Review moderation, promo codes | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Stock movements, adjust, transfer | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Suppliers (read) / GRN / purchase orders (draft, receive) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Suppliers (write), purchase order send/cancel | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Catalog and category write | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Reports, users, audit log | ❌ | ❌ | ❌ | ❌ | ✅ |
 
-\* any signed-in user passes the gateway; product-service accepts only buyers who received the product.
-| Users manage | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Reports | ❌ | ❌ | ❌ | ❌ | ✅ |
+¹ The signed-in owner, or a guest with the order's `pay_token`; anyone else gets 404.
+² Only buyers who received the product (product-service asks order-service).
+
+Measured on the running stack (gateway + services) with the seeded accounts, 2026-10-21.
 
 ### `proxy_intercept_errors on` (Auth-Check)
-`/auth-check` returns HTTP 200 even when auth-service is unreachable (empty headers → anonymous). This silences auth-service outages.
+`/auth-check` maps auth-service 400/401/403/404/500/503/504 to 200 with empty headers (the caller is anonymous). A connection failure (502) is not mapped: with auth-service down every `/api/*` request fails with 500, so an outage never turns signed-in users into anonymous ones (checked by stopping auth-service).
 
 ## CORS (nginx/cors.js)
 - `checkOrigin(r)` — validates `Origin` against allowed list (localhost:3000, FRONTEND_URL, auth-service dev ports)

@@ -393,7 +393,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
         return;
       }
       if (user) await saveDetails();
-      // Straight to payment: no modal between "pay" and Stripe (BAD_UX C1)
+      // Straight to payment: a modal here would interrupt a buyer who already chose to pay
       window.location.assign(pay.data.checkout_url);
     } catch (err) {
       toast.error(tCommon("error"), {

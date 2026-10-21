@@ -56,7 +56,7 @@ export default function ProductsPageContent() {
   const [priceMax, setPriceMax] = React.useState(100000);
   const [filterOpen, setFilterOpen] = React.useState(false);
 
-  // Filters, sort and page live in the URL (BAD_UX H1): Back works, links are shareable
+  // Filters, sort and page live in the URL: Back works, links are shareable
   const numParam = (key: string) => {
     const n = Number(searchParams.get(key) ?? "");
     return searchParams.has(key) && Number.isFinite(n) ? n : null;

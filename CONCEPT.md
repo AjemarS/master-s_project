@@ -106,24 +106,34 @@ Routes processed by `nginx/auth.js` `checkAndProxy`:
 - **Anonymous**: read-only, except cart routes and order creation
 - **Authenticated**: role-based access
 - **Admin**: full access
-- **Cashier**: POS + order creation
-- **Warehouse Worker**: goods-receipts, stock transfers
+- **Cashier**: POS sales (not online orders)
+- **Warehouse Worker**: goods receipts, purchase orders, stock movements and transfers
 
 ### 2.3 RBAC Matrix
 
-| Resource | User | Cashier | Warehouse Worker | Admin |
-|----------|:----:|:-------:|:----------------:|:-----:|
-| Catalog (read) | ✅ | ✅ | ✅ | ✅ |
-| Cart | ✅ | ❌ | ❌ | ❌ |
-| Orders (create) | ✅ (own) | ✅ (POS) | ❌ | ✅ |
-| Orders (view) | ✅ (own) | ✅ (own POS) | ❌ | ✅ (all) |
-| Orders (status change) | ❌ | ❌ | ❌ | ✅ |
-| Warehouses (view) | ❌ | ❌ | ✅ | ✅ |
-| Goods Receipts (GRN) | ❌ | ❌ | ✅ | ✅ |
-| Suppliers | ❌ | ❌ | ❌ | ✅ |
-| Catalog (edit) | ❌ | ❌ | ❌ | ✅ |
-| Users (manage) | ❌ | ❌ | ❌ | ✅ |
-| Reports | ❌ | ❌ | ❌ | ✅ |
+| Resource | Anonymous | User | Cashier | Warehouse Worker | Admin |
+|----------|:---------:|:----:|:-------:|:----------------:|:-----:|
+| Catalog, warehouses, stock levels (read) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cart | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Online order (create) | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Pay for an order (`/api/orders/{id}/pay/`) | ✅ ¹ | ✅ ¹ | ❌ | ❌ | ✅ |
+| Orders (view) | ❌ | own | own | own | all |
+| Order status change | ❌ | ❌ | ❌ | ❌ | ✅ |
+| POS sale | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Return / warranty claim (file) | ❌ | ✅ (own orders) | ❌ | ❌ | ✅ |
+| Return / warranty claim (process) | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Review (write) | ❌ | ✅ ² | ❌ | ❌ | ✅ ² |
+| Review moderation, promo codes | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Stock movements, adjust, transfer | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Suppliers (read) / GRN / purchase orders (draft, receive) | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Suppliers (write), purchase order send/cancel | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Catalog and category write | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Reports, users, audit log | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+¹ The signed-in owner, or a guest with the order's `pay_token`; anyone else gets 404.
+² Only buyers who received the product (product-service asks order-service).
+
+Measured on the running stack (gateway + services) with the seeded accounts, 2026-10-21.
 
 ---
 
@@ -384,7 +394,7 @@ Critical multi-service operations use Saga:
 | GET | `/api/orders/` | Order list (filter: `?status=&channel=`) |
 | POST | `/api/orders/` | Create order (checkout/POS) |
 | GET | `/api/orders/{id}/` | Order detail |
-| PATCH | `/api/orders/{id}/` | Update status |
+| PATCH | `/api/orders/{id}/status/` | Update status |
 | GET | `/api/orders/my/` | Current user's orders |
 | POST | `/api/orders/pos/` | POS sale |
 | GET | `/api/reports/sales/` | Sales report |
@@ -466,7 +476,7 @@ Network: microservices_network (bridge)
 ### 9.2 Key Nginx Config Points
 
 - Route order: prefix matches must come before `/{path}`
-- `/auth-check` internal location (returns 502 on auth-service failure — fail-closed; other errors return 200 for anonymous fallback)
+- `/auth-check` internal location: auth-service unreachable → API requests fail with 500 (fail-closed); its 4xx/5xx answers map to 200 = anonymous
 - All API routes go through `auth_request /auth-check` + `js_content auth.checkAndProxy`
 - CORS: njs-driven `checkOrigin`, server-level `add_header` for all responses
 - WebSocket support for frontend HMR

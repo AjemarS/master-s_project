@@ -89,7 +89,8 @@ export default async function HomePage() {
             {/* LEFT: Image that bleeds (hidden on mobile) */}
             <div className="relative hidden overflow-visible lg:block">
               <FadeIn delay={0.1} direction="left" distance={60}>
-                <div className="relative -ml-[20%] w-[130%] aspect-[5/4] overflow-hidden rounded-2xl border shadow-xl shadow-primary/10">
+                {/* Bleeds off the left edge only: -30% + 130% keeps the right edge on the column (it used to cover the heading) */}
+                <div className="relative -ml-[30%] w-[130%] aspect-[5/4] overflow-hidden rounded-2xl border shadow-xl shadow-primary/10">
                   <div className="absolute inset-0 z-10 bg-linear-to-tr from-primary/20 via-transparent to-transparent" />
                   <Image
                     alt="" // decorative: the heading next to it already says what the page is
