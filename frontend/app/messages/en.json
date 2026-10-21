@@ -325,7 +325,9 @@
     "stockInvalidChange": "Enter a valid quantity change",
     "stockUpdated": "Stock updated",
     "stockUpdateFailed": "Could not update the stock",
-    "eventStockAdjusted": "Stock of “{name}”: {from} → {to}"
+    "eventStockAdjusted": "Stock of “{name}”: {from} → {to}",
+    "addedToWishlist": "Added to wishlist",
+    "removedFromWishlist": "Removed from wishlist"
   },
   "orders": {
     "title": "Orders",
@@ -391,7 +393,10 @@
     "statusChanged": "Order #{id} status changed to {status}",
     "statusUpdateError": "Failed to update status",
     "confirmStatusTitle": "Change Order Status",
-    "confirmStatusDesc": "Are you sure you want to change Order #{id} status to {status}?"
+    "confirmStatusDesc": "Are you sure you want to change Order #{id} status to {status}?",
+    "cancelOrderNamed": "Cancel order {id}",
+    "hideDetails": "Hide details",
+    "showDetails": "Show details"
   },
   "pos": {
     "title": "POS Terminal",
@@ -425,7 +430,9 @@
     "stockUnavailable": "Stock data unavailable for this warehouse",
     "confirmSaleTitle": "Complete Sale",
     "confirmSaleDesc": "Review the receipt before finalizing the sale.",
-    "confirmSale": "Confirm Sale"
+    "confirmSale": "Confirm Sale",
+    "hintSelectWarehouse": "Choose a warehouse to make the sale",
+    "hintAddItems": "Add items to the receipt"
   },
   "cart": {
     "title": "Your Cart",
@@ -527,7 +534,12 @@
     "promoApply": "Apply",
     "promoRemove": "Remove promo code",
     "promoInvalid": "This promo code does not apply",
-    "promoDiscount": "Promo {code}"
+    "promoDiscount": "Promo {code}",
+    "step_empty": "not filled",
+    "step_partial": "partly filled",
+    "step_filled": "done",
+    "step_error": "has an error",
+    "stepsLabel": "Checkout steps"
   },
   "orderDetail": {
     "title": "Order #{id}",
@@ -581,7 +593,9 @@
     "createButton": "Create Category",
     "creatingButton": "Creating...",
     "createdSuccess": "Category created",
-    "createdDesc": "Category \"{name}\" created."
+    "createdDesc": "Category \"{name}\" created.",
+    "editNamed": "Edit “{name}”",
+    "deleteNamed": "Delete “{name}”"
   },
   "warehouses": {
     "title": "Warehouses & Stock",

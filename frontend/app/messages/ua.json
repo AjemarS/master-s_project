@@ -325,7 +325,9 @@
     "stockInvalidChange": "Вкажіть коректну зміну кількості",
     "stockUpdated": "Залишок оновлено",
     "stockUpdateFailed": "Не вдалося оновити залишок",
-    "eventStockAdjusted": "Залишок «{name}»: {from} → {to}"
+    "eventStockAdjusted": "Залишок «{name}»: {from} → {to}",
+    "addedToWishlist": "Додано до обраного",
+    "removedFromWishlist": "Прибрано з обраного"
   },
   "orders": {
     "title": "Керування замовленнями",
@@ -391,7 +393,10 @@
     "statusChanged": "Статус замовлення #{id} змінено на {status}",
     "statusUpdateError": "Не вдалося оновити статус",
     "confirmStatusTitle": "Зміна статусу замовлення",
-    "confirmStatusDesc": "Ви впевнені, що хочете змінити статус замовлення #{id} на «{status}»?"
+    "confirmStatusDesc": "Ви впевнені, що хочете змінити статус замовлення #{id} на «{status}»?",
+    "cancelOrderNamed": "Скасувати замовлення {id}",
+    "hideDetails": "Сховати деталі",
+    "showDetails": "Показати деталі"
   },
   "pos": {
     "title": "POS-термінал",
@@ -425,7 +430,9 @@
     "stockUnavailable": "Дані про залишки для цього складу недоступні",
     "confirmSaleTitle": "Завершити продаж",
     "confirmSaleDesc": "Перевірте чек перед завершенням продажу.",
-    "confirmSale": "Підтвердити продаж"
+    "confirmSale": "Підтвердити продаж",
+    "hintSelectWarehouse": "Оберіть склад, щоб провести продаж",
+    "hintAddItems": "Додайте товари в чек"
   },
   "cart": {
     "title": "Кошик",
@@ -527,7 +534,12 @@
     "promoApply": "Застосувати",
     "promoRemove": "Прибрати промокод",
     "promoInvalid": "Промокод не підходить",
-    "promoDiscount": "Знижка за промокодом {code}"
+    "promoDiscount": "Знижка за промокодом {code}",
+    "step_empty": "не заповнено",
+    "step_partial": "частково",
+    "step_filled": "заповнено",
+    "step_error": "є помилка",
+    "stepsLabel": "Кроки оформлення"
   },
   "orderDetail": {
     "title": "Замовлення #{id}",
@@ -581,7 +593,9 @@
     "createButton": "Створити",
     "creatingButton": "Створення...",
     "createdSuccess": "Категорію створено",
-    "createdDesc": "Категорію \"{name}\" створено."
+    "createdDesc": "Категорію \"{name}\" створено.",
+    "editNamed": "Редагувати «{name}»",
+    "deleteNamed": "Видалити «{name}»"
   },
   "warehouses": {
     "title": "Склади та залишки",

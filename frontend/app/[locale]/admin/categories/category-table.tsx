@@ -78,13 +78,14 @@ export function CategoryTable({ categories, onEdit, onDelete, isLoading }: Categ
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" onClick={() => onEdit(cat)}>
+                            <Button size="sm" variant="outline" onClick={() => onEdit(cat)} aria-label={t("editNamed", { name: cat.name })}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="destructive"
                               onClick={() => onDelete(cat)}
+                              aria-label={t("deleteNamed", { name: cat.name })}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -105,13 +106,14 @@ export function CategoryTable({ categories, onEdit, onDelete, isLoading }: Categ
                           </TableCell>
                           <TableCell>
                             <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => onEdit(child)}>
+                              <Button size="sm" variant="outline" onClick={() => onEdit(child)} aria-label={t("editNamed", { name: child.name })}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
                                 onClick={() => onDelete(child)}
+                                aria-label={t("deleteNamed", { name: child.name })}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

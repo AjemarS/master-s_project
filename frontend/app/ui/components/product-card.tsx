@@ -110,7 +110,10 @@ export const ProductCard = React.memo(function ProductCard({
           <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
             <button
               type="button"
-              onClick={() => toggleItem(product.id)}
+              onClick={() => {
+                toggleItem(product.id);
+                toast.success(inWishlist ? t("removedFromWishlist") : t("addedToWishlist"));
+              }}
               aria-pressed={inWishlist}
               aria-label={inWishlist ? t("removeFromWishlist") : t("addToWishlist")}
               title={inWishlist ? t("removeFromWishlist") : t("addToWishlist")}

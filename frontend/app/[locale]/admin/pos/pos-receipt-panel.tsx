@@ -164,11 +164,18 @@ export function POSReceiptPanel({
               className="w-full mt-4"
               size="lg"
               disabled={receipt.length === 0 || !selectedWarehouse || submitting}
+              aria-describedby={!selectedWarehouse || receipt.length === 0 ? "pos-submit-hint" : undefined}
               onClick={onSubmit}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {t("submitSale")}
             </Button>
+            {/* Say why the button is off instead of leaving the cashier guessing */}
+            {(!selectedWarehouse || receipt.length === 0) && (
+              <p id="pos-submit-hint" className="mt-2 text-center text-xs text-muted-foreground">
+                {!selectedWarehouse ? t("hintSelectWarehouse") : t("hintAddItems")}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

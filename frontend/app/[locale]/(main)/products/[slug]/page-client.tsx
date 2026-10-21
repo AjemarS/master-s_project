@@ -192,7 +192,10 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   variant="outline"
                   size="icon"
                   className="h-12 w-12 shrink-0"
-                  onClick={() => toggleItem(product.id)}
+                  onClick={() => {
+                    toast.success(isInWishlist(product.id) ? t("removedFromWishlist") : t("addedToWishlist"));
+                    toggleItem(product.id);
+                  }}
                   aria-pressed={isInWishlist(product.id)}
                   aria-label={isInWishlist(product.id) ? t("removeFromWishlist") : t("addToWishlist")}
                 >

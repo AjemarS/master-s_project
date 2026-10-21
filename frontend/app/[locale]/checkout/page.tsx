@@ -519,6 +519,9 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 sections={SECTION_ORDER}
                 expandedSections={expandedSection ? [expandedSection] : []}
                 statuses={sectionStatuses}
+                labelOf={(sec) => tChk({ city: "cityLabel", info: "personalInfo", delivery: "delivery", receiver: "receiver", confirmation: "callToConfirm", comment: "comment" }[sec])}
+                statusLabel={(st) => tChk(`step_${st}`)}
+                ariaLabel={tChk("stepsLabel")}
               />
 
               {/* Accordion sections */}
