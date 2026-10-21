@@ -280,7 +280,8 @@ Customer in showroom → Cashier via POS → Search → Sale → Deduct
 | Entity | Description |
 |--------|-------------|
 | `Category` | Hierarchical categories. Bilingual fields: `name_uk`/`name_en`, `description_uk`/`description_en` |
-| `Product` | Product with bilingual fields (`name_uk`/`name_en`, `description_uk`/`description_en`), pricing (UAH), energy class, warranty, images, total_stock |
+| `Product` | Product with bilingual fields (`name_uk`/`name_en`, `description_uk`/`description_en`), price in UAH, brand, color, specs, features, image, `stock` (synced from inventory events), `warranty_months`, `rating` + `review_count` (computed from reviews) |
+| `Review` | One per user and product, rating 1–5 and text, written only by buyers who received the product; admin can hide it |
 | `Cart` | Session-based cart (UUID session_id or user_id). No auth required |
 | `CartItem` | Cart item (product + quantity). Merge endpoint for anonymous→user |
 
@@ -289,18 +290,23 @@ Customer in showroom → Cashier via POS → Search → Sale → Deduct
 | Entity | Description |
 |--------|-------------|
 | `Warehouse` | Warehouse/showroom. Name, type (`warehouse`/`showroom`), address, active |
-| `Stock` | Stock level per product per warehouse. Unique: `(product_id, warehouse_id)` |
-| `StockMovement` | Audit log. Types: `receipt`, `transfer`, `sale`, `adjustment`, `write_off`, `reserve`, `release`, `deduct` |
+| `Stock` | Stock level per product per warehouse (`quantity`, `reserved`, weighted-average cost, `reorder_point`, `reorder_quantity`). Unique: `(product_id, warehouse_id)` |
+| `StockMovement` | Audit log. Types: `receipt`, `transfer`, `sale`, `adjustment`, `write_off`, `reserve`, `release`, `deduct`, `return` |
 | `Supplier` | Supplier name, contact person, phone, email, address |
-| `GoodsReceiptNote` | GRN. Supplier, date, notes, author |
-| `GoodsReceiptItem` | GRN item. Product, qty, cost_price. On create: auto-increments Stock.qty |
+| `PurchaseOrder` / `PurchaseOrderItem` | Order to a supplier: `draft` → `sent` → `partially_received` → `received` (or `cancelled`); items with expected cost and received quantity |
+| `GoodsReceiptNote` | GRN. Supplier, warehouse, date, notes, author, optional purchase order it fulfils |
+| `GoodsReceiptItem` | GRN item. Product, qty, cost_price. On create: adds to `Stock.quantity` and recomputes the average cost |
+| `ActivityEvent` | Admin activity feed entries |
 
 ### 5.3 Order Service (orders_db, PostgreSQL)
 
 | Entity | Description |
 |--------|-------------|
-| `Order` | Order with auto-number, channel (`online`/`offline`), status (`unpaid`→`paid`→`delivering`→`delivered`→`completed`/`cancelled`), customer data, totals |
-| `OrderItem` | Order line. Product, qty, price at sale, cost_price at sale (for margin calc) |
+| `Order` | Order with auto-number, channel (`online`/`offline`), status (`unpaid`→`paid`→`delivering`→`delivered`→`completed`/`cancelled`), customer data, `total_amount` (goods minus discount), promo code + `discount_amount`, payment status, `delivered_at` |
+| `OrderItem` | Order line. Product, qty, price (from the catalog at sale), cost_price (inventory average cost at write-off), `warranty_months` (catalog snapshot) |
+| `OrderStatusHistory` | One row per status change, for the fulfilment funnel and time between stages |
+| `ReturnRequest` | Return (14 days) or warranty claim for units of one line: `submitted` → `approved` → `received` → `resolved` (refund / replace / repair) or `rejected` |
+| `PromoCode` | Percent or fixed discount with optional dates, minimum order, use limit and once-per-customer |
 
 ### 5.4 Auth Service (auth_db, PostgreSQL)
 
@@ -324,12 +330,14 @@ never touch each other's tables. User and admin lookups go to auth-service over 
 
 | Event | Publisher | Consumers | Description |
 |-------|-----------|-----------|-------------|
-| `inventory.stock.changed` | Inventory | Product, notification | Stock level changed → sync Product.stock, notify low stock |
-| `inventory.goods_received` | Inventory | Product | GRN created → sync Product.stock |
-| `inventory.low_stock` | Inventory | Notification | Stock below threshold → email + SSE alert |
+| `inventory.stock.changed` | Inventory | Product, audit | Stock level changed → sync Product.stock |
+| `inventory.goods_received` | Inventory | Product, audit | GRN created → sync Product.stock |
+| `inventory.low_stock` | Inventory | Notification, audit | Stock below threshold → email + SSE alert |
 | `order.created` | Order | Notification, audit | New order → confirmation email (stock is reserved over HTTP, not by this event) |
 | `order.cancelled` | Order | Notification, audit | Order cancelled → notify customer (stock is released over HTTP) |
-| `order.status_changed` | Order | Notification | Status transition → notify customer |
+| `order.status_changed` | Order | Notification, audit | Status transition → notify customer |
+
+audit-service binds `#`, so it stores every event.
 
 ### 6.2 Saga Pattern
 
@@ -422,7 +430,7 @@ Critical multi-service operations use Saga:
 | `/` → `/ua` | Home (hero, categories, features, testimonials, CTA) |
 | `/products` | Product catalog with filtering |
 | `/checkout` | Checkout flow (cart → payment) |
-| `/orders` | Customer's orders |
+| `/my/orders` | Customer orders (`/orders` redirects here) |
 | `/admin/summary` | Admin dashboard (stats, health) |
 | `/admin/products` | Product CRUD |
 | `/admin/categories` | Category management |
@@ -434,6 +442,11 @@ Critical multi-service operations use Saga:
 | `/admin/stock-movements` | Stock movement log |
 | `/admin/goods-receipts` | GRN management |
 | `/admin/users` | User management |
+| `/admin/returns` | Returns and warranty claims |
+| `/admin/promo-codes` | Promo codes |
+| `/admin/purchase-orders` | Reorder suggestions and purchase orders |
+| `/compare` | Side-by-side product comparison |
+| `/my/orders/{id}` | Order detail with return / warranty claims |
 
 ### 8.3 Language Structure
 
@@ -516,6 +529,10 @@ Network: microservices_network (bridge)
 | `orders_db` test DB leftover | Fixed: run `manage.py test --noinput` (the `autoclobber` prompt raised `EOFError`) |
 | Backend tests assertion count | Fixed: order tests that accepted either outcome now stub inventory and assert one result |
 | Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction |
+| POS sales made before POS sales were completed at the till | They stay `unpaid` and out of the reports until a one-off data migration marks them `completed` + paid |
+| Dev compose publishes service and database ports on all interfaces | e.g. auth-service `/api/internal/users` (no auth, lists users) and PostgreSQL with the default password are reachable from the LAN in dev; prod publishes only the gateway and Grafana on loopback |
+| Stripe not exercised end to end locally | Without `STRIPE_SECRET_KEY` checkout stops at "Payment session creation failed"; run the payment, coupon and partial refund paths on staging with test keys |
+| Carrier delivery is not charged online | By design: the customer pays the carrier on receipt; the order total and Stripe charge cover goods only |
 
 ---
 
@@ -534,3 +551,4 @@ Network: microservices_network (bridge)
 | **Auth** | Better Auth |
 | **Payments** | Stripe (webhook integration) |
 | **Notifications** | SMTP (e.g. Gmail) or Resend (email), SSE, RabbitMQ events |
+| **Monitoring** | Prometheus 3.5 (metrics from every service), Grafana 12 (TechHub overview dashboard) |

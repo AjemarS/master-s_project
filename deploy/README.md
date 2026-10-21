@@ -43,6 +43,8 @@ In each checkout create `.env` from `.env.example`, with its own secrets, and al
 | `BETTER_AUTH_URL` | `https://staging.<domain>/auth` | `https://<domain>/auth` |
 | `NODE_ENV` | `production` | `production` |
 | `DEBUG` | `False` | `False` |
+| `GRAFANA_PORT`, `GRAFANA_ADMIN_PASSWORD` | `3012`, own password | `3002`, own password |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe test keys | Stripe live keys |
 
 TLS: copy `deploy/Caddyfile` to `/etc/caddy/Caddyfile` and put your two domains in it, point both DNS names at the VM, open ports 80, 443 and SSH in the
 provider's firewall and in `ufw` if it is enabled, then `sudo systemctl restart caddy`.

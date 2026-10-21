@@ -98,6 +98,7 @@ src/
 | POST | `/auth/admin/stop-impersonation` | Session | Restore original session |
 | POST | `/auth/impersonate/request-code` | Session | Cashier: request 6-digit code to user email |
 | POST | `/auth/impersonate/verify-code` | Session | Cashier: verify code and start impersonation |
+| GET | `/api/internal/users` (`?role=`), `/api/internal/users/:id`, `/api/internal/users/email/:email`; POST `/api/internal/users/batch` | none — compose network only | Name/email lookups for other services. The gateway does not route them (404); in dev compose port 3001 is published, so they are reachable from the LAN |
 | GET | `/api-docs` | None | Swagger UI |
 | GET | `/api-docs.json` | None | Raw OpenAPI spec |
 | ALL | `/auth/*` | Session | Catch-all: Better Auth built-in handlers (sign-up, OAuth callbacks, forgot-password, etc.) |
