@@ -115,6 +115,21 @@ export interface Stock {
   updated_at?: string;
 }
 
+export interface PromoCode {
+  id: number;
+  code: string;
+  kind: "percent" | "fixed";
+  value: string;
+  min_order_amount: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  max_uses: number | null;
+  once_per_customer: boolean;
+  used_count: number;
+  is_active: boolean;
+  created_at: string;
+}
+
 export type PurchaseOrderStatus = "draft" | "sent" | "partially_received" | "received" | "cancelled";
 
 export interface PurchaseOrderItem {

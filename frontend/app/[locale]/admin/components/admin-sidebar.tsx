@@ -9,6 +9,7 @@ import {
   ExternalLink, Pin, PinOff,
   ChevronDown,
   RotateCcw,
+  Tag,
 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
@@ -57,6 +58,7 @@ const navigationGroups: NavGroup[] = [
     ],
   },
   { key: "returns", href: "/admin/returns", icon: RotateCcw, roles: ["admin"] },
+  { key: "promoCodes", href: "/admin/promo-codes", icon: Tag, roles: ["admin"] },
   { key: "reports", href: "/admin/reports", icon: BarChart3, roles: ["admin"] },
   { key: "users", href: "/admin/users", icon: Users, roles: ["admin"] },
 ];

@@ -19,6 +19,8 @@ import {
   AccordionContent,
 } from "~/ui/primitives/accordion";
 import { useCart } from "~/lib/hooks/use-cart";
+import { PromoCode, type AppliedPromo } from "./components/promo-code";
+import { apiErrorText } from "~/lib/utils/error-handler";
 import { formatCurrency } from "~/lib/utils/format";
 import { orderApi } from "~/lib/api/admin-api";
 import { authClient, useCurrentUser, type User as AuthUser } from "~/lib/auth-client";
@@ -59,6 +61,8 @@ interface PriceSummaryProps {
   items: CartItem[];
   subtotal: number;
   deliveryCost: number;
+  promo: AppliedPromo | null;
+  onPromoChange: (promo: AppliedPromo | null) => void;
   total: number;
   locale: string;
   disabled: boolean;
@@ -71,6 +75,8 @@ function PriceSummary({
   items: summaryItems,
   subtotal: summarySubtotal,
   deliveryCost: summaryDeliveryCost,
+  promo,
+  onPromoChange,
   total: summaryTotal,
   locale: summaryLocale,
   disabled: summaryDisabled,
@@ -111,7 +117,15 @@ function PriceSummary({
                 : formatCurrency(summaryDeliveryCost, summaryLocale)}
             </span>
           </div>
+          {promo && promo.discount > 0 && (
+            <div className="flex justify-between text-green-700 dark:text-green-400">
+              <span>{summaryTChk("promoDiscount", { code: promo.code })}</span>
+              <span>−{formatCurrency(promo.discount, summaryLocale)}</span>
+            </div>
+          )}
         </div>
+
+        <PromoCode subtotal={summarySubtotal} applied={promo} onChange={onPromoChange} />
 
         <div className="border-t pt-3 flex justify-between font-bold text-base">
           <span>{summaryTChk("total")}</span>
@@ -213,7 +227,8 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
 
 
   const deliveryCost = deliveryType === "pickup" ? 0 : DELIVERY_COST;
-  const total = subtotal + deliveryCost;
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+  const total = subtotal + deliveryCost - (promo?.discount ?? 0);
 
   // ── Derived delivery state ─────────────────────────────────────────────
 
@@ -345,6 +360,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
         shipping_city: city.trim(),
         shipping_address: shippingAddress,
         notes: notesParts.join(" | "),
+        promo_code: promo?.code,
         items: items.map((i) => ({
           product_id: Number(i.id),
           product_name: i.name,
@@ -354,7 +370,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
       });
 
       if (order.error) {
-        toast.error(tChk("createError"), { description: order.error.message });
+        toast.error(tChk("createError"), { description: apiErrorText(order.error) });
         setSubmitting(false);
         return;
       }
@@ -720,6 +736,8 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                   items={items}
                   subtotal={subtotal}
                   deliveryCost={deliveryCost}
+                  promo={promo}
+                  onPromoChange={setPromo}
                   total={total}
                   locale={locale}
                   disabled={disabled}

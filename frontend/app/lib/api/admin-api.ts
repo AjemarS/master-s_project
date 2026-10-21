@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution, Review, ReviewsPage, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, ReorderSuggestion } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution, Review, ReviewsPage, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, ReorderSuggestion, PromoCode } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -204,9 +204,15 @@ export const orderApi = {
     customer_phone?: string;
     customer_email?: string;
     notes?: string;
+    promo_code?: string;
     items: { product_id: number; product_name?: string; quantity: number; price: number }[];
   }): Promise<ApiResponse<OrderDetail>> {
     return apiCall(`${ORDERS_API_URL}/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async checkPromo(code: string, subtotal: number): Promise<ApiResponse<{ code: string; kind: string; value: string; discount: string; total: string }>> {
+    const q = new URLSearchParams({ code, subtotal: subtotal.toFixed(2) });
+    return apiCall(`${ORDERS_API_URL}/promo-check/?${q}`);
   },
 
   async pay(id: number): Promise<ApiResponse<{ checkout_url: string; session_id: string }>> {
@@ -415,5 +421,19 @@ export const purchaseOrderApi = {
 
   async setStatus(id: number, status: "sent" | "cancelled"): Promise<ApiResponse<PurchaseOrder>> {
     return apiCall(`${INVENTORY_API_URL}/purchase-orders/${id}/status/`, { method: "POST", body: JSON.stringify({ status }) });
+  },
+};
+
+export const promoCodeApi = {
+  async list(): Promise<ApiResponse<{ results: PromoCode[]; count: number }>> {
+    return apiCall(`${ORDERS_API_URL}/promo-codes/?page_size=100`);
+  },
+
+  async create(data: Partial<PromoCode>): Promise<ApiResponse<PromoCode>> {
+    return apiCall(`${ORDERS_API_URL}/promo-codes/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async update(id: number, data: Partial<PromoCode>): Promise<ApiResponse<PromoCode>> {
+    return apiCall(`${ORDERS_API_URL}/promo-codes/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
   },
 };

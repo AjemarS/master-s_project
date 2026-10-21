@@ -145,7 +145,8 @@
     "reportsDesc": "Sales, revenue, margin",
     "usersDesc": "Accounts and roles",
     "returns": "Returns",
-    "purchaseOrders": "Purchasing"
+    "purchaseOrders": "Purchasing",
+    "promoCodes": "Promo codes"
   },
   "summary": {
     "title": "System Overview",
@@ -510,7 +511,12 @@
     "statusEmpty": "Not filled",
     "statusPartial": "Partially filled",
     "statusFilled": "Filled",
-    "statusError": "Has errors"
+    "statusError": "Has errors",
+    "promoLabel": "Promo code",
+    "promoApply": "Apply",
+    "promoRemove": "Remove promo code",
+    "promoInvalid": "This promo code does not apply",
+    "promoDiscount": "Promo {code}"
   },
   "orderDetail": {
     "title": "Order #{id}",
@@ -1415,5 +1421,37 @@
     "reorderSaved": "Reorder settings saved",
     "reorderPointFor": "Reorder point for product #{id}",
     "reorderQtyFor": "Reorder batch for product #{id}"
+  },
+  "promoCodes": {
+    "title": "Promo codes",
+    "subtitle": "Discounts for online orders and the till",
+    "create": "New promo code",
+    "edit": "Edit {code}",
+    "dialogDesc": "Typed at checkout or at the till. The discount applies to goods, not delivery.",
+    "code": "Code",
+    "kind": "Type",
+    "kind_percent": "Percentage",
+    "kind_fixed": "Fixed amount",
+    "valuePercent": "Discount, %",
+    "valueFixed": "Discount, ₴",
+    "minOrder": "Minimum order, ₴",
+    "maxUses": "Use limit",
+    "unlimited": "unlimited",
+    "startsAt": "Starts",
+    "endsAt": "Ends",
+    "oncePerCustomer": "Once per customer (by email or account)",
+    "saved": "Promo code saved",
+    "discount": "Discount",
+    "conditions": "Conditions",
+    "period": "Period",
+    "used": "Used",
+    "active": "Active",
+    "actions": "Actions",
+    "empty": "No promo codes yet",
+    "fromAmount": "from {amount}",
+    "oncePerCustomerShort": "once per customer",
+    "always": "No end date",
+    "expired": "expired",
+    "toggleNamed": "Turn {code} on or off"
   }
 }

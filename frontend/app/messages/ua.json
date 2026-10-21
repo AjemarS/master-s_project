@@ -145,7 +145,8 @@
     "reportsDesc": "Продажі, виручка, маржа",
     "usersDesc": "Облікові записи та ролі",
     "returns": "Повернення",
-    "purchaseOrders": "Закупівлі"
+    "purchaseOrders": "Закупівлі",
+    "promoCodes": "Промокоди"
   },
   "summary": {
     "title": "Огляд системи",
@@ -510,7 +511,12 @@
     "statusEmpty": "Не заповнено",
     "statusPartial": "Заповнено частково",
     "statusFilled": "Заповнено",
-    "statusError": "Помилка"
+    "statusError": "Помилка",
+    "promoLabel": "Промокод",
+    "promoApply": "Застосувати",
+    "promoRemove": "Прибрати промокод",
+    "promoInvalid": "Промокод не підходить",
+    "promoDiscount": "Знижка за промокодом {code}"
   },
   "orderDetail": {
     "title": "Замовлення #{id}",
@@ -1413,5 +1419,37 @@
     "reorderSaved": "Налаштування дозамовлення збережено",
     "reorderPointFor": "Точка дозамовлення для товару #{id}",
     "reorderQtyFor": "Партія дозамовлення для товару #{id}"
+  },
+  "promoCodes": {
+    "title": "Промокоди",
+    "subtitle": "Знижки для онлайн-замовлень і каси",
+    "create": "Новий промокод",
+    "edit": "Редагувати {code}",
+    "dialogDesc": "Код вводять у кошику або на касі. Знижка рахується від вартості товарів без доставки.",
+    "code": "Код",
+    "kind": "Тип",
+    "kind_percent": "Відсоток",
+    "kind_fixed": "Фіксована сума",
+    "valuePercent": "Знижка, %",
+    "valueFixed": "Знижка, ₴",
+    "minOrder": "Мін. сума замовлення, ₴",
+    "maxUses": "Ліміт використань",
+    "unlimited": "без ліміту",
+    "startsAt": "Діє з",
+    "endsAt": "Діє до",
+    "oncePerCustomer": "Один раз на покупця (за email або акаунтом)",
+    "saved": "Промокод збережено",
+    "discount": "Знижка",
+    "conditions": "Умови",
+    "period": "Період",
+    "used": "Використано",
+    "active": "Активний",
+    "actions": "Дії",
+    "empty": "Промокодів ще немає",
+    "fromAmount": "від {amount}",
+    "oncePerCustomerShort": "1 раз на покупця",
+    "always": "Безстроково",
+    "expired": "минув",
+    "toggleNamed": "Увімкнути або вимкнути {code}"
   }
 }
