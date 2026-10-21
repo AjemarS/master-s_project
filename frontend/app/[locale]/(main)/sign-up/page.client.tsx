@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import Image from "next/image";
 import { Link } from "~/i18n/navigation";
 import { useState } from "react";
@@ -52,7 +53,8 @@ export function SignUpPageClient() {
     setLoading(true);
     try {
       const { error: signUpError } = await signUp.email({
-        name: formData.email,
+        // The display name is public in reviews: never the whole email address
+        name: formData.email.split("@")[0],
         email: formData.email,
         password: formData.password,
         marketing_consent: formData.marketingConsent,
@@ -107,6 +109,7 @@ export function SignUpPageClient() {
         email: formData.email,
         type: "email-verification",
       });
+      toast.success(t("otpResent"));
     } catch {
       setError(t("errorGeneric"));
     }
@@ -115,7 +118,7 @@ export function SignUpPageClient() {
   const handleGitHubSignUp = async () => {
     setError("");
     try {
-      const result = await signIn.social({ provider: "github", callbackURL: "/sign-in?registered=true" });
+      const result = await signIn.social({ provider: "github", callbackURL: "/" });
       if (result?.error) {
         setError(t("errorGeneric"));
       }
@@ -127,7 +130,7 @@ export function SignUpPageClient() {
   const handleGoogleSignUp = async () => {
     setError("");
     try {
-      const result = await signIn.social({ provider: "google", callbackURL: "/sign-in?registered=true" });
+      const result = await signIn.social({ provider: "google", callbackURL: "/" });
       if (result?.error) {
         setError(t("errorGeneric"));
       }
@@ -229,7 +232,7 @@ export function SignUpPageClient() {
                     </InputOTP>
                   </div>
 
-                  {error && <div className="text-sm font-medium text-destructive">{error}</div>}
+                  {error && <div role="alert" className="text-sm font-medium text-destructive">{error}</div>}
 
                   <Button
                     className="w-full"
@@ -302,7 +305,7 @@ export function SignUpPageClient() {
                         {t("marketingConsent")}
                       </Label>
                     </div>
-                    {error && <div className="text-sm font-medium text-destructive">{error}</div>}
+                    {error && <div role="alert" className="text-sm font-medium text-destructive">{error}</div>}
                     <Button className="w-full" disabled={loading || !formData.email || !formData.password || !formData.repeatPassword || formData.password !== formData.repeatPassword} type="submit">
                       {loading ? t("signingUp") : t("signUpButton")}
                     </Button>

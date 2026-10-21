@@ -82,6 +82,7 @@ export function POSReceiptPanel({
             </Label>
             <Input
               id="pos-customer-name"
+              autoComplete="off"
               placeholder={t("customerName")}
               value={customerName}
               onChange={(e) => onCustomerNameChange(e.target.value)}
@@ -94,6 +95,9 @@ export function POSReceiptPanel({
             </Label>
             <Input
               id="pos-customer-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
               placeholder={t("customerPhone")}
               value={customerPhone}
               onChange={(e) => onCustomerPhoneChange(e.target.value)}

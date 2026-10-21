@@ -109,7 +109,8 @@
     "repeatPasswordLabel": "Repeat Password",
     "repeatPasswordPlaceholder": "Repeat your password",
     "successMessage": "We recommend adding your personal information for a better shopping experience.",
-    "successTitle": "Account created successfully!"
+    "successTitle": "Account created successfully!",
+    "otpResent": "A new code is on its way. Check your inbox."
   },
   "nav": {
     "dashboard": "Dashboard",

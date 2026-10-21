@@ -61,6 +61,7 @@ export function ReceiverForm({
             <Label htmlFor="co-receiver-name">{tChk("receiverName")}</Label>
             <Input
               id="co-receiver-name"
+              autoComplete="off"
               value={receiverName}
               onChange={(e) => onNameChange(e.target.value)}
               placeholder={tChk("receiverNamePlaceholder")}
@@ -71,6 +72,9 @@ export function ReceiverForm({
             <Label htmlFor="co-receiver-phone">{tChk("receiverPhone")}</Label>
             <Input
               id="co-receiver-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
               value={receiverPhone}
               onChange={(e) => onPhoneChange(e.target.value)}
               onBlur={onPhoneBlur}

@@ -60,7 +60,7 @@ export function TwoFactorPageClient() {
           </CardHeader>
           <CardContent>
             {error && (
-              <p className="mb-4 text-sm font-medium text-destructive">
+              <p role="alert" className="mb-4 text-sm font-medium text-destructive">
                 {error}
               </p>
             )}

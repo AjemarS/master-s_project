@@ -82,13 +82,13 @@ function ResetForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="rp-password">{t("newPasswordLabel")}</Label>
-            <Input id="rp-password" type="password" placeholder={t("newPasswordPlaceholder")} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+            <Input id="rp-password" type="password" autoComplete="new-password" placeholder={t("newPasswordPlaceholder")} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
           </div>
           <div>
             <Label htmlFor="rp-confirm">{t("confirmPasswordLabel")}</Label>
-            <Input id="rp-confirm" type="password" placeholder={t("confirmPasswordPlaceholder")} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+            <Input id="rp-confirm" type="password" autoComplete="new-password" placeholder={t("confirmPasswordPlaceholder")} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading || !password || !confirm}>
             {loading ? t("resetting") : t("resetButton")}
           </Button>

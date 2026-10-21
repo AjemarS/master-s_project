@@ -109,7 +109,8 @@
     "repeatPasswordLabel": "Повторіть пароль",
     "repeatPasswordPlaceholder": "Повторіть пароль",
     "successMessage": "Рекомендуємо додати особисту інформацію для кращого досвіду покупок.",
-    "successTitle": "Акаунт успішно створено!"
+    "successTitle": "Акаунт успішно створено!",
+    "otpResent": "Код надіслано ще раз. Перевірте пошту."
   },
   "nav": {
     "dashboard": "Огляд",
