@@ -51,6 +51,7 @@ const navigationGroups: NavGroup[] = [
     children: [
       { key: "warehouses", href: "/admin/warehouses" },
       { key: "stockMovements", href: "/admin/stock-movements" },
+      { key: "purchaseOrders", href: "/admin/purchase-orders" },
       { key: "goodsReceipts", href: "/admin/goods-receipts" },
       { key: "suppliers", href: "/admin/suppliers" },
     ],

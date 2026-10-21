@@ -164,6 +164,7 @@ export function WarehousesClient() {
         warehouse={stockDialogWh}
         stock={stock}
         productNames={productNames}
+        onChanged={() => stMutate()}
       />
 
       {/* Delete Confirmation */}

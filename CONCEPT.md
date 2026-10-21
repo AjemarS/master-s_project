@@ -194,6 +194,15 @@ Supplier → Delivery → GRN creation → Stock added to warehouse
 | 2 | Stock added (qty + cost_price), weighted-average cost recalculated | Inventory |
 | 3 | `inventory.stock.changed` published | → RabbitMQ |
 
+### 4.1a Purchasing (before the goods arrive)
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Staff sets a reorder point and batch per stock line (warehouse page) | Inventory |
+| 2 | Reorder suggestions list lines at or below their point, net of what is already ordered | Inventory |
+| 3 | Drafts are created per supplier and warehouse; an admin sends them | Inventory |
+| 4 | The delivery is booked as a GRN against the order (partial deliveries allowed, over-delivery rejected) | Inventory |
+
 ### 4.2 Internal Transfer
 
 ```

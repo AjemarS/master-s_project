@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution, Review, ReviewsPage } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution, Review, ReviewsPage, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, ReorderSuggestion } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -134,6 +134,14 @@ export const stockApi = {
     if (params?.pageSize) q.append("page_size", String(params.pageSize));
     const qs = q.toString();
     return apiCall(`${INVENTORY_API_URL}/stock/${qs ? `?${qs}` : ""}`, { signal });
+  },
+
+  async setReorder(stockId: number, data: { reorder_point: number; reorder_quantity: number }): Promise<ApiResponse<Stock>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/${stockId}/reorder/`, { method: "PATCH", body: JSON.stringify(data) });
+  },
+
+  async reorderSuggestions(warehouseId?: number): Promise<ApiResponse<ReorderSuggestion[]>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/reorder-suggestions/${warehouseId ? `?warehouse_id=${warehouseId}` : ""}`);
   },
 
   async analytics(days = 90): Promise<ApiResponse<StockAnalytics>> {
@@ -390,5 +398,22 @@ export const reviewsApi = {
 
   async setPublished(reviewId: number, isPublished: boolean): Promise<ApiResponse<Review>> {
     return apiCall(`${API_URL}/reviews/${reviewId}/`, { method: "PATCH", body: JSON.stringify({ is_published: isPublished }) });
+  },
+};
+
+export const purchaseOrderApi = {
+  async list(params?: { status?: PurchaseOrderStatus; page?: number }): Promise<ApiResponse<{ results: PurchaseOrder[]; count: number }>> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append("status", params.status);
+    if (params?.page) q.append("page", String(params.page));
+    return apiCall(`${INVENTORY_API_URL}/purchase-orders/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async create(data: { supplier: number; warehouse: number; expected_date?: string | null; notes?: string; items: PurchaseOrderItem[] }): Promise<ApiResponse<PurchaseOrder>> {
+    return apiCall(`${INVENTORY_API_URL}/purchase-orders/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async setStatus(id: number, status: "sent" | "cancelled"): Promise<ApiResponse<PurchaseOrder>> {
+    return apiCall(`${INVENTORY_API_URL}/purchase-orders/${id}/status/`, { method: "POST", body: JSON.stringify({ status }) });
   },
 };

@@ -21,6 +21,8 @@ const SEGMENT_LABEL_MAP: Record<string, string> = {
   "warehouses": "nav.warehouses",
   "suppliers": "nav.suppliers",
   "goods-receipts": "nav.goodsReceipts",
+  "purchase-orders": "nav.purchaseOrders",
+  "returns": "nav.returns",
   "stock-movements": "nav.stockMovements",
   "reports": "nav.reports",
   "users": "nav.users",

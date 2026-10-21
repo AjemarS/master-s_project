@@ -44,6 +44,23 @@ export function parseApiError(error: unknown): ParsedError {
 }
 
 /**
+ * The most specific human message in an apiCall error: DRF field errors come as
+ * {field: ["message"]} and service errors as {error, detail}, both hidden behind "Request failed".
+ */
+export function apiErrorText(error: { message: string; details?: unknown }): string {
+  const d = error.details;
+  if (d && typeof d === "object") {
+    const body = d as Record<string, unknown>;
+    if (typeof body.error === "string") return typeof body.detail === "string" ? `${body.error}: ${body.detail}` : body.error;
+    for (const value of Object.values(body)) {
+      if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+      if (typeof value === "string") return value;
+    }
+  }
+  return error.message;
+}
+
+/**
  * Show an error toast notification.
  */
 export function showErrorToast(error: unknown, fallbackMessage?: string): void {

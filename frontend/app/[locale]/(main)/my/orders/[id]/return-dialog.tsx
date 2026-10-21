@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { apiErrorText } from "~/lib/utils/error-handler";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "~/ui/primitives/dialog";
@@ -22,16 +23,6 @@ interface ReturnDialogProps {
   maxQuantity: number;
   onClose: () => void;
   onCreated: () => void;
-}
-
-/** DRF validation errors come as {field: ["message"]}: show the first message */
-function firstFieldError(details: unknown): string | null {
-  if (!details || typeof details !== "object") return null;
-  for (const value of Object.values(details as Record<string, unknown>)) {
-    if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-    if (typeof value === "string") return value;
-  }
-  return null;
 }
 
 export function ReturnDialog({ item, kinds, maxQuantity, onClose, onCreated }: ReturnDialogProps) {
@@ -60,7 +51,7 @@ export function ReturnDialog({ item, kinds, maxQuantity, onClose, onCreated }: R
     const res = await returnsApi.create({ item_id: item.id, kind: chosenKind, quantity, reason: reason.trim() });
     setSaving(false);
     if (res.error) {
-      setError(firstFieldError(res.error.details) ?? res.error.message);
+      setError(apiErrorText(res.error));
       return;
     }
     toast.success(t("created"));

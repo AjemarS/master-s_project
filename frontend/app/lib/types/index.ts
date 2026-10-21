@@ -108,8 +108,55 @@ export interface Stock {
   quantity: number;
   reserved: number;
   available: number;
+  /** Staff only; absent for anonymous reads */
+  reorder_point?: number;
+  reorder_quantity?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export type PurchaseOrderStatus = "draft" | "sent" | "partially_received" | "received" | "cancelled";
+
+export interface PurchaseOrderItem {
+  id?: number;
+  product_id: number;
+  quantity: number;
+  unit_cost: string;
+  received_quantity?: number;
+  remaining_quantity?: number;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  supplier: number;
+  supplier_name: string;
+  warehouse: number;
+  warehouse_name: string;
+  status: PurchaseOrderStatus;
+  expected_date: string | null;
+  notes: string;
+  items: PurchaseOrderItem[];
+  total_amount: string;
+  created_by: string;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReorderSuggestion {
+  stock_id: number;
+  product_id: number;
+  warehouse_id: number;
+  warehouse_name: string;
+  available: number;
+  reorder_point: number;
+  reorder_quantity: number;
+  on_order: number;
+  in_draft: number;
+  suggested_quantity: number;
+  last_supplier_id: number | null;
+  last_supplier_name: string;
+  last_cost_price: string | null;
 }
 
 export interface StockMovement {
@@ -153,6 +200,7 @@ export interface GoodsReceiptNote {
   supplier_name: string;
   warehouse: number;
   warehouse_name: string;
+  purchase_order?: number | null;
   receipt_date: string;
   reference_number: string;
   notes: string;

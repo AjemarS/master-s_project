@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { apiErrorText } from "~/lib/utils/error-handler";
 import { RotateCcw } from "lucide-react";
 import { Button } from "~/ui/primitives/button";
 import { Card, CardContent } from "~/ui/primitives/card";
@@ -34,16 +35,6 @@ const NEXT: Record<ReturnStatus, ReturnStatus[]> = {
 };
 
 type Pending = { claim: ReturnRequest; to: ReturnStatus };
-
-function firstFieldError(details: unknown): string | null {
-  if (!details || typeof details !== "object") return null;
-  const d = details as Record<string, unknown>;
-  if (typeof d.error === "string") return typeof d.detail === "string" ? `${d.error}: ${d.detail}` : d.error;
-  for (const value of Object.values(d)) {
-    if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-  }
-  return null;
-}
 
 export function ReturnsClient() {
   const t = useTranslations("returns");
@@ -86,7 +77,7 @@ export function ReturnsClient() {
     });
     setSaving(false);
     if (res.error) {
-      setActionError(firstFieldError(res.error.details) ?? res.error.message);
+      setActionError(apiErrorText(res.error));
       return;
     }
     toast.success(t("updated"));
