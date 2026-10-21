@@ -25,6 +25,7 @@ python manage.py test --noinput
 
 #### Models
 - **Order** — core entity. Fields: `order_number` (timestamp + random suffix), `channel` (`online`/`offline`), `status` (see state machine), customer data (`customer_name`, `customer_email`, `customer_phone`, `customer_address`), `total_amount`, `created_by`, `notes`.
+- **OrderStatusHistory** — one row per status change (`from_status`, `to_status`, `changed_by`, `changed_at`), written by `record_status_change` in `update_order_status`, the Stripe paid webhook and POS completion. Orders older than migration 0006 have no rows.
 - **OrderItem** — order line: product, quantity, price_at_sale, cost_price_at_sale (for margin calculation).
 
 ### Status Machine
@@ -55,11 +56,15 @@ Transitions enforced in `Order.can_transition_to()`.
 | GET | `/api/orders/{id}/` | Any auth | Order detail |
 | PATCH | `/api/orders/{id}/` | Admin | Update order status |
 | GET | `/api/orders/my/` | Auth user | Current user's orders |
-| POST | `/api/orders/pos/` | Cashier/Admin | POS sale (offline, immediate deduct) |
+| POST | `/api/orders/pos/` | Cashier/Admin | POS sale (offline, immediate deduct, ends `completed` + paid) |
 | GET | `/api/orders/payments/stripe-webhook/` | No auth | Stripe payment callback |
-| GET | `/api/reports/sales/` | Admin | Sales report (filterable by date) |
-| GET | `/api/reports/revenue/` | Admin | Revenue & margin report |
-| GET | `/api/reports/inventory-value/` | Admin | Inventory valuation (queries actual stock via inventory-service + product-service APIs) |
+| GET | `/api/reports/sales/` | Admin | KPIs (revenue, orders, AOV, margin, cancellation rate) + `previous` period of equal length when `from` and `to` are both set (`?from=&to=`, ISO dates, `to` inclusive) |
+| GET | `/api/reports/top-products/` | Admin | Best sellers (`?from=&to=&sort=revenue\|quantity\|margin&limit=10`, max 100), with revenue share |
+| GET | `/api/reports/revenue/` | Admin | Revenue & margin (same numbers as sales, kept for dashboard cards) |
+| GET | `/api/reports/daily-sales/` | Admin | Revenue + orders per `?group=day\|week\|month` (weeks start Monday), zero-filled (`?from=&to=`, default last 30 days, max 3 years) |
+| GET | `/api/reports/abc/` | Admin | ABC analysis by cumulative revenue (A ≤80%, B ≤95%, C rest), per class totals (`?from=&to=`) |
+| GET | `/api/reports/fulfillment/` | Admin | Funnel, payment conversion, cancellations by stage, median/avg hours between stages (`?from=&to=&channel=online`) |
+| GET | `/api/reports/inventory-value/` | Admin | Stock at weighted-average cost (proxies inventory-service `stock/valuation/`) |
 | GET | `/api/docs/` | Any | Swagger UI |
 | GET | `/api/redoc/` | Any | ReDoc |
 
@@ -86,9 +91,10 @@ Transitions enforced in `Order.can_transition_to()`.
 - **Exchange:** `techhub.events` (topic)
 
 ## Reports
-- **Sales report:** aggregated sales by date range, channel, status
-- **Revenue & margin:** total revenue, cost of goods sold, margin percentage (uses `cost_price_at_sale` on OrderItem)
-- **Inventory value:** queries actual stock via inventory-service + product-service APIs
+- **Sold = `paid`, `delivering`, `delivered`, `completed`** (`SOLD_STATUSES`) in every report, by `created_at`
+- **Revenue = goods only** (`price × quantity` of items); shipping in `total_amount` is excluded
+- Aggregated in SQL; invalid `from`/`to` returns 400
+- **Inventory value:** inventory-service values on-hand stock at `average_cost`; stock without a GRN has cost 0 (`uncosted_quantity`)
 
 ## Auth & Permissions
 - `GatewayAuthentication` — base class for all Django services

@@ -1,105 +1,107 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { LucideIcon } from "lucide-react";
+import { TrendingUp, DollarSign, PieChart, ShoppingCart, Package, Receipt, XCircle, Boxes } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
-import { TrendingUp, DollarSign, BarChart3, PieChart, ShoppingCart, Package } from "lucide-react";
 import { formatCurrency } from "~/lib/utils/format";
-import type { SalesReport, RevenueReport } from "~/lib/types";
+import { cn } from "~/lib/cn";
+import type { SalesKpis, SalesReport } from "~/lib/types";
 
 interface ReportStatCardsProps {
   sales: SalesReport | undefined;
-  revenue: RevenueReport | undefined;
-  inventoryValue: { total_value: string; item_count: number } | undefined;
+  inventoryValue: { total_value: number; item_count: number } | undefined;
 }
 
-export function ReportStatCards({ sales, revenue, inventoryValue }: ReportStatCardsProps) {
+type Metric = {
+  key: keyof SalesKpis;
+  label: string;
+  icon: LucideIcon;
+  format: (v: number) => string;
+  /** Percent metrics compare in percentage points, the rest in relative % */
+  points?: boolean;
+  /** true when a rise is bad news (costs, cancellations) */
+  inverse?: boolean;
+};
+
+function Delta({ current, previous, points, inverse }: { current: number; previous: number; points?: boolean; inverse?: boolean }) {
   const t = useTranslations("reports");
+  const locale = useLocale();
+  if (!points && previous === 0) {
+    return <p className="text-xs text-muted-foreground mt-1">{current === 0 ? "—" : t("newVsPrevious")}</p>;
+  }
+  const diff = points ? current - previous : ((current - previous) / Math.abs(previous)) * 100;
+  const rounded = Math.round(diff * 10) / 10;
+  const good = inverse ? rounded < 0 : rounded > 0;
+  const text = `${rounded > 0 ? "+" : ""}${rounded.toLocaleString(locale === "en" ? "en-US" : "uk-UA")}${points ? ` ${t("pp")}` : "%"}`;
+  return (
+    <p className="text-xs mt-1 text-muted-foreground">
+      <span
+        className={cn(
+          "font-medium",
+          rounded === 0 ? "text-muted-foreground" : good ? "text-green-600 dark:text-green-400" : "text-destructive"
+        )}
+      >
+        {rounded > 0 ? "▲" : rounded < 0 ? "▼" : "•"} {text}
+      </span>{" "}
+      {t("vsPrevious")}
+    </p>
+  );
+}
+
+export function ReportStatCards({ sales, inventoryValue }: ReportStatCardsProps) {
+  const t = useTranslations("reports");
+  const locale = useLocale();
+  // Reports are in UAH whatever the UI language, so no USD conversion here
+  const money = (v: number) => formatCurrency(v);
+  const percent = (v: number) => `${Number(v).toFixed(1)}%`;
+  const count = (v: number) => v.toLocaleString(locale === "en" ? "en-US" : "uk-UA");
+
+  const metrics: Metric[] = [
+    { key: "total_revenue", label: t("totalRevenue"), icon: DollarSign, format: money },
+    { key: "total_orders", label: t("totalOrders"), icon: ShoppingCart, format: count },
+    { key: "average_order_value", label: t("averageOrderValue"), icon: Receipt, format: money },
+    { key: "total_quantity", label: t("unitsSold"), icon: Boxes, format: count },
+    { key: "total_margin", label: t("grossProfit"), icon: TrendingUp, format: money },
+    { key: "margin_percent", label: t("marginPercent"), icon: PieChart, format: percent, points: true },
+    { key: "cancellation_rate", label: t("cancellationRate"), icon: XCircle, format: percent, points: true, inverse: true },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-      <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <ShoppingCart className="h-4 w-4 text-primary" />
-            {t("totalOrders")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-foreground">
-            {sales?.total_orders ?? revenue?.order_count ?? 0}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {metrics.map(({ key, label, icon: Icon, format, points, inverse }) => (
+        <Card key={key} className="dark:bg-card dark:border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Icon className="h-4 w-4 text-primary" aria-hidden />
+              {label}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground tabular-nums">{format(sales?.[key] ?? 0)}</div>
+            {sales?.previous && (
+              <Delta current={sales[key]} previous={sales.previous[key]} points={points} inverse={inverse} />
+            )}
+            {key === "cancellation_rate" && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("cancelledOrders", { count: sales?.cancelled_orders ?? 0 })}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ))}
 
-      <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
+      <Card className="dark:bg-card dark:border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-primary" />
-            {t("totalRevenue")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            {formatCurrency(revenue?.total_revenue ?? sales?.total_revenue ?? 0)}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="dark:bg-card dark:border-border border-t-4 border-t-accent-electric">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-accent-electric" />
-            {t("totalCost")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-accent-electric">
-            {formatCurrency(revenue?.total_cost ?? sales?.total_cost ?? 0)}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            {t("grossProfit")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            {formatCurrency(revenue?.gross_margin ?? sales?.total_margin ?? 0)}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <PieChart className="h-4 w-4 text-primary" />
-            {t("marginPercent")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            {Number(revenue?.margin_percent ?? sales?.margin_percent ?? 0).toFixed(1)}%
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="dark:bg-card dark:border-border border-t-4 border-t-primary">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Package className="h-4 w-4 text-primary" />
+            <Package className="h-4 w-4 text-primary" aria-hidden />
             {t("inventoryValue")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            {formatCurrency(inventoryValue?.total_value ?? 0)}
-          </div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">{money(inventoryValue?.total_value ?? 0)}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            {t("inventoryItems", { count: inventoryValue?.item_count ?? 0 })}
+            {t("inventoryItems", { count: inventoryValue?.item_count ?? 0 })} · {t("atCost")}
           </p>
         </CardContent>
       </Card>

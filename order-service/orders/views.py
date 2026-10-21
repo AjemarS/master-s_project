@@ -59,8 +59,9 @@ def _handle_webhook_completed(order, session, request):
         order.payment_status = Order.PAYMENT_PAID
         order.stripe_payment_intent_id = session.get("payment_intent", "")
         order.paid_at = tz.now()
-        order.status = Order.PAID
+        old_status, order.status = order.status, Order.PAID
         order.save()
+        svc.record_status_change(order, old_status)
 
     if order.warehouse_id:
         success, succeeded = svc.reserve_order_stock(order)
@@ -350,6 +351,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                 {"error": "Stock deduct failed", "status": Order.CANCELLED, "order": OrderDetailSerializer(order).data},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+        # The cashier takes payment at the till and the buyer leaves with the goods: nothing left to track
+        order.status = Order.COMPLETED
+        order.payment_status = Order.PAYMENT_PAID
+        order.paid_at = tz.now()
+        order.save(update_fields=["status", "payment_status", "paid_at", "updated_at"])
+        svc.record_status_change(order, Order.UNPAID, request)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
 

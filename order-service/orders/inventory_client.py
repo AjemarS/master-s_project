@@ -35,8 +35,8 @@ def _post(url, json_data, headers):
     return requests.post(url, json=json_data, timeout=10, headers=headers)
 
 
-def _get(url, headers):
-    return requests.get(url, timeout=10, headers=headers)
+def _get(url, headers, params=None):
+    return requests.get(url, timeout=10, headers=headers, params=params)
 
 
 def _parse_response(resp):
@@ -114,7 +114,7 @@ def check_availability(product_id, warehouse_id, quantity, request=None):
     headers = _build_headers(request)
     params = {"product_id": product_id, "warehouse_id": warehouse_id}
     try:
-        resp = _get(url, headers)
+        resp = _get(url, headers, params)
         data, error = _parse_response(resp)
         if error:
             return False, error
@@ -133,4 +133,13 @@ def check_availability(product_id, warehouse_id, quantity, request=None):
         return False, f"No stock record for product {product_id} at warehouse {warehouse_id}"
     except requests.RequestException as e:
         logger.error("check_availability failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
+def get_stock_valuation(request=None):
+    """On-hand stock value at weighted-average cost. Returns (data, error)."""
+    try:
+        return _parse_response(_get(inventory_url("stock/valuation/"), _build_headers(request)))
+    except requests.RequestException as e:
+        logger.error("get_stock_valuation failed: %s", e)
         return None, str(e)

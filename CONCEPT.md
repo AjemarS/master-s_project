@@ -237,6 +237,7 @@ Customer in showroom → Cashier via POS → Search → Sale → Deduct
 | 3 | Cashier confirms sale | Order (via Gateway) |
 | 4 | Order created: `channel=offline`, `status=unpaid` | Order |
 | 5 | Order calls Inventory → **deduct_batch** from showroom (all items or none; on failure the sale is cancelled) | Inventory (HTTP) |
+| 6 | On success the sale is `completed` with `payment_status=paid` (paid at the till) | Order |
 
 ### 4.5 Order Cancellation
 

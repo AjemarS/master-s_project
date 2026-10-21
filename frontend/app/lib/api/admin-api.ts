@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -135,6 +135,10 @@ export const stockApi = {
     const qs = q.toString();
     return apiCall(`${INVENTORY_API_URL}/stock/${qs ? `?${qs}` : ""}`, { signal });
   },
+
+  async analytics(days = 90): Promise<ApiResponse<StockAnalytics>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/analytics/?days=${days}`);
+  },
 };
 
 export const supplierApi = {
@@ -158,6 +162,10 @@ export const supplierApi = {
 export const goodsReceiptApi = {
   async getAll(): Promise<ApiResponse<{ results: GoodsReceiptNote[]; count: number }>> {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`);
+  },
+
+  async supplierStats(): Promise<ApiResponse<SupplierStats[]>> {
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/supplier-stats/`);
   },
 
   async productInfo(product_id: number, warehouse_id: number): Promise<ApiResponse<{ product_id: number; warehouse_id: number; last_cost_price: string | null; current_stock: number }>> {
@@ -299,12 +307,39 @@ export const reportApi = {
     return apiCall(url);
   },
 
-  async inventoryValue(): Promise<ApiResponse<{ total_value: string; item_count: number }>> {
+  async abc(from?: string, to?: string): Promise<ApiResponse<AbcReport>> {
+    const q = new URLSearchParams();
+    if (from) q.append("from", from);
+    if (to) q.append("to", to);
+    return apiCall(`${API_URL}/reports/abc/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async fulfillment(from?: string, to?: string): Promise<ApiResponse<FulfillmentReport>> {
+    const q = new URLSearchParams();
+    if (from) q.append("from", from);
+    if (to) q.append("to", to);
+    return apiCall(`${API_URL}/reports/fulfillment/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async inventoryValue(): Promise<ApiResponse<{ total_value: number; item_count: number }>> {
     return apiCall(`${API_URL}/reports/inventory-value/`);
   },
 
-  async dailySales(): Promise<ApiResponse<{ daily: { date: string; revenue: number; orders: number }[] }>> {
-    return apiCall(`${API_URL}/reports/daily-sales/`);
+  async dailySales(params?: { from?: string; to?: string; group?: SalesGroup }): Promise<ApiResponse<SalesSeries>> {
+    const q = new URLSearchParams();
+    if (params?.from) q.append("from", params.from);
+    if (params?.to) q.append("to", params.to);
+    if (params?.group) q.append("group", params.group);
+    return apiCall(`${API_URL}/reports/daily-sales/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async topProducts(params?: { from?: string; to?: string; sort?: TopProductsSort; limit?: number }): Promise<ApiResponse<{ sort: TopProductsSort; products: TopProduct[] }>> {
+    const q = new URLSearchParams();
+    if (params?.from) q.append("from", params.from);
+    if (params?.to) q.append("to", params.to);
+    if (params?.sort) q.append("sort", params.sort);
+    if (params?.limit) q.append("limit", String(params.limit));
+    return apiCall(`${API_URL}/reports/top-products/${q.toString() ? `?${q}` : ""}`);
   },
 };
 

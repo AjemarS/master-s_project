@@ -60,6 +60,9 @@ python manage.py test --noinput
 | POST | `/api/inventory/suppliers/` | Admin | Create supplier |
 | GET | `/api/inventory/goods-receipts/` | Admin / Warehouse Worker | GRN list (purchase prices) |
 | GET | `/api/inventory/goods-receipts/product_info/` | Admin / Warehouse Worker | Last cost price and stock of a product |
+| GET | `/api/inventory/goods-receipts/supplier-stats/` | Admin | Per-supplier totals over all GRNs (items, value, deliveries, last delivery) |
+| GET | `/api/inventory/stock/analytics/` | Admin | Per-product sales pace (`deduct`/`sale` movements), days of cover, turnover, dead stock over `?days=` (7..730, default 90) |
+| GET | `/api/inventory/stock/valuation/` | Admin | On-hand stock at `average_cost`, per product (used by order-service inventory-value report) |
 | POST | `/api/inventory/goods-receipts/` | Admin / Warehouse Worker | Create GRN (adds stock) |
 | GET | `/api/inventory/health/` | Any | Health check with DB probe |
 | GET | `/api/docs/` | Any | Swagger UI |
