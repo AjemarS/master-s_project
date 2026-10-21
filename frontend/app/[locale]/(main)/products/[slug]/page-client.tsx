@@ -96,7 +96,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
 
   return (
     <div className="flex flex-col">
-      <main className="flex-1 py-10">
+      <div className="flex-1 py-10">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <ProductGallery
@@ -262,7 +262,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
             </section>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

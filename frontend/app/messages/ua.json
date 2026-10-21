@@ -74,7 +74,8 @@
     "saveOrderDesc": "Введіть email, щоб відстежувати це та всі майбутні замовлення",
     "searchProducts": "Пошук товарів...",
     "sendCode": "Надіслати код",
-    "lastUpdated": "Оновлено: {time}"
+    "lastUpdated": "Оновлено: {time}",
+    "skipToContent": "Перейти до вмісту"
   },
   "signUp": {
     "pageTitle": "Реєстрація",

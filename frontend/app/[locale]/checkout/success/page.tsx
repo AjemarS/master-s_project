@@ -13,7 +13,7 @@ function SuccessContent() {
   const orderId = searchParams.get("order_id");
 
   return (
-    <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+    <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
       <Card className="w-full max-w-md text-center">
         <CardHeader>
           <CheckCircle className="h-16 w-16 mx-auto mb-2 text-primary" />
@@ -55,7 +55,7 @@ function SuccessContent() {
 
 export default function CheckoutSuccessPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-dvh">Loading...</div>}>
       <SuccessContent />
     </Suspense>
   );

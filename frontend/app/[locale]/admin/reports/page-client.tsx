@@ -83,7 +83,7 @@ export function ReportsClient() {
   const error = salesErr || invErr || seriesErr || topErr || null;
 
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}

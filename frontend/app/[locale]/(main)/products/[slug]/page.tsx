@@ -32,19 +32,19 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   if (!product) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <main className="flex-1 py-10">
+      <div className="flex min-h-dvh flex-col">
+        <div className="flex-1 py-10">
           <div className="container px-4 md:px-6">
             <h1 className=" text-3xl font-bold">Product Not Found</h1>
             <p className="mt-4">The product you&apos;re looking for doesn&apos;t exist.</p>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground">Loading product...</p></div>}>
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center"><p className="text-muted-foreground">Loading product...</p></div>}>
       <ProductDetailClient product={product} />
     </Suspense>
   );

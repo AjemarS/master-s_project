@@ -70,7 +70,7 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-warm">
+    <div className="flex min-h-dvh flex-col bg-gradient-warm">
       {/* Hero */}
       <FadeIn direction="none" duration={0.6}>
       <section className="relative overflow-hidden py-24 md:py-32">

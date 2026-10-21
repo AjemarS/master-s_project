@@ -33,7 +33,7 @@ export default function OrderPage() {
 function OrderNotFoundCard() {
   const tDet = useTranslations("orderDetail");
   return (
-    <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+    <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
       <Card className="w-full max-w-md text-center">
         <CardHeader>
           <Package className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
@@ -57,7 +57,7 @@ function OrderDetailPage({ orderId }: { orderId: number }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center">
+      <div className="min-h-dvh bg-muted/50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -68,7 +68,7 @@ function OrderDetailPage({ orderId }: { orderId: number }) {
   }
 
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-2xl mx-auto">
         <Link href="/">
           <Button variant="ghost" className="mb-4 flex items-center gap-2">

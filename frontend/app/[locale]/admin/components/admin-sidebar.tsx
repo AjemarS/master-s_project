@@ -108,7 +108,7 @@ export function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "group relative flex min-h-screen flex-col border-r bg-card transition-all duration-300 ease-in-out",
+        "group relative flex min-h-dvh flex-col border-r bg-card transition-all duration-300 ease-in-out",
         pinned ? "w-64" : "w-14 hover:w-64",
       )}
     >

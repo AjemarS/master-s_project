@@ -101,7 +101,7 @@ function ResetForm() {
 export default function ResetPasswordPage() {
   const t = useTranslations("resetPassword");
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-dvh flex items-center justify-center p-4">
       <Suspense fallback={<div>{t("loading")}</div>}>
         <ResetForm />
       </Suspense>

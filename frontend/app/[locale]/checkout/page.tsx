@@ -182,7 +182,7 @@ function CheckoutGate() {
 
   if (resolvedUser === undefined) {
     return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+      <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -468,7 +468,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
 
   if (orderId) {
     return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+      <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <ShoppingBag className="h-12 w-12 mx-auto mb-2 text-primary" />
@@ -493,7 +493,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <CheckoutHeader tChk={tChk} />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -757,7 +757,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-dvh">Loading...</div>}>
       <CheckoutGate />
     </Suspense>
   );

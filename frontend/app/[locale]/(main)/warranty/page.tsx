@@ -2,7 +2,7 @@ import { FadeIn } from "~/ui/components/motion/fade-in";
 
 export default function WarrantyPage() {
   return (
-    <main className="flex min-h-screen flex-col bg-gradient-warm">
+    <div className="flex min-h-dvh flex-col bg-gradient-warm">
       <FadeIn direction="up">
         <section className="py-16 md:py-24">
           <div className="container mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
@@ -20,6 +20,6 @@ export default function WarrantyPage() {
           </div>
         </section>
       </FadeIn>
-    </main>
+    </div>
   );
 }

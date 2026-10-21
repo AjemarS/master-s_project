@@ -139,7 +139,7 @@ export function SignUpPageClient() {
   return (
     <div
       className={`
-        grid h-screen 
+        grid h-dvh 
         md:grid-cols-2
       `}
     >

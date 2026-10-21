@@ -8,7 +8,7 @@ import { FadeIn } from "~/ui/components/motion/fade-in";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-warm px-4">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-gradient-warm px-4">
       <FadeIn direction="up">
         <div className="flex flex-col items-center space-y-6 text-center">
           <FileSearch className="h-24 w-24 text-muted-foreground" />
