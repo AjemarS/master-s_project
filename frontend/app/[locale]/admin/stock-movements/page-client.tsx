@@ -101,7 +101,7 @@ export function StockMovementsClient() {
 
         <div className="mb-4 flex items-center justify-between gap-2">
           <LastUpdated timestamp={lastUpdated} loading={movementsLoading} />
-          <Button variant="outline" size="sm" onClick={() => movementsMutate()} disabled={movementsLoading} className="h-7 text-xs">
+          <Button variant="outline" size="sm" onClick={() => movementsMutate()} disabled={movementsLoading} className="h-9">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             {tc("refresh")}
           </Button>

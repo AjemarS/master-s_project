@@ -452,6 +452,8 @@ export function SettingsClient() {
                 <Label htmlFor="settings-firstname">{t("firstNameLabel")}</Label>
                 <Input
                   id="settings-firstname"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingProfile && firstName && lastName) handleSaveProfile(); }}
+                required
                 autoComplete="given-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -462,6 +464,8 @@ export function SettingsClient() {
                 <Label htmlFor="settings-lastname">{t("lastNameLabel")}</Label>
                 <Input
                   id="settings-lastname"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingProfile && firstName && lastName) handleSaveProfile(); }}
+                required
                 autoComplete="family-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -477,6 +481,7 @@ export function SettingsClient() {
               <Label htmlFor="settings-phone">{t("phoneLabel")}</Label>
               <Input
                 id="settings-phone"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingProfile && firstName && lastName) handleSaveProfile(); }}
                 autoComplete="tel"
                 type="tel"
                 value={phone}
@@ -585,6 +590,7 @@ export function SettingsClient() {
                         <Label htmlFor="addr-line1">{t("streetAddress")}</Label>
                         <Input
                           id="addr-line1"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
                 autoComplete="address-line1"
                           value={addressLine1}
                           onChange={(e) => setAddressLine1(e.target.value)}
@@ -595,6 +601,7 @@ export function SettingsClient() {
                         <Label htmlFor="addr-line2">{t("aptUnit")}</Label>
                         <Input
                           id="addr-line2"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
                 autoComplete="address-line2"
                           value={addressLine2}
                           onChange={(e) => setAddressLine2(e.target.value)}
@@ -606,6 +613,7 @@ export function SettingsClient() {
                           <Label htmlFor="addr-city">{t("city")}</Label>
                           <Input
                             id="addr-city"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
                 autoComplete="address-level2"
                             value={addressCity}
                             onChange={(e) => setAddressCity(e.target.value)}
@@ -616,6 +624,7 @@ export function SettingsClient() {
                           <Label htmlFor="addr-state">{t("state")}</Label>
                           <Input
                             id="addr-state"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
                 autoComplete="address-level1"
                             value={addressState}
                             onChange={(e) => setAddressState(e.target.value)}
@@ -628,6 +637,7 @@ export function SettingsClient() {
                           <Label htmlFor="addr-postal">{t("postalCode")}</Label>
                           <Input
                             id="addr-postal"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
                 autoComplete="postal-code"
                             value={addressPostalCode}
                             onChange={(e) => setAddressPostalCode(e.target.value)}
@@ -674,7 +684,7 @@ export function SettingsClient() {
                       <Button variant="outline" onClick={() => setAddressDialogOpen(false)}>
                         {tCommon("cancel")}
                       </Button>
-                      <Button disabled={savingAddress || !addressLine1 || !addressCity || !addressCountry} onClick={handleSaveAddress}>
+                      <Button type="button" disabled={savingAddress || !addressLine1 || !addressCity || !addressCountry} onClick={handleSaveAddress}>
                         {savingAddress ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : null}
@@ -723,7 +733,11 @@ export function SettingsClient() {
           <CardHeader>
             <CardTitle>{t("updatePassword")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => { e.preventDefault(); if (!savingPassword && currentPassword && newPassword.length >= 8 && confirmPassword) handleUpdatePassword(); }}
+            >
             <div className="grid gap-2">
               <Label htmlFor="sec-current-password">
                 {t("currentPassword")}
@@ -788,8 +802,8 @@ export function SettingsClient() {
             )}
 
             <Button
+              type="submit"
               disabled={savingPassword || !currentPassword || newPassword.length < 8 || !confirmPassword}
-              onClick={handleUpdatePassword}
               className="w-full sm:w-auto"
             >
               {savingPassword ? (
@@ -801,6 +815,7 @@ export function SettingsClient() {
                 t("updatePassword")
               )}
             </Button>
+            </form>
           </CardContent>
         </Card>
 
