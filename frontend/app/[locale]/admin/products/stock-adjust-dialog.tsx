@@ -51,7 +51,7 @@ export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: St
 
   const handleContinue = () => {
     if (!isValidDelta) {
-      toast.error("Enter a valid quantity change");
+      toast.error(t("stockInvalidChange"));
       return;
     }
     setStockConfirmStep(true);
@@ -63,15 +63,15 @@ export function StockAdjustDialog({ open, onOpenChange, product, onSuccess }: St
     try {
       const res = await productService.updateStock(product.id, delta);
       if (res?.error) throw new Error(res.error.message);
-      toast.success("Stock updated", {
+      toast.success(t("stockUpdated"), {
         description: `${product.name}: ${product.stock} → ${product.stock + delta}`,
       });
-      pushEvent({ type: "update", message: `Adjusted stock for "${product.name}": ${product.stock} → ${product.stock + delta}`, entityType: "product" });
+      pushEvent({ type: "update", message: t("eventStockAdjusted", { name: product.name, from: product.stock, to: product.stock + delta }), entityType: "product" });
       handleClose();
       onSuccess();
     } catch (err) {
-      toast.error("Failed to update stock", {
-        description: err instanceof Error ? err.message : "Error",
+      toast.error(t("stockUpdateFailed"), {
+        description: err instanceof Error ? err.message : tc("error"),
       });
     } finally {
       setStockAdjusting(false);

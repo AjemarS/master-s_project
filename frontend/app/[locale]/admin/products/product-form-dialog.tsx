@@ -1,5 +1,8 @@
 "use client";
 
+import { formatCurrency } from "~/lib/utils/format";
+import { apiErrorText } from "~/lib/utils/error-handler";
+
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -40,6 +43,7 @@ interface ProductFormDialogProps {
 }
 
 function FeaturesInput({ features, onChange }: { features: string[]; onChange: (f: string[]) => void }) {
+  const tf = useTranslations("productForm");
   const [input, setInput] = useState("");
 
   const addFeature = () => {
@@ -56,8 +60,8 @@ function FeaturesInput({ features, onChange }: { features: string[]; onChange: (
         {features.map((f, i) => (
           <span key={`feature-${f}-${i}`} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
             {f}
-            <button type="button" onClick={() => onChange(features.filter((_, j) => j !== i))} className="hover:text-destructive">
-              <X className="h-3 w-3" />
+            <button type="button" onClick={() => onChange(features.filter((_, j) => j !== i))} className="hover:text-destructive" aria-label={tf("removeFeature", { name: f })}>
+              <X className="h-3 w-3" aria-hidden />
             </button>
           </span>
         ))}
@@ -66,13 +70,14 @@ function FeaturesInput({ features, onChange }: { features: string[]; onChange: (
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addFeature(); } }}
-        placeholder="Type and press Enter to add..."
+        placeholder={tf("featurePlaceholder")}
       />
     </div>
   );
 }
 
 function SpecsEditor({ specs, onChange }: { specs: SpecRow[]; onChange: (s: SpecRow[]) => void }) {
+  const tf = useTranslations("productForm");
   const addRow = () => onChange([...specs, { key: "", value: "" }]);
   const removeRow = (i: number) => onChange(specs.filter((_, j) => j !== i));
   const updateRow = (i: number, field: "key" | "value", val: string) =>
@@ -82,15 +87,15 @@ function SpecsEditor({ specs, onChange }: { specs: SpecRow[]; onChange: (s: Spec
     <div className="col-span-3 space-y-2">
       {specs.map((spec, i) => (
         <div key={`spec-${i}`} className="flex gap-2">
-          <Input placeholder="Key" value={spec.key} onChange={(e) => updateRow(i, "key", e.target.value)} className="flex-1" />
-          <Input placeholder="Value" value={spec.value} onChange={(e) => updateRow(i, "value", e.target.value)} className="flex-1" />
-          <Button variant="ghost" size="icon" onClick={() => removeRow(i)} className="shrink-0" type="button">
-            <X className="h-4 w-4" />
+          <Input placeholder={tf("specKey")} aria-label={tf("specKey")} value={spec.key} onChange={(e) => updateRow(i, "key", e.target.value)} className="flex-1" />
+          <Input placeholder={tf("specValue")} aria-label={tf("specValue")} value={spec.value} onChange={(e) => updateRow(i, "value", e.target.value)} className="flex-1" />
+          <Button variant="ghost" size="icon" onClick={() => removeRow(i)} className="shrink-0" type="button" aria-label={tf("removeSpec")}>
+            <X className="h-4 w-4" aria-hidden />
           </Button>
         </div>
       ))}
       <Button variant="outline" size="sm" onClick={addRow} className="w-full" type="button">
-        <Plus className="h-4 w-4 mr-2" /> Add Specification
+        <Plus className="h-4 w-4 mr-2" aria-hidden /> {tf("addSpec")}
       </Button>
     </div>
   );
@@ -107,6 +112,7 @@ function CategoryCreateDialog({
 }) {
   const t = useTranslations("categories");
   const tc = useTranslations("common");
+  const tf = useTranslations("productForm");
   const [name, setName] = useState("");
   const [nameUk, setNameUk] = useState("");
   const [nameEn, setNameEn] = useState("");
@@ -122,7 +128,7 @@ function CategoryCreateDialog({
         name_en: nameEn.trim() || undefined,
       });
       if (res.error) {
-        toast.error("Failed to create category", { description: res.error.message });
+        toast.error(tf("categoryCreateFailed"), { description: res.error.message });
       } else if (res.data) {
         onCreated(res.data);
         onOpenChange(false);
@@ -132,7 +138,7 @@ function CategoryCreateDialog({
         toast.success(t("createdSuccess"), { description: t("createdDesc", { name: name.trim() }) });
       }
     } catch (err) {
-      toast.error("Error", { description: err instanceof Error ? err.message : "Something went wrong" });
+      toast.error(tc("error"), { description: err instanceof Error ? err.message : tc("error") });
     } finally {
       setCreating(false);
     }
@@ -196,6 +202,8 @@ export function ProductFormDialog({
   onSuccess,
   onCategoryCreated,
 }: ProductFormDialogProps) {
+  const tf = useTranslations("productForm");
+  const tc = useTranslations("common");
   const [name, setName] = useState(mode === "edit" ? product?.name ?? "" : "");
   const [nameUk, setNameUk] = useState(mode === "edit" ? product?.name_uk ?? "" : "");
   const [nameEn, setNameEn] = useState(mode === "edit" ? product?.name_en ?? "" : "");
@@ -253,16 +261,16 @@ export function ProductFormDialog({
   };
 
   const validate = (): string | null => {
-    if (!name.trim()) return "Name is required.";
-    if (!description.trim()) return "Description is required.";
-    if (!categoryId) return "Category is required.";
+    if (!name.trim()) return tf("errName");
+    if (!description.trim()) return tf("errDescription");
+    if (!categoryId) return tf("errCategory");
     const priceNum = parseFloat(price);
-    if (!price || isNaN(priceNum) || priceNum <= 0) return "Price must be greater than zero.";
+    if (!price || isNaN(priceNum) || priceNum <= 0) return tf("errPrice");
     const origNum = parseFloat(originalPrice);
-    if (!originalPrice || isNaN(origNum) || origNum < 0) return "Original price is required.";
-    if (origNum < priceNum) return "Original price cannot be less than price.";
+    if (!originalPrice || isNaN(origNum) || origNum < 0) return tf("errOriginalPrice");
+    if (origNum < priceNum) return tf("errOriginalBelowPrice");
     const warranty = Number(warrantyMonths);
-    if (!Number.isInteger(warranty) || warranty < 0 || warranty > 120) return "Warranty must be 0–120 months.";
+    if (!Number.isInteger(warranty) || warranty < 0 || warranty > 120) return tf("errWarranty");
     return null;
   };
 
@@ -328,20 +336,18 @@ export function ProductFormDialog({
       }
 
       if (response.error) {
-        toast.error(mode === "create" ? "Failed to create product" : "Failed to update product", {
-          description: response.error.message,
+        toast.error(mode === "create" ? tf("createFailed") : tf("updateFailed"), {
+          description: apiErrorText(response.error),
         });
       } else {
-        toast.success(mode === "create" ? "Product created" : "Product updated", {
-          description: `${name.trim()} has been ${mode === "create" ? "created" : "updated"}.`,
-        });
-        pushEvent({ type: mode === "create" ? "create" : "update", message: `${mode === "create" ? "Created" : "Updated"} product "${name.trim()}"`, entityType: "product" });
+        toast.success(mode === "create" ? tf("created", { name: name.trim() }) : tf("updated", { name: name.trim() }));
+        pushEvent({ type: mode === "create" ? "create" : "update", message: tf(mode === "create" ? "eventCreated" : "eventUpdated", { name: name.trim() }), entityType: "product" });
         handleOpenChange(false);
         onSuccess();
       }
     } catch (err) {
-      toast.error("Error", {
-        description: err instanceof Error ? err.message : "Something went wrong",
+      toast.error(tc("error"), {
+        description: err instanceof Error ? err.message : tc("error"),
       });
     } finally {
       setSaving(false);
@@ -353,51 +359,47 @@ export function ProductFormDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{mode === "create" ? "Add Product" : "Edit Product"}</DialogTitle>
-            <DialogDescription>
-              {mode === "create"
-                ? "Fill in the details to create a new product."
-                : "Update the product details."}
-            </DialogDescription>
+            <DialogTitle>{mode === "create" ? tf("addTitle") : tf("editTitle")}</DialogTitle>
+            <DialogDescription>{mode === "create" ? tf("addDesc") : tf("editDesc")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-            <FormSection title="Localized Names" defaultOpen={true}>
+            <FormSection title={tf("sectionNames")} defaultOpen={true}>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-name" className="text-right">Name *</Label>
+                <Label htmlFor="pd-name" className="text-right">{tf("name")} *</Label>
                 <Input id="pd-name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" />
               </div>
               <div className="grid grid-cols-4 items-center gap-2">
-                <Label className="text-right text-xs text-muted-foreground">UK</Label>
-                <Input value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder="Назва українською" className="col-span-3" />
+                <Label htmlFor="pd-name-uk" className="text-right text-xs text-muted-foreground">UK</Label>
+                <Input id="pd-name-uk" value={nameUk} onChange={(e) => setNameUk(e.target.value)} placeholder={tf("nameUkPlaceholder")} className="col-span-3" />
               </div>
               <div className="grid grid-cols-4 items-center gap-2">
-                <Label className="text-right text-xs text-muted-foreground">EN</Label>
-                <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Name in English" className="col-span-3" />
+                <Label htmlFor="pd-name-en" className="text-right text-xs text-muted-foreground">EN</Label>
+                <Input id="pd-name-en" value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder={tf("nameEnPlaceholder")} className="col-span-3" />
               </div>
             </FormSection>
 
-            <FormSection title="Descriptions">
+            <FormSection title={tf("sectionDescriptions")}>
               <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="pd-description" className="text-right pt-2">Description *</Label>
+                <Label htmlFor="pd-description" className="text-right pt-2">{tf("description")} *</Label>
                 <Textarea id="pd-description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3 min-h-20" />
               </div>
               <div className="grid grid-cols-4 items-start gap-2">
-                <Label className="text-right text-xs text-muted-foreground pt-1">UK</Label>
-                <Textarea value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder="Опис українською" className="col-span-3 min-h-15" />
+                <Label htmlFor="pd-description-uk" className="text-right text-xs text-muted-foreground pt-1">UK</Label>
+                <Textarea id="pd-description-uk" value={descriptionUk} onChange={(e) => setDescriptionUk(e.target.value)} placeholder={tf("descriptionUkPlaceholder")} className="col-span-3 min-h-15" />
               </div>
               <div className="grid grid-cols-4 items-start gap-2">
-                <Label className="text-right text-xs text-muted-foreground pt-1">EN</Label>
-                <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder="Description in English" className="col-span-3 min-h-15" />
+                <Label htmlFor="pd-description-en" className="text-right text-xs text-muted-foreground pt-1">EN</Label>
+                <Textarea id="pd-description-en" value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} placeholder={tf("descriptionEnPlaceholder")} className="col-span-3 min-h-15" />
               </div>
             </FormSection>
 
-            <FormSection title="Pricing &amp; Stock">
+            <FormSection title={tf("sectionPricing")}>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-category" className="text-right">Category *</Label>
+                <Label htmlFor="pd-category" className="text-right">{tf("category")} *</Label>
                 <div className="col-span-3 flex gap-2">
                   <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger id="pd-category" className="flex-1"><SelectValue placeholder="Select category..." /></SelectTrigger>
+                    <SelectTrigger id="pd-category" className="flex-1"><SelectValue placeholder={tf("selectCategory")} /></SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
@@ -405,13 +407,13 @@ export function ProductFormDialog({
                     </SelectContent>
                   </Select>
                   <Button variant="outline" size="sm" onClick={() => setShowCategoryDialog(true)} type="button" className="shrink-0">
-                    <Plus className="h-4 w-4 mr-1" /> New
+                    <Plus className="h-4 w-4 mr-1" aria-hidden /> {tf("newCategory")}
                   </Button>
                 </div>
               </div>
 
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-price" className="text-right">Price *</Label>
+                <Label htmlFor="pd-price" className="text-right">{tf("price")} *</Label>
                 <div className="col-span-3">
                   <Input id="pd-price" type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)}
                     onBlur={() => {
@@ -421,14 +423,14 @@ export function ProductFormDialog({
                   />
                   {price && !isNaN(parseFloat(price)) && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Current price: {parseFloat(price).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                      {formatCurrency(parseFloat(price))}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-original-price" className="text-right">Orig. Price *</Label>
+                <Label htmlFor="pd-original-price" className="text-right">{tf("originalPrice")} *</Label>
                 <div className="col-span-3">
                   <Input id="pd-original-price" type="number" step="0.01" min="0" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)}
                     onBlur={() => {
@@ -438,44 +440,44 @@ export function ProductFormDialog({
                   />
                   {originalPrice && !isNaN(parseFloat(originalPrice)) && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Original price: {parseFloat(originalPrice).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                      {formatCurrency(parseFloat(originalPrice))}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-stock" className="text-right">Stock</Label>
+                <Label htmlFor="pd-stock" className="text-right">{tf("stock")}</Label>
                 <Input id="pd-stock" type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className="col-span-3" />
               </div>
             </FormSection>
 
-            <FormSection title="Metadata">
+            <FormSection title={tf("sectionMetadata")}>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-warranty" className="text-right">Warranty (months)</Label>
+                <Label htmlFor="pd-warranty" className="text-right">{tf("warranty")}</Label>
                 <Input id="pd-warranty" type="number" step="1" min="0" max="120" value={warrantyMonths} onChange={(e) => setWarrantyMonths(e.target.value)} className="col-span-3" />
               </div>
 
               <div className="grid grid-cols-4 items-start gap-4">
-                <Label className="text-right pt-1">Features</Label>
+                <Label className="text-right pt-1">{tf("features")}</Label>
                 <FeaturesInput features={features} onChange={setFeatures} />
               </div>
 
               <div className="grid grid-cols-4 items-start gap-4">
-                <Label className="text-right pt-1">Specs</Label>
+                <Label className="text-right pt-1">{tf("specs")}</Label>
                 <SpecsEditor specs={specs} onChange={setSpecs} />
               </div>
             </FormSection>
 
-            <FormSection title="Media">
+            <FormSection title={tf("sectionMedia")}>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-image" className="text-right">Image</Label>
+                <Label htmlFor="pd-image" className="text-right">{tf("image")}</Label>
                 <div className="col-span-3 flex items-center gap-3">
                   <Button variant="outline" size="sm" onClick={() => document.getElementById("pd-image")?.click()} type="button">
-                    <Upload className="h-4 w-4 mr-1" /> {image ? "Change" : "Upload"}
+                    <Upload className="h-4 w-4 mr-1" aria-hidden /> {image ? tf("changeImage") : tf("uploadImage")}
                   </Button>
                   {image && <span className="text-sm text-muted-foreground truncate max-w-50">{image.name}</span>}
-                  {imageError && <span className="text-sm text-destructive">{imageError}</span>}
+                  {imageError && <span role="alert" className="text-sm text-destructive">{imageError}</span>}
                   <input
                     id="pd-image"
                     type="file"
@@ -487,12 +489,12 @@ export function ProductFormDialog({
                       if (file) {
                         const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
                         if (!allowed.includes(file.type)) {
-                          setImageError("Only JPEG, PNG, WebP, GIF allowed");
+                          setImageError(tf("errImageType"));
                           setImage(null);
                           return;
                         }
                         if (file.size > 5 * 1024 * 1024) {
-                          setImageError("Image must not exceed 5 MB");
+                          setImageError(tf("errImageSize"));
                           setImage(null);
                           return;
                         }
@@ -513,9 +515,9 @@ export function ProductFormDialog({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving} type="button">Cancel</Button>
+            <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving} type="button">{tc("cancel")}</Button>
             <Button onClick={handleSave} disabled={saving || !name.trim() || !description.trim() || !categoryId || !price || parseFloat(price) <= 0 || !originalPrice} type="button">
-              {saving ? "Saving..." : mode === "create" ? "Create Product" : "Save Changes"}
+              {saving ? tf("saving") : mode === "create" ? tf("create") : tf("save")}
             </Button>
           </DialogFooter>
         </DialogContent>

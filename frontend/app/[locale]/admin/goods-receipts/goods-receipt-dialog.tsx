@@ -57,6 +57,7 @@ export function GoodsReceiptDialog({
 }: GoodsReceiptDialogProps) {
   const t = useTranslations("goodsReceipts");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const refCounterRef = useRef(0);
   // Initial rows use keys 1..n (see initialItems); new rows continue after them
@@ -192,7 +193,7 @@ export function GoodsReceiptDialog({
       });
       if (res.error) throw new Error(apiErrorText(res.error));
       toast.success(t("createGrn"));
-      pushEvent({ type: "create", message: `Created goods receipt (supplier #${supplier})`, entityType: "goods_receipt" });
+      pushEvent({ type: "create", message: tAct("createdGoodsReceipt", { supplier: suppliers.find((s) => String(s.id) === supplier)?.name ?? `#${supplier}` }), entityType: "goods_receipt" });
       resetAndClose();
       onSuccess();
     } catch (err) {

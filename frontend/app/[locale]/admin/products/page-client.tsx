@@ -64,6 +64,7 @@ export function AdminProductsClient({
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const t = useTranslations("products");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const { addProduct: addRecentProduct } = useRecentProducts();
   const { user } = useCurrentUser();
@@ -115,7 +116,7 @@ export function AdminProductsClient({
       toast.success(t("deleteTitle"), {
         description: deleteDialog.productName,
       });
-      pushEvent({ type: "delete", message: `Deleted product "${deleteDialog.productName}"`, entityType: "product" });
+      pushEvent({ type: "delete", message: tAct("deletedProduct", { name: deleteDialog.productName }), entityType: "product" });
       setDeleteDialog({ open: false, productId: null, productName: "" });
       mutate();
     } catch (err) {
@@ -257,7 +258,7 @@ export function AdminProductsClient({
         <div className="mb-4 flex items-center justify-end">
           <Button variant="outline" size="sm" onClick={() => mutate()} disabled={isValidating} className="h-7 text-xs">
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
 

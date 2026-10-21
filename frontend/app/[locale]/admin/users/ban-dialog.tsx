@@ -29,6 +29,7 @@ interface BanDialogProps {
 export function BanDialog({ open, onOpenChange, user, onConfirm }: BanDialogProps) {
   const t = useTranslations("users");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
   const { pushEvent } = useActivityFeed();
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +41,7 @@ export function BanDialog({ open, onOpenChange, user, onConfirm }: BanDialogProp
       await onConfirm(user.id, reason);
       pushEvent({
         type: "ban",
-        message: `Banned user "${user?.name || user?.id}"`,
+        message: tAct("bannedUser", { name: user?.name || user?.id || "" }),
         entityType: "user",
       });
     } finally {

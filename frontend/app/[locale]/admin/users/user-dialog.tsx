@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -56,15 +57,15 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
 
   const handleSave = useCallback(async () => {
     if (mode === "create") {
-      if (!name.trim()) { setFormError("Name is required."); return; }
-      if (!email.trim()) { setFormError("Email is required."); return; }
-      if (!password) { setFormError("Password is required."); return; }
-      if (password.length < 8) { setFormError("Password must be at least 8 characters."); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setFormError("Invalid email address."); return; }
+      if (!name.trim()) { setFormError(t("errName")); return; }
+      if (!email.trim()) { setFormError(t("errEmail")); return; }
+      if (!password) { setFormError(t("errPassword")); return; }
+      if (password.length < 8) { setFormError(t("errPasswordShort")); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setFormError(t("errEmailInvalid")); return; }
     } else {
-      if (!name.trim()) { setFormError("Name is required."); return; }
-      if (!email.trim()) { setFormError("Email is required."); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setFormError("Invalid email address."); return; }
+      if (!name.trim()) { setFormError(t("errName")); return; }
+      if (!email.trim()) { setFormError(t("errEmail")); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setFormError(t("errEmailInvalid")); return; }
     }
 
     if (mode === "edit" && !user) return;
@@ -91,25 +92,23 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
       }
 
       if (response?.error) {
-        toast.error(mode === "create" ? "Failed to create user" : "Failed to update user", {
-          description: response.error.message,
+        toast.error(mode === "create" ? t("createFailed") : t("updateFailed"), {
+          description: response.error.message ?? t("unexpected"),
         });
       } else {
-        toast.success(mode === "create" ? "User created" : "User updated", {
-          description: `${name.trim()} has been ${mode === "create" ? "created" : "updated"}.`,
-        });
-        pushEvent({ type: mode === "create" ? "create" : "update", message: `${mode === "create" ? "Created" : "Updated"} user "${name.trim()}"`, entityType: "user" });
+        toast.success(mode === "create" ? t("createdToast", { name: name.trim() }) : t("updatedToast", { name: name.trim() }));
+        pushEvent({ type: mode === "create" ? "create" : "update", message: t(mode === "create" ? "eventCreated" : "eventUpdated", { name: name.trim() }), entityType: "user" });
         resetAndClose();
         onSuccess();
       }
     } catch (err) {
-      toast.error("Error", {
-        description: err instanceof Error ? err.message : "Something went wrong",
+      toast.error(tc("error"), {
+        description: err instanceof Error ? err.message : t("unexpected"),
       });
     } finally {
       setSaving(false);
     }
-  }, [mode, name, email, password, role, user, pushEvent, resetAndClose, onSuccess]);
+  }, [mode, name, email, password, role, user, pushEvent, resetAndClose, onSuccess, t, tc]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -117,9 +116,7 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("addUser") : t("editUser")}</DialogTitle>
           <DialogDescription>
-            {mode === "create"
-              ? "Create a new user account."
-              : "Update user details."}
+            {mode === "create" ? t("createDesc") : t("editDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -176,7 +173,7 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       tabIndex={-1}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? t("hidePassword") : t("showPassword")}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>

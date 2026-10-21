@@ -49,13 +49,11 @@ export default function UsersPageClient() {
     try {
       await deleteTrigger(userId);
       mutate();
-      toast.success("User removed", {
-        description: `${user?.name || user?.email || userId} has been removed.`,
-      });
-      pushEvent({ type: "delete", message: `Deleted user "${user?.name || user?.email || userId}"`, entityType: "user" });
+      toast.success(t("removedToast", { name: user?.name || user?.email || userId }));
+      pushEvent({ type: "delete", message: t("eventDeleted", { name: user?.name || user?.email || userId }), entityType: "user" });
     } catch (err) {
-      toast.error("Failed to remove user", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+      toast.error(t("removeFailed"), {
+        description: err instanceof Error ? err.message : t("unexpected"),
       });
     }
   };
@@ -65,13 +63,11 @@ export default function UsersPageClient() {
     try {
       await banTrigger(userId, reason);
       mutate();
-      toast.success("User banned", {
-        description: `User has been banned. Reason: ${reason}`,
-      });
-      pushEvent({ type: "info", message: `Banned user "${userToBan?.name || userToBan?.email || userId}"`, entityType: "user" });
+      toast.success(t("bannedToast"), { description: t("bannedToastDesc", { reason }) });
+      pushEvent({ type: "info", message: t("eventBanned", { name: userToBan?.name || userToBan?.email || userId }), entityType: "user" });
     } catch (err) {
-      toast.error("Failed to ban user", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+      toast.error(t("banFailed"), {
+        description: err instanceof Error ? err.message : t("unexpected"),
       });
     }
   };
@@ -81,13 +77,11 @@ export default function UsersPageClient() {
     try {
       await unbanTrigger(userId);
       mutate();
-      toast.success("User unbanned", {
-        description: `${user?.name || user?.email || userId} has been unbanned.`,
-      });
-      pushEvent({ type: "info", message: `Unbanned user "${user?.name || user?.email || userId}"`, entityType: "user" });
+      toast.success(t("unbannedToast", { name: user?.name || user?.email || userId }));
+      pushEvent({ type: "info", message: t("eventUnbanned", { name: user?.name || user?.email || userId }), entityType: "user" });
     } catch (err) {
-      toast.error("Failed to unban user", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+      toast.error(t("unbanFailed"), {
+        description: err instanceof Error ? err.message : t("unexpected"),
       });
     }
   };
@@ -102,7 +96,7 @@ export default function UsersPageClient() {
       setTimeout(() => window.location.reload(), 500);
     } catch (err) {
       toast.error(ti("impersonateFailed"), {
-        description: err instanceof Error ? err.message : "An unexpected error occurred.",
+        description: err instanceof Error ? err.message : t("unexpected"),
       });
     }
   };

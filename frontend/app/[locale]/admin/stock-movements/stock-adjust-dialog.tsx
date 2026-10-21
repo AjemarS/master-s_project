@@ -31,6 +31,7 @@ export function StockAdjustDialog({ open, onOpenChange, onSuccess }: StockAdjust
   const { pushEvent } = useActivityFeed();
   const tSM = useTranslations("stockMovements");
   const tCommon = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const [productId, setProductId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
@@ -202,7 +203,7 @@ export function StockAdjustDialog({ open, onOpenChange, onSuccess }: StockAdjust
         new_quantity: parsedNewQty,
         reason,
       });
-      pushEvent({ type: "info", message: `Adjusted stock in stock-movements panel`, entityType: "stock_movement" });
+      pushEvent({ type: "info", message: tAct("adjustedStock"), entityType: "stock_movement" });
       handleClose();
       onSuccess();
     } catch (err) {

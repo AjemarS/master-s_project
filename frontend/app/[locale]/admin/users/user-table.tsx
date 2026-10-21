@@ -1,7 +1,9 @@
 "use client";
 
+import { formatDate } from "~/lib/utils/format";
+
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Card,
   CardContent,
@@ -74,6 +76,7 @@ export function UserTable({
   const t = useTranslations("users");
   const tc = useTranslations("common");
   const ti = useTranslations("impersonation");
+  const locale = useLocale();
   const [showFilters, setShowFilters] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState("");
@@ -85,10 +88,8 @@ export function UserTable({
   const [banningUser, setBanningUser] = useState<UserWithRole | null>(null);
 
   const handleDeleteClick = (user: UserWithRole) => {
-    setConfirmTitle("Remove User");
-    setConfirmDescription(
-      `Are you sure you want to permanently remove ${user.name || user.email}? This action cannot be undone.`
-    );
+    setConfirmTitle(t("removeTitle"));
+    setConfirmDescription(t("removeConfirm", { name: user.name || user.email }));
     setConfirmVariant("destructive");
     setConfirmAction(() => async () => {
       setConfirmLoading(true);
@@ -103,8 +104,8 @@ export function UserTable({
   };
 
   const handleUnbanClick = (user: UserWithRole) => {
-    setConfirmTitle("Unban User");
-    setConfirmDescription(`Are you sure you want to unban ${user.name || user.email}?`);
+    setConfirmTitle(t("unbanTitle"));
+    setConfirmDescription(t("unbanConfirm", { name: user.name || user.email }));
     setConfirmVariant("default");
     setConfirmAction(() => async () => {
       setConfirmLoading(true);
@@ -153,14 +154,14 @@ export function UserTable({
   const columns: Column<UserWithRole>[] = [
     {
       id: "user",
-      header: "User",
+      header: t("user"),
       cell: (user) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-linear-to-br from-primary to-primary/80 flex items-center justify-center text-white font-semibold">
             {user.name?.charAt(0).toUpperCase() || "U"}
           </div>
           <div>
-            <div className="font-medium">{user.name || "Unknown"}</div>
+            <div className="font-medium">{user.name || t("unknown")}</div>
             <div className="text-sm text-muted-foreground">{user.id.slice(0, 8)}...</div>
           </div>
         </div>
@@ -168,7 +169,7 @@ export function UserTable({
     },
     {
       id: "email",
-      header: "Email",
+      header: t("email"),
       cell: (user) => (
         <div className="flex items-center gap-2 text-muted-foreground">
           <Mail className="h-4 w-4" />
@@ -178,60 +179,60 @@ export function UserTable({
     },
     {
       id: "role",
-      header: "Role",
+      header: t("role"),
       cell: (user) => (
         <Badge variant={user.role === "admin" ? "default" : "secondary"} className="flex items-center gap-1 w-fit">
           {user.role === "admin" && <Shield className="h-3 w-3" />}
-          {user.role}
+          {t(user.role === "warehouse_worker" ? "warehouseWorker" : user.role === "admin" || user.role === "cashier" ? user.role : "user")}
         </Badge>
       ),
     },
     {
       id: "status",
-      header: "Status",
+      header: t("status"),
       cell: (user) =>
         user.banned ? (
           <Badge variant="destructive" className="flex items-center gap-1 w-fit">
-            <Ban className="h-3 w-3" /> Banned
+            <Ban className="h-3 w-3" aria-hidden /> {t("banned")}
           </Badge>
         ) : (
           <Badge variant="default" className="flex items-center gap-1 w-fit bg-primary">
-            <CheckCircle className="h-3 w-3" /> Active
+            <CheckCircle className="h-3 w-3" aria-hidden /> {t("active")}
           </Badge>
         ),
     },
     {
       id: "joined",
-      header: "Joined",
+      header: t("createdAt"),
       cell: (user) => (
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="h-4 w-4" />
-          {new Date(user.createdAt).toLocaleDateString()}
+          {formatDate(String(user.createdAt), locale)}
         </div>
       ),
     },
     {
       id: "actions",
-      header: "Actions",
+      header: t("actions"),
       headerClassName: "text-right",
       cell: (user) => (
         <div className="flex justify-end gap-2">
-          <Button size="sm" variant="outline" title={ti("impersonate")} onClick={() => handleImpersonateClick(user)}>
+          <Button size="sm" variant="outline" title={ti("impersonate")} aria-label={ti("impersonate")} onClick={() => handleImpersonateClick(user)}>
             <UserCheck className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" title="Edit user" onClick={() => onEdit(user)}>
+          <Button size="sm" variant="outline" title={t("editUser")} aria-label={t("editUser")} onClick={() => onEdit(user)}>
             <Pencil className="h-4 w-4" />
           </Button>
           {user.banned ? (
-            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary/10" onClick={() => handleUnbanClick(user)} title="Unban user">
+            <Button size="sm" variant="outline" className="border-primary text-primary hover:bg-primary/10" onClick={() => handleUnbanClick(user)} title={t("unbanUser")} aria-label={t("unbanUser")}>
               <CheckCircle className="h-4 w-4" />
             </Button>
           ) : (
-            <Button size="sm" variant="outline" className="border-accent-electric text-accent-electric hover:bg-accent-electric/10" onClick={() => handleBanClick(user)} title="Ban user">
+            <Button size="sm" variant="outline" className="border-accent-electric text-accent-electric hover:bg-accent-electric/10" onClick={() => handleBanClick(user)} title={t("banUser")} aria-label={t("banUser")}>
               <Ban className="h-4 w-4" />
             </Button>
           )}
-          <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(user)} title="Remove user">
+          <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(user)} title={t("deleteUser")} aria-label={t("deleteUser")}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -245,9 +246,9 @@ export function UserTable({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-foreground">User Accounts</CardTitle>
+              <CardTitle className="text-foreground">{t("accountsTitle")}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Manage user roles, permissions, and account status
+                {t("accountsDesc")}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
@@ -262,6 +263,8 @@ export function UserTable({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
+                type="search"
+                aria-label={t("search")}
                 placeholder={t("search")}
                 value={searchTerm}
                 onChange={(e) => onSearchChange(e.target.value)}
@@ -275,33 +278,33 @@ export function UserTable({
             <div className="mb-6 p-4 border rounded-lg bg-muted/50 dark:border-border">
               <div className="flex flex-wrap items-end gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-muted-foreground">Role</Label>
-                  <Select value={roleFilter} onValueChange={onRoleFilterChange}>
-                    <SelectTrigger className="w-40"><SelectValue placeholder="All roles" /></SelectTrigger>
+                  <Label htmlFor="users-role-filter" className="text-muted-foreground">{t("role")}</Label>
+                  <Select value={roleFilter || "all"} onValueChange={(v) => onRoleFilterChange(v === "all" ? "" : v)}>
+                    <SelectTrigger id="users-role-filter" className="w-40"><SelectValue placeholder={t("allRoles")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All roles</SelectItem>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="cashier">Cashier</SelectItem>
-                      <SelectItem value="warehouse_worker">Warehouse Worker</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="all">{t("allRoles")}</SelectItem>
+                      <SelectItem value="user">{t("user")}</SelectItem>
+                      <SelectItem value="cashier">{t("cashier")}</SelectItem>
+                      <SelectItem value="warehouse_worker">{t("warehouseWorker")}</SelectItem>
+                      <SelectItem value="admin">{t("admin")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-muted-foreground">Status</Label>
-                  <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-                    <SelectTrigger className="w-32"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                  <Label htmlFor="users-status-filter" className="text-muted-foreground">{t("status")}</Label>
+                  <Select value={statusFilter || "all"} onValueChange={(v) => onStatusFilterChange(v === "all" ? "" : v)}>
+                    <SelectTrigger id="users-status-filter" className="w-32"><SelectValue placeholder={t("allStatuses")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="banned">Banned</SelectItem>
+                      <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                      <SelectItem value="active">{t("active")}</SelectItem>
+                      <SelectItem value="banned">{t("banned")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex gap-2 pb-px">
-                  <Button size="sm" onClick={() => onPageChange(1)}>Apply</Button>
+                  <Button size="sm" onClick={() => onPageChange(1)}>{tc("apply")}</Button>
                   <Button size="sm" variant="outline" onClick={() => { onRoleFilterChange(""); onStatusFilterChange(""); }}>
-                    Reset
+                    {tc("reset")}
                   </Button>
                 </div>
               </div>
@@ -313,7 +316,7 @@ export function UserTable({
             columns={columns}
             data={users}
             isLoading={isLoading}
-            emptyMessage={searchTerm ? "No users found matching your search" : "No users available"}
+            emptyMessage={searchTerm ? t("noUsersFound") : t("noUsers")}
             emptyIcon={Users}
             keyExtractor={(u) => u.id}
           />

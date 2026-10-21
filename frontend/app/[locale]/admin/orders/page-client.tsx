@@ -20,6 +20,8 @@ const PAGE_SIZE = 20;
 export function AdminOrdersClient() {
   const t = useTranslations("orders");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
+  const tOrders = useTranslations("orders");
 
   const [orderDetails, setOrderDetails] = useState<Record<number, OrderDetail>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,7 +99,7 @@ export function AdminOrdersClient() {
       toast.success(t("statusUpdated"), {
         description: t("statusChanged", { id: orderId, status: t(newStatus) }),
       });
-      pushEvent({ type: "update", message: `Order #${orderId} status changed to ${newStatus}`, entityType: "order" });
+      pushEvent({ type: "update", message: tAct("orderStatusChanged", { id: orderId, status: tOrders(newStatus) }), entityType: "order" });
       mutate();
     } catch (err) {
       toast.error(tc("error"), {
@@ -124,7 +126,7 @@ export function AdminOrdersClient() {
           <LastUpdated timestamp={lastUpdated} loading={isLoading} />
           <Button variant="outline" size="sm" onClick={() => mutate()} disabled={isValidating} className="h-7 text-xs">
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isValidating ? "animate-spin" : ""}`} />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
 

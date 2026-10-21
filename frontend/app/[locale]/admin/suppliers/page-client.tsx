@@ -18,6 +18,7 @@ import { useActivityFeed } from "../components/activity-feed";
 export function SuppliersClient() {
   const t = useTranslations("suppliers");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const { data, error, isLoading, mutate } = useSuppliers();
   const suppliers = data?.results || [];
@@ -56,7 +57,7 @@ export function SuppliersClient() {
         toast.error(tc("error"), { description: res.error.message });
       } else {
         toast.success(t("supplierDeleted"));
-        pushEvent({ type: "delete", message: `Deleted supplier #${deleteConfirmId}`, entityType: "supplier" });
+        pushEvent({ type: "delete", message: tAct("deletedSupplier", { id: deleteConfirmId }), entityType: "supplier" });
         setDeleteConfirmId(null);
         mutate();
       }
