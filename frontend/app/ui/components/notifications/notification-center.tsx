@@ -57,7 +57,9 @@ export function NotificationCenter({
   const handleMarkAsRead = (id: string) => onMarkAsRead?.(id);
   const handleMarkAllAsRead = () => onMarkAllAsRead?.();
   const handleDismiss = (id: string) => onDismiss?.(id);
-  const handleClearAll = () => onClearAll?.();
+  const handleClearAll = () => {
+    if (window.confirm(t("clearAllConfirm"))) onClearAll?.();
+  };
 
   return (
     <div className={cn("relative", className)} {...props}>

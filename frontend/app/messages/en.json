@@ -319,7 +319,8 @@
     "reviewsCount": "{count, plural, one {# review} other {# reviews}}",
     "noReviewsYet": "No reviews yet",
     "addToWishlist": "Add to wishlist",
-    "removeFromWishlist": "Remove from wishlist"
+    "removeFromWishlist": "Remove from wishlist",
+    "addToCartFailed": "Could not add the item to the cart. Please try again."
   },
   "orders": {
     "title": "Orders",
@@ -433,7 +434,8 @@
     "checkout": "Checkout",
     "continueShopping": "Continue Shopping",
     "clearCart": "Clear Cart",
-    "shoppingCart": "Shopping Cart"
+    "shoppingCart": "Shopping Cart",
+    "clearConfirm": "Clear the cart? All items will be removed."
   },
   "checkout": {
     "title": "Checkout",
@@ -967,7 +969,8 @@
       "marketing_desc": "Receive news and promotions",
       "low_stock": "Low Stock Alerts",
       "low_stock_desc": "Notifications about low stock (administrators)"
-    }
+    },
+    "clearAllConfirm": "Delete all notifications?"
   },
   "profile": {
     "pageTitle": "Profile",
@@ -1016,7 +1019,8 @@
     "enterCode": "Enter the 6-digit code from your authenticator app",
     "verify": "Verify",
     "backupCodesWarning": "Store these codes securely. Each code can only be used once.",
-    "done": "Done"
+    "done": "Done",
+    "disable2faConfirm": "Turn off two-factor authentication? The account will be protected by the password only."
   },
   "settings": {
     "pageTitle": "Settings",
@@ -1089,7 +1093,8 @@
     "firstNamePlaceholder": "Enter your first name",
     "lastNameLabel": "Last name",
     "lastNamePlaceholder": "Enter your last name",
-    "copy": "Copy"
+    "copy": "Copy",
+    "revokeSessionsConfirm": "Sign out on all other devices?"
   },
   "signIn": {
     "pageTitle": "Sign In",
@@ -1353,7 +1358,8 @@
     "noDifferences": "The selected products do not differ in these specs.",
     "addMore": "Add at least one more product to compare.",
     "loadFailed": "Could not load the products. Try reloading the page.",
-    "gone": "These products are no longer in the catalog."
+    "gone": "These products are no longer in the catalog.",
+    "addToCartFailed": "Could not add the item to the cart. Please try again."
   },
   "purchasing": {
     "title": "Purchasing",

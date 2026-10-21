@@ -332,6 +332,7 @@ export function SettingsClient() {
       toast.error(tProfile("passwordRequired"));
       return;
     }
+    if (!window.confirm(tProfile("disable2faConfirm"))) return;
     setDisabling2FA(true);
     try {
       await twoFactor.disable({ password: twoFactorPassword });
@@ -348,6 +349,7 @@ export function SettingsClient() {
 
   // ── Sessions ───────────────────────────────────────────────────
   const handleRevokeSessions = async () => {
+    if (!window.confirm(t("revokeSessionsConfirm"))) return;
     setRevokingSessions(true);
     try {
       await authClient.revokeOtherSessions();

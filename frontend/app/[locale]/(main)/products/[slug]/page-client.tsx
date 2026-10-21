@@ -77,7 +77,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
     if (!product) return;
 
     setIsAdding(true);
-    addItem(
+    const ok = await addItem(
       {
         category: product.category.name,
         id: String(product.id),
@@ -88,10 +88,13 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       },
       quantity
     );
+    setIsAdding(false);
+    if (!ok) {
+      toast.error(t("addToCartFailed"));
+      return;
+    }
     setQuantity(1);
     toast.success(t("addedToCart", { name: product.name }));
-    await new Promise((r) => setTimeout(r, 400));
-    setIsAdding(false);
   }, [addItem, product, quantity, t]);
 
   return (
@@ -250,9 +253,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                       original_price: Number(p.original_price),
                       rating: Number(p.rating),
                     }}
-                    onAddToCart={(id) => {
-                      addItem({ id: String(id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1);
-                    }}
+                    onAddToCart={(id) =>
+                      addItem({ id: String(id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1)
+                    }
                   />
                 ))}
               </div>

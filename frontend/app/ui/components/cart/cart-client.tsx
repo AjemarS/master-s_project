@@ -74,7 +74,7 @@ export function CartClient({ className }: CartProps) {
   };
 
   const handleClearCart = () => {
-    clearCart();
+    if (window.confirm(t("clearConfirm"))) clearCart();
   };
 
   const CartTrigger = (

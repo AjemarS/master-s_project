@@ -28,12 +28,8 @@ export function NewArrivalsCartWrapper({ products }: NewArrivalsCartWrapperProps
   const handleAddToCart = React.useCallback(
     async (productId: number) => {
       const product = products.find((p) => p.id === productId);
-      if (!product) return;
-      try {
-        await addItem(toItem(product), 1);
-      } catch {
-        // silent (matching existing pattern)
-      }
+      if (!product) return false;
+      return addItem(toItem(product), 1);
     },
     [addItem, products],
   );

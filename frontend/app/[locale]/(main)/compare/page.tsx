@@ -153,9 +153,10 @@ export default function ComparePage() {
                         <Button
                           size="sm"
                           disabled={!p.in_stock}
-                          onClick={() => {
-                            addItem({ id: String(p.id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1);
-                            toast.success(t("addedToCart"));
+                          onClick={async () => {
+                            const ok = await addItem({ id: String(p.id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1);
+                            if (ok) toast.success(t("addedToCart"));
+                            else toast.error(t("addToCartFailed"));
                           }}
                         >
                           <ShoppingCart className="h-4 w-4" aria-hidden />

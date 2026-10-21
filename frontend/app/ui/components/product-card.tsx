@@ -2,6 +2,7 @@
 
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import * as React from "react";
+import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
 import { Link } from "~/i18n/navigation";
@@ -16,7 +17,8 @@ import { ProductImage } from "~/ui/components/product-image";
 import { CompareButton } from "~/ui/components/compare-button";
 
 type ProductCardProps = Omit<React.HTMLAttributes<HTMLDivElement>, "onError"> & {
-  onAddToCart?: (productId: number) => void;
+  /** Return the add result (true/false) and the card tells the buyer how it went */
+  onAddToCart?: (productId: number) => void | Promise<boolean | void>;
   onAddToWishlist?: (productId: number) => void;
   product: Product;
   variant?: "compact" | "default";
@@ -43,7 +45,11 @@ export const ProductCard = React.memo(function ProductCard({
   const inWishlist = isInWishlist(product.id);
   const canBuy = product.in_stock && !!onAddToCart;
 
-  const addToCart = () => onAddToCart?.(product.id);
+  const addToCart = async () => {
+    const ok = await onAddToCart?.(product.id);
+    if (ok === true) toast.success(t("addedToCart", { name: product.name }));
+    else if (ok === false) toast.error(t("addToCartFailed"));
+  };
 
   const stars = (
     <div

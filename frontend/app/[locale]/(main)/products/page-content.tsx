@@ -169,12 +169,8 @@ export default function ProductsPageContent() {
   const handleAddToCart = React.useCallback(
     async (productId: number) => {
       const product = products.find((p) => p.id === productId);
-      if (!product) return;
-      try {
-        await addItem(toItem(product), 1);
-      } catch {
-        // silent
-      }
+      if (!product) return false;
+      return addItem(toItem(product), 1);
     },
     [addItem, products],
   );
