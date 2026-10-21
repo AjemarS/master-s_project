@@ -19,6 +19,7 @@ const roleRouteAccess: Record<string, string[]> = {
   "/admin/pos": ["admin", "cashier"],
   "/admin/products": ["admin", "cashier"],
   "/admin/orders": ["admin", "cashier"],
+  "/admin/returns": ["admin"],
   "/admin/warehouses": ["admin", "warehouse_worker"],
   "/admin/stock-movements": ["admin", "warehouse_worker"],
   "/admin/goods-receipts": ["admin", "warehouse_worker"],

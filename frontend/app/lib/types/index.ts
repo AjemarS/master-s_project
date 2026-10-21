@@ -17,6 +17,8 @@ export interface Product {
   stock: number;
   in_stock: boolean;
   rating: number;
+  /** Seller's warranty in months */
+  warranty_months?: number;
   brand?: string;
   color?: string;
   features?: string[];
@@ -184,6 +186,8 @@ export interface OrderDetail extends Order {
   stripe_session_id: string;
   stripe_payment_intent_id: string;
   paid_at: string | null;
+  /** When the buyer got the goods: start of the return and warranty periods */
+  delivered_at: string | null;
   notes: string;
   items: OrderItem[];
 }
@@ -195,8 +199,33 @@ export interface OrderItem {
   product_name: string;
   quantity: number;
   price: number;
-  cost_price: number;
+  /** Months of warranty at the time of sale; null for items sold before it was tracked */
+  warranty_months: number | null;
   created_at: string;
+}
+
+export type ReturnKind = "return" | "warranty";
+export type ReturnStatus = "submitted" | "approved" | "received" | "resolved" | "rejected";
+export type ReturnResolution = "refund" | "replace" | "repair";
+
+export interface ReturnRequest {
+  id: number;
+  order: number;
+  order_number: string;
+  item: number;
+  product_id: number;
+  product_name: string;
+  unit_price: string;
+  quantity: number;
+  kind: ReturnKind;
+  reason: string;
+  status: ReturnStatus;
+  resolution: ReturnResolution | "";
+  refund_amount: string;
+  restocked: boolean;
+  admin_comment: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SalesKpis {

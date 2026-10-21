@@ -8,6 +8,7 @@ import {
   ShoppingCart, BarChart3,
   ExternalLink, Pin, PinOff,
   ChevronDown,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
@@ -54,6 +55,7 @@ const navigationGroups: NavGroup[] = [
       { key: "suppliers", href: "/admin/suppliers" },
     ],
   },
+  { key: "returns", href: "/admin/returns", icon: RotateCcw, roles: ["admin"] },
   { key: "reports", href: "/admin/reports", icon: BarChart3, roles: ["admin"] },
   { key: "users", href: "/admin/users", icon: Users, roles: ["admin"] },
 ];

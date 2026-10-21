@@ -24,7 +24,7 @@ python manage.py test
 
 #### Models
 - **Category** — hierarchical categories with `parent` FK (self-referential). Bilingual: `name_uk`/`name_en`, `description_uk`/`description_en`. Active toggle.
-- **Product** — catalog item with bilingual fields, pricing in UAH, `energy_class`, `warranty_months`, images, `stock` (denormalized from inventory-service via event consumer). Locale-aware serialization via `Accept-Language` header.
+- **Product** — catalog item with bilingual fields, pricing in UAH, `warranty_months` (default 12, snapshotted by order-service per sale), images, `stock` (denormalized from inventory-service via event consumer). Locale-aware serialization via `Accept-Language` header.
 - **Cart** — session-based (UUID `session_id` or `user_id` FK). No auth required for creation.
 - **CartItem** — product + quantity per cart. Merge endpoint (`POST /api/cart/merge/`) for anonymous→user cart transfer after login.
 

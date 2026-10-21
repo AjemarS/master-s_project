@@ -65,8 +65,21 @@ Transitions enforced in `Order.can_transition_to()`.
 | GET | `/api/reports/abc/` | Admin | ABC analysis by cumulative revenue (A ≤80%, B ≤95%, C rest), per class totals (`?from=&to=`) |
 | GET | `/api/reports/fulfillment/` | Admin | Funnel, payment conversion, cancellations by stage, median/avg hours between stages (`?from=&to=&channel=online`) |
 | GET | `/api/reports/inventory-value/` | Admin | Stock at weighted-average cost (proxies inventory-service `stock/valuation/`) |
+| GET/POST | `/api/orders/returns/` | Auth (own) / Admin (all) | Returns and warranty claims (`?status=&kind=&order=`); POST `{item_id, kind, quantity, reason}` |
+| POST | `/api/orders/returns/{id}/status/` | Admin | `{status, resolution?, restock?, comment?}` |
 | GET | `/api/docs/` | Any | Swagger UI |
 | GET | `/api/redoc/` | Any | ReDoc |
+
+## Returns and warranty (`returns.py`)
+- Claimable once the order is `delivered`/`completed`. Periods start at `Order.delivered_at`
+  (set on → delivered, and at a POS sale; older orders fall back to `updated_at`).
+- `return`: 14 days. `warranty`: `OrderItem.warranty_months` (catalog snapshot at sale, 12 if missing).
+- `submitted → approved → received → resolved`, or `→ rejected` (needs a comment; not after a restock).
+- received: `restock` (default for returns) calls inventory `stock/return_to_stock/`.
+- resolved: `refund` (Stripe partial refund with idempotency key, or a recorded cash payout for POS),
+  `replace` (deducts a new unit), `repair` (warranty only; frees the units for a later claim).
+- Side effects run before the save, so a failed refund or stock call leaves the claim unchanged.
+- Guest (anonymous) orders cannot be claimed online: there is no account to own the claim.
 
 ## Pricing (trust boundary)
 - Item `price` and `product_name` are always taken from product-service on create (online and POS);

@@ -239,7 +239,16 @@ Customer in showroom → Cashier via POS → Search → Sale → Deduct
 | 5 | Order calls Inventory → **deduct_batch** from showroom (all items or none; on failure the sale is cancelled) | Inventory (HTTP) |
 | 6 | On success the sale is `completed` with `payment_status=paid` (paid at the till) | Order |
 
-### 4.5 Order Cancellation
+### 4.5 Returns and Warranty Claims
+
+| Step | Action | Service |
+|------|--------|---------|
+| 1 | Buyer files a claim on a delivered line: return (14 days) or warranty (`warranty_months` from the sale) | Order |
+| 2 | Admin approves or rejects (with a comment) | Order |
+| 3 | Item received; a return goes back on stock → **return_to_stock** | Inventory (HTTP) |
+| 4 | Resolved: refund (Stripe partial refund / cash), replacement (**deduct_batch**) or repair | Order, Inventory |
+
+### 4.6 Order Cancellation
 
 | Step | Action | Service |
 |------|--------|---------|

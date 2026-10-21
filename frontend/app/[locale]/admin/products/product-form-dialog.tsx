@@ -213,6 +213,7 @@ export function ProductFormDialog({
   const [originalPrice, setOriginalPrice] = useState(mode === "edit" ? String(product?.original_price ?? "") : "");
   const [stock, setStock] = useState(mode === "edit" ? String(product?.stock ?? "0") : "0");
   const [rating, setRating] = useState(mode === "edit" ? String(product?.rating ?? "0.0") : "0.0");
+  const [warrantyMonths, setWarrantyMonths] = useState(mode === "edit" ? String(product?.warranty_months ?? 12) : "12");
   const [features, setFeatures] = useState<string[]>(mode === "edit" ? (product?.features ?? []) : []);
   const [specs, setSpecs] = useState<SpecRow[]>(() => {
     if (mode === "edit" && product?.specs && typeof product.specs === "object") {
@@ -240,6 +241,7 @@ export function ProductFormDialog({
       setOriginalPrice("");
       setStock("0");
       setRating("0.0");
+      setWarrantyMonths("12");
       setFeatures([]);
       setSpecs([]);
       setImage(null);
@@ -263,6 +265,8 @@ export function ProductFormDialog({
     if (origNum < priceNum) return "Original price cannot be less than price.";
     const ratingNum = parseFloat(rating);
     if (rating && (isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5)) return "Rating must be between 0 and 5.";
+    const warranty = Number(warrantyMonths);
+    if (!Number.isInteger(warranty) || warranty < 0 || warranty > 120) return "Warranty must be 0–120 months.";
     return null;
   };
 
@@ -278,6 +282,7 @@ export function ProductFormDialog({
     original_price: parseFloat(originalPrice),
     stock: parseInt(stock || "0", 10),
     rating: parseFloat(rating || "0.0"),
+    warranty_months: parseInt(warrantyMonths || "0", 10),
     features,
     specs: specs.reduce<Record<string, string>>((acc, s) => {
       if (s.key.trim()) acc[s.key.trim()] = s.value;
@@ -454,6 +459,11 @@ export function ProductFormDialog({
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="pd-rating" className="text-right">Rating</Label>
                 <Input id="pd-rating" type="number" step="0.1" min="0" max="5" value={rating} onChange={(e) => setRating(e.target.value)} className="col-span-3" />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="pd-warranty" className="text-right">Warranty (months)</Label>
+                <Input id="pd-warranty" type="number" step="1" min="0" max="120" value={warrantyMonths} onChange={(e) => setWarrantyMonths(e.target.value)} className="col-span-3" />
               </div>
 
               <div className="grid grid-cols-4 items-start gap-4">

@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -358,5 +358,23 @@ export const activityEventApi = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+};
+
+export const returnsApi = {
+  async list(params?: { status?: ReturnStatus; order?: number; page?: number }): Promise<ApiResponse<{ results: ReturnRequest[]; count: number }>> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append("status", params.status);
+    if (params?.order) q.append("order", String(params.order));
+    if (params?.page) q.append("page", String(params.page));
+    return apiCall(`${ORDERS_API_URL}/returns/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async create(data: { item_id: number; kind: ReturnKind; quantity: number; reason: string }): Promise<ApiResponse<ReturnRequest>> {
+    return apiCall(`${ORDERS_API_URL}/returns/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async setStatus(id: number, data: { status: ReturnStatus; resolution?: ReturnResolution; restock?: boolean; comment?: string }): Promise<ApiResponse<ReturnRequest>> {
+    return apiCall(`${ORDERS_API_URL}/returns/${id}/status/`, { method: "POST", body: JSON.stringify(data) });
   },
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { Link } from "~/i18n/navigation";
 import { toast } from "sonner";
@@ -9,12 +9,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import { Alert, AlertDescription, AlertTitle } from "~/ui/primitives/alert";
 import { Skeleton } from "~/ui/primitives/skeleton";
-import { ArrowLeft, AlertCircle, ShoppingBag } from "lucide-react";
+import { ArrowLeft, AlertCircle, RotateCcw, ShoppingBag } from "lucide-react";
 import { useCancelOrder, useOrder } from "~/lib/hooks/use-api-data";
 import { formatCurrency } from "~/lib/utils/format";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { getAllowedTransitions } from "~/lib/utils/order-status";
-import type { OrderDetail } from "~/lib/types";
+import { useApiGet } from "~/lib/hooks/use-api";
+import { returnsApi } from "~/lib/api/admin-api";
+import type { OrderDetail, OrderItem, ReturnKind, ReturnRequest } from "~/lib/types";
+import { ReturnDialog } from "./return-dialog";
+import { ReturnStatusBadge } from "~/ui/components/return-status-badge";
+
+// Mirrors order-service returns.py; the server re-checks every claim
+const RETURN_DAYS = 14;
+const DEFAULT_WARRANTY_MONTHS = 12;
+
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+  return d;
+}
+
+/** Units of a line still free to claim: rejected claims and finished repairs give units back */
+function claimable(item: OrderItem, claims: ReturnRequest[]): number {
+  const taken = claims
+    .filter((c) => c.item === item.id && c.status !== "rejected" && !(c.status === "resolved" && c.resolution === "repair"))
+    .reduce((n, c) => n + c.quantity, 0);
+  return item.quantity - taken;
+}
 
 export default function MyOrderDetailPage() {
   const params = useParams();
@@ -60,6 +85,11 @@ function MyOrderDetailContent({ id }: { id: number }) {
   const { data: order, error, isLoading, mutate } = useOrder(id);
   const { trigger: cancelOrder } = useCancelOrder();
   const [cancelling, setCancelling] = useState(false);
+  const tr = useTranslations("returns");
+  const locale = useLocale();
+  const [claimItem, setClaimItem] = useState<OrderItem | null>(null);
+  const { data: claimsPage, mutate: reloadClaims } = useApiGet(`/returns?order=${id}`, () => returnsApi.list({ order: id }));
+  const claims = claimsPage?.results ?? [];
 
   const handleCancel = async () => {
     if (!order) return;
@@ -101,6 +131,21 @@ function MyOrderDetailContent({ id }: { id: number }) {
     t("deliveryMethod", { method: order.delivery_method });
 
   const canCancel = getAllowedTransitions(order.status).includes("cancelled");
+
+  const handedOver = order.status === "delivered" || order.status === "completed";
+  const start = new Date(order.delivered_at ?? order.updated_at);
+  const now = new Date();
+  const returnUntil = new Date(start.getTime() + RETURN_DAYS * 86_400_000);
+  const warrantyUntil = (item: OrderItem) => addMonths(start, item.warranty_months ?? DEFAULT_WARRANTY_MONTHS);
+  const openKinds = (item: OrderItem): ReturnKind[] => {
+    if (!handedOver) return [];
+    const kinds: ReturnKind[] = [];
+    if (now <= returnUntil) kinds.push("return");
+    if (now <= warrantyUntil(item)) kinds.push("warranty");
+    return kinds;
+  };
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString(locale === "en" ? "en-US" : "uk-UA", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -182,6 +227,8 @@ function MyOrderDetailContent({ id }: { id: number }) {
                 <th className="text-right py-3 font-medium">{t("qty")}</th>
                 <th className="text-right py-3 font-medium">{t("price")}</th>
                 <th className="text-right py-3 font-medium">{t("total")}</th>
+                {handedOver && <th className="text-right py-3 font-medium">{tr("warrantyUntil")}</th>}
+                {handedOver && <th className="py-3"><span className="sr-only">{tr("actions")}</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -193,6 +240,19 @@ function MyOrderDetailContent({ id }: { id: number }) {
                   <td className="py-3 text-right text-foreground font-medium">
                     {formatCurrency(item.price * item.quantity)}
                   </td>
+                  {handedOver && (
+                    <td className="py-3 text-right text-muted-foreground whitespace-nowrap">{fmtDate(warrantyUntil(item))}</td>
+                  )}
+                  {handedOver && (
+                    <td className="py-3 pl-3 text-right">
+                      {openKinds(item).length > 0 && claimable(item, claims) > 0 && (
+                        <Button size="sm" variant="outline" onClick={() => setClaimItem(item)}>
+                          <RotateCcw className="h-4 w-4 mr-1" aria-hidden />
+                          {tr("fileClaim")}
+                        </Button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -203,6 +263,51 @@ function MyOrderDetailContent({ id }: { id: number }) {
           </div>
         </CardContent>
       </Card>
+
+      {handedOver && (
+        <p className="text-sm text-muted-foreground mb-8">
+          {now <= returnUntil
+            ? tr("returnOpenUntil", { date: fmtDate(returnUntil) })
+            : tr("returnClosed")}
+        </p>
+      )}
+
+      {claims.length > 0 && (
+        <Card className="dark:bg-slate-800/60 dark:border-slate-700 mb-8">
+          <CardHeader>
+            <CardTitle className="text-lg">{tr("myClaims")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y dark:divide-slate-700">
+              {claims.map((c) => (
+                <li key={c.id} className="py-3 space-y-1">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <span className="font-medium text-foreground">
+                      {tr(`kind_${c.kind}`)} · {c.product_name} × {c.quantity}
+                    </span>
+                    <ReturnStatusBadge status={c.status} />
+                  </div>
+                  {c.resolution && (
+                    <p className="text-sm text-muted-foreground">
+                      {tr(`resolution_${c.resolution}`)}
+                      {c.resolution === "refund" && ` · ${formatCurrency(Number(c.refund_amount))}`}
+                    </p>
+                  )}
+                  {c.admin_comment && <p className="text-sm text-muted-foreground">{tr("storeComment")}: {c.admin_comment}</p>}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <ReturnDialog
+        item={claimItem}
+        kinds={claimItem ? openKinds(claimItem) : []}
+        maxQuantity={claimItem ? claimable(claimItem, claims) : 0}
+        onClose={() => setClaimItem(null)}
+        onCreated={() => { setClaimItem(null); reloadClaims(); }}
+      />
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <Link href="/products">
