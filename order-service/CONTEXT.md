@@ -65,11 +65,21 @@ Transitions enforced in `Order.can_transition_to()`.
 | GET | `/api/reports/abc/` | Admin | ABC analysis by cumulative revenue (A ≤80%, B ≤95%, C rest), per class totals (`?from=&to=`) |
 | GET | `/api/reports/fulfillment/` | Admin | Funnel, payment conversion, cancellations by stage, median/avg hours between stages (`?from=&to=&channel=online`) |
 | GET | `/api/reports/inventory-value/` | Admin | Stock at weighted-average cost (proxies inventory-service `stock/valuation/`) |
+| GET | `/api/orders/promo-check/?code=&subtotal=` | Any (10/min per client) | Preview a code's discount |
+| GET/POST/PATCH | `/api/orders/promo-codes/` | Admin | Manage codes (no delete: deactivate) |
 | GET | `/api/orders/purchased/?product_id=` | Auth | `{purchased}`: the user has a delivered/completed order with it (gates reviews) |
 | GET/POST | `/api/orders/returns/` | Auth (own) / Admin (all) | Returns and warranty claims (`?status=&kind=&order=`); POST `{item_id, kind, quantity, reason}` |
 | POST | `/api/orders/returns/{id}/status/` | Admin | `{status, resolution?, restock?, comment?}` |
 | GET | `/api/docs/` | Any | Swagger UI |
 | GET | `/api/redoc/` | Any | ReDoc |
+
+## Promo codes (`promo.py`)
+- `PromoCode`: `percent` or `fixed`, optional window, `min_order_amount`, `max_uses`, `once_per_customer`.
+- `promo_code` on online and POS create; evaluated on the catalog subtotal under a row lock, use counted in
+  the order's transaction, given back when the order is cancelled. Discount is capped at the subtotal.
+- `Order.discount_amount`; `total_amount` is net of it. Stripe gets catalog-priced lines plus a one-off coupon.
+- Reports: totals and daily/channel revenue are net of discounts (`total_discount` in sales); per-product
+  reports (top, ABC) are before discounts. Refunds share the order discount by line value.
 
 ## Returns and warranty (`returns.py`)
 - Claimable once the order is `delivered`/`completed`. Periods start at `Order.delivered_at`

@@ -254,7 +254,17 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         try:
+            # Lines stay at catalog price so the receipt lists them; the promo is a one-off coupon on top
+            discounts = []
+            if order.discount_amount > 0:
+                coupon = stripe.Coupon.create(
+                    amount_off=int(order.discount_amount * 100), currency="uah", duration="once",
+                    name=order.promo_code.code if order.promo_code else "Discount",
+                    idempotency_key=f"coupon-{order.id}",
+                )
+                discounts = [{"coupon": coupon.id}]
             session = stripe.checkout.Session.create(
+                discounts=discounts,
                 line_items=[
                     {
                         "price_data": {

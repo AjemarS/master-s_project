@@ -3,6 +3,39 @@ from decimal import Decimal
 from django.db import models
 
 
+class PromoCode(models.Model):
+    """A discount code typed at checkout or at the till."""
+
+    PERCENT = "percent"
+    FIXED = "fixed"
+    KIND_CHOICES = [
+        (PERCENT, "Відсоток"),
+        (FIXED, "Фіксована сума"),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name="Код")  # stored upper-case
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, verbose_name="Тип")
+    value = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Значення")
+    min_order_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Мінімальна сума замовлення"
+    )
+    starts_at = models.DateTimeField(null=True, blank=True, verbose_name="Діє з")
+    ends_at = models.DateTimeField(null=True, blank=True, verbose_name="Діє до")
+    max_uses = models.PositiveIntegerField(null=True, blank=True, verbose_name="Ліміт використань")
+    once_per_customer = models.BooleanField(default=False, verbose_name="Один раз на покупця")
+    used_count = models.PositiveIntegerField(default=0, verbose_name="Використано")
+    is_active = models.BooleanField(default=True, verbose_name="Активний")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+
+    class Meta:
+        verbose_name = "Промокод"
+        verbose_name_plural = "Промокоди"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.code
+
+
 class Order(models.Model):
     ONLINE = "online"
     OFFLINE = "offline"
@@ -88,6 +121,13 @@ class Order(models.Model):
     )
     total_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Загальна сума"
+    )
+    promo_code = models.ForeignKey(
+        PromoCode, on_delete=models.PROTECT, null=True, blank=True, related_name="orders", verbose_name="Промокод"
+    )
+    # Taken off the goods subtotal; total_amount is already net of it
+    discount_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Знижка"
     )
     payment_status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_UNPAID, verbose_name="Статус оплати"

@@ -106,6 +106,7 @@ class OrderListSerializer(serializers.ModelSerializer):
 
 class OrderDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    promo_code_text = serializers.CharField(source="promo_code.code", read_only=True, default="")
 
     class Meta:
         model = Order
@@ -126,6 +127,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "customer_phone",
             "customer_email",
             "total_amount",
+            "promo_code_text",
+            "discount_amount",
             "notes",
             "items",
             "created_by",
@@ -161,6 +164,7 @@ class OrderCreateSerializer(serializers.Serializer):
     customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    promo_code = serializers.CharField(required=False, allow_blank=True, default="", max_length=40)
     items = OrderCreateItemSerializer(many=True)
 
     def validate_items(self, value):
@@ -195,6 +199,7 @@ class POSOrderSerializer(serializers.Serializer):
     customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    promo_code = serializers.CharField(required=False, allow_blank=True, default="", max_length=40)
     items = OrderCreateItemSerializer(many=True)
 
     def validate_items(self, value):

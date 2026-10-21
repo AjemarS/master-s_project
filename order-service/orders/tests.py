@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from . import order_service as svc
-from .models import Order, OrderItem, OrderStatusHistory, ReturnRequest
+from .models import Order, OrderItem, OrderStatusHistory, PromoCode, ReturnRequest
 
 User = get_user_model()
 
@@ -961,3 +961,78 @@ class PurchasedCheckTest(APITestCase):
         self.assertEqual(got, {5: True, 6: False, 7: False})
         self.assertEqual(self.client.get("/api/orders/purchased/?product_id=x").status_code, status.HTTP_400_BAD_REQUEST)
 
+
+
+class PromoCodeTest(APITestCase):
+    """Codes are checked and applied on the server, counted under a lock and given back on cancel."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # promo-check throttle
+        self.code = PromoCode.objects.create(code="SPRING10", kind=PromoCode.PERCENT, value=Decimal("10"))
+
+    def _order(self, code="spring10", email="a@test.com", qty=1):
+        # Catalog stub: 199.99 per unit
+        return self.client.post("/api/orders/", {
+            "customer_email": email, "promo_code": code, "items": [{"product_id": 1, "quantity": qty}],
+        }, format="json")
+
+    def test_percent_code_is_applied_and_counted(self):
+        response = self._order()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        order = Order.objects.get()
+        self.assertEqual((order.discount_amount, order.total_amount), (Decimal("20.00"), Decimal("179.99")))
+        self.code.refresh_from_db()
+        self.assertEqual(self.code.used_count, 1)
+
+    def test_fixed_code_never_makes_the_order_negative(self):
+        PromoCode.objects.create(code="BIG", kind=PromoCode.FIXED, value=Decimal("5000"))
+        self._order("BIG")
+        self.assertEqual(Order.objects.get().total_amount, Decimal("0.00"))
+
+    def test_unknown_expired_used_up_and_minimum_are_rejected(self):
+        PromoCode.objects.create(code="OLD", kind=PromoCode.FIXED, value=1, ends_at=timezone.now() - timedelta(days=1))
+        PromoCode.objects.create(code="GONE", kind=PromoCode.FIXED, value=1, max_uses=1, used_count=1)
+        PromoCode.objects.create(code="MIN", kind=PromoCode.FIXED, value=1, min_order_amount=Decimal("1000"))
+        PromoCode.objects.create(code="OFF", kind=PromoCode.FIXED, value=1, is_active=False)
+        for code in ("NOPE", "OLD", "GONE", "MIN", "OFF"):
+            self.assertEqual(self._order(code).status_code, status.HTTP_400_BAD_REQUEST, code)
+        self.assertFalse(Order.objects.exists())
+
+    def test_once_per_customer_and_cancel_gives_the_use_back(self):
+        self.code.once_per_customer = True
+        self.code.max_uses = 1
+        self.code.save()
+        self.assertEqual(self._order().status_code, status.HTTP_201_CREATED)
+        self.assertEqual(self._order(email="A@test.com").status_code, status.HTTP_400_BAD_REQUEST)
+        svc.update_order_status(Order.objects.get(), Order.CANCELLED, release_reserved=False)
+        self.code.refresh_from_db()
+        self.assertEqual(self.code.used_count, 0)
+        self.assertEqual(self._order().status_code, status.HTTP_201_CREATED)
+
+    def test_check_endpoint_previews_the_discount(self):
+        data = self.client.get("/api/orders/promo-check/?code=spring10&subtotal=1000").data
+        self.assertEqual((data["discount"], data["total"]), ("100.00", "900.00"))
+        self.assertEqual(self.client.get("/api/orders/promo-check/?code=nope&subtotal=10").status_code, 400)
+
+    def test_check_endpoint_is_throttled(self):
+        codes = [self.client.get("/api/orders/promo-check/?code=X&subtotal=1").status_code for _ in range(12)]
+        self.assertIn(status.HTTP_429_TOO_MANY_REQUESTS, codes)
+
+    def test_only_admins_manage_codes(self):
+        self.assertIn(self.client.get("/api/orders/promo-codes/").status_code, (401, 403))
+        self.client.force_authenticate(user=_create_admin_user())
+        response = self.client.post("/api/orders/promo-codes/", {"code": " summer-5 ", "kind": "percent", "value": "105"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.post("/api/orders/promo-codes/", {"code": " summer-5 ", "kind": "percent", "value": "5"}, format="json")
+        self.assertEqual(response.data["code"], "SUMMER-5")
+
+    def test_reports_net_out_the_discount_and_refunds_are_proportional(self):
+        from .returns import refund_amount
+        self._order(qty=2)  # 399.98 - 40.00
+        order = Order.objects.get()
+        Order.objects.filter(pk=order.pk).update(status=Order.PAID)
+        self.client.force_authenticate(user=_create_admin_user())
+        data = self.client.get("/api/reports/sales/").data
+        self.assertEqual((data["total_revenue"], data["total_discount"]), (359.98, 40.0))
+        self.assertEqual(refund_amount(order.items.get(), 1), Decimal("179.99"))

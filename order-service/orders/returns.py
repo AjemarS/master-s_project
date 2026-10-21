@@ -4,6 +4,7 @@ Returns and warranty claims: who may claim what, and what each status change doe
 import calendar
 import logging
 from datetime import timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 import stripe
 from django.db import transaction
@@ -129,10 +130,20 @@ def transition(ret, new_status, *, resolution="", restock=None, comment="", requ
     return None, 200
 
 
+def refund_amount(item, quantity):
+    """What the buyer actually paid for these units: the order's discount is shared by line value."""
+    order = item.order
+    gross = item.price * quantity
+    if not order.discount_amount:
+        return gross
+    subtotal = sum(i.price * i.quantity for i in order.items.all())
+    return (gross - order.discount_amount * gross / subtotal).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def _apply_resolution(ret, resolution, request):
     order, item = ret.order, ret.item
     if resolution == ReturnRequest.REFUND:
-        amount = item.price * ret.quantity
+        amount = refund_amount(item, ret.quantity)
         if order.stripe_payment_intent_id:
             try:
                 refund = stripe.Refund.create(

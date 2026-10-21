@@ -57,13 +57,15 @@ def _sold_orders(request):
 
 
 def _totals(orders_qs):
-    """Goods revenue (shipping excluded), cost and margin for the given orders, in one SQL query."""
+    """Goods revenue net of promo discounts (shipping excluded), cost and margin for the given orders."""
     agg = OrderItem.objects.filter(order__in=orders_qs).aggregate(
         revenue=Sum(LINE_REVENUE), cost=Sum(LINE_COST), quantity=Sum("quantity"),
     )
-    revenue = agg["revenue"] or Decimal("0")
+    discount = orders_qs.aggregate(d=Sum("discount_amount"))["d"] or Decimal("0")
+    revenue = (agg["revenue"] or Decimal("0")) - discount
     cost = agg["cost"] or Decimal("0")
     return {
+        "discount": discount,
         "revenue": revenue,
         "cost": cost,
         "margin": revenue - cost,
@@ -85,6 +87,7 @@ def _kpis(start, end):
         "total_cost": float(t["cost"]),
         "total_margin": float(t["margin"]),
         "margin_percent": t["margin_percent"],
+        "total_discount": float(t["discount"]),
         "average_order_value": round(float(t["revenue"]) / t["orders"], 2) if t["orders"] else 0,
         "cancelled_orders": cancelled,
         "cancellation_rate": round(cancelled / placed * 100, 2) if placed else 0,
@@ -103,13 +106,19 @@ def sales_report(request):
         .annotate(count=Count("order", distinct=True), revenue=Sum(LINE_REVENUE))
         .order_by("channel")
     )
+    discount_by_channel = dict(
+        orders_qs.values("channel").annotate(d=Sum("discount_amount")).values_list("channel", "d")
+    )
 
     return Response({
         **_kpis(start, end),
         # The equal-length window right before [from, to): only defined when both bounds are given
         "previous": _kpis(start - (end - start), start) if start and end else None,
         "by_channel": [
-            {"channel": row["channel"], "count": row["count"], "revenue": float(row["revenue"] or 0)}
+            {
+                "channel": row["channel"], "count": row["count"],
+                "revenue": float((row["revenue"] or 0) - (discount_by_channel.get(row["channel"]) or 0)),
+            }
             for row in by_channel
         ],
     })
@@ -160,6 +169,7 @@ def _product_row(r, total_revenue):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def top_products_report(request):
+    # Per-product figures are before order-level promo discounts, which are not split by product
     sort = request.query_params.get("sort", "revenue")
     if sort not in ("revenue", "quantity", "margin"):
         raise ValidationError({"sort": "Expected one of: revenue, quantity, margin"})
@@ -346,11 +356,13 @@ def daily_sales_report(request):
         .annotate(period=trunc("order__created_at"))
         .values("period").annotate(revenue=Sum(LINE_REVENUE)).values_list("period", "revenue")
     }
-    orders_by_period = {
-        _as_date(k): v for k, v in
+    orders_by_period, discount_by_period = {}, {}
+    for k, n, d in (
         orders_qs.annotate(period=trunc("created_at"))
-        .values("period").annotate(n=Count("id")).values_list("period", "n")
-    }
+        .values("period").annotate(n=Count("id"), d=Sum("discount_amount")).values_list("period", "n", "d")
+    ):
+        orders_by_period[_as_date(k)] = n
+        discount_by_period[_as_date(k)] = d or 0
 
     # Zero-filled so charts show quiet periods instead of skipping them
     periods, day = [], _period_start(first_day, group)
@@ -362,7 +374,7 @@ def daily_sales_report(request):
         "daily": [
             {
                 "date": p.isoformat(),
-                "revenue": float(revenue_by_period.get(p) or 0),
+                "revenue": float((revenue_by_period.get(p) or 0) - discount_by_period.get(p, 0)),
                 "orders": orders_by_period.get(p, 0),
             }
             for p in periods
