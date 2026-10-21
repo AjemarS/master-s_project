@@ -49,7 +49,6 @@ const SECTION_ORDER = [
   "city", "info", "delivery", "receiver", "confirmation", "comment",
 ] as const;
 
-const DELIVERY_COST = 100;
 
 interface WarehouseOption {
   name: string;
@@ -60,7 +59,8 @@ interface WarehouseOption {
 interface PriceSummaryProps {
   items: CartItem[];
   subtotal: number;
-  deliveryCost: number;
+  /** false = pickup (free); true = paid to the carrier on receipt, not part of this total */
+  deliveryByCarrier: boolean;
   promo: AppliedPromo | null;
   onPromoChange: (promo: AppliedPromo | null) => void;
   total: number;
@@ -74,7 +74,7 @@ interface PriceSummaryProps {
 function PriceSummary({
   items: summaryItems,
   subtotal: summarySubtotal,
-  deliveryCost: summaryDeliveryCost,
+  deliveryByCarrier,
   promo,
   onPromoChange,
   total: summaryTotal,
@@ -111,11 +111,7 @@ function PriceSummary({
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>{summaryTChk("deliveryCost")}</span>
-            <span>
-              {summaryDeliveryCost === 0
-                ? summaryTChk("freeDelivery")
-                : formatCurrency(summaryDeliveryCost, summaryLocale)}
-            </span>
+            <span>{deliveryByCarrier ? summaryTChk("deliveryByCarrier") : summaryTChk("freeDelivery")}</span>
           </div>
           {promo && promo.discount > 0 && (
             <div className="flex justify-between text-green-700 dark:text-green-400">
@@ -226,9 +222,10 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
   const [selectedShowroomId, setSelectedShowroomId] = useState<number | null>(null);
 
 
-  const deliveryCost = deliveryType === "pickup" ? 0 : DELIVERY_COST;
+  // The carrier is paid on receipt: what we charge (and Stripe bills) is the goods only
+  const deliveryByCarrier = deliveryType !== "pickup";
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
-  const total = subtotal + deliveryCost - (promo?.discount ?? 0);
+  const total = subtotal - (promo?.discount ?? 0);
 
   // ── Derived delivery state ─────────────────────────────────────────────
 
@@ -738,7 +735,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 <PriceSummary
                   items={items}
                   subtotal={subtotal}
-                  deliveryCost={deliveryCost}
+                  deliveryByCarrier={deliveryByCarrier}
                   promo={promo}
                   onPromoChange={setPromo}
                   total={total}

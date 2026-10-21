@@ -549,7 +549,8 @@
     "step_partial": "partly filled",
     "step_filled": "done",
     "step_error": "has an error",
-    "stepsLabel": "Checkout steps"
+    "stepsLabel": "Checkout steps",
+    "deliveryByCarrier": "carrier's rate, paid on receipt"
   },
   "orderDetail": {
     "title": "Order #{id}",
@@ -942,7 +943,7 @@
     "heroSubtitle": "Reliable appliances from leading manufacturers. Great prices, fast delivery, and professional service.",
     "heroCatalog": "Catalog",
     "heroDelivery": "Delivery throughout Ukraine",
-    "heroSupport": "24/7 Support",
+    "heroSupport": "Claims online",
     "categoriesTitle": "Categories",
     "categoriesSubtitle": "Choose from a wide range of home appliances",
     "newArrivalsTitle": "New Arrivals",
@@ -950,12 +951,12 @@
     "categoriesProducts": "{count} products",
     "featuresTitle": "Why choose us",
     "featuresSubtitle": "We offer the best service and quality",
-    "freeShippingTitle": "Free Shipping",
-    "freeShippingDesc": "Free delivery on orders over 1000 UAH. Fast and reliable.",
+    "freeShippingTitle": "Delivery across Ukraine",
+    "freeShippingDesc": "Free showroom pickup; Nova Poshta and courier at the carrier's rates.",
     "securePaymentTitle": "Secure Payment",
-    "securePaymentDesc": "Your data is always safe. We use modern encryption.",
-    "support247Title": "24/7 Support",
-    "support247Desc": "Always in touch to help you choose.",
+    "securePaymentDesc": "Card payment through Stripe: your card details never reach us.",
+    "support247Title": "Claims online",
+    "support247Desc": "File returns and warranty claims in My orders and see the store's reply there.",
     "qualityGuaranteeTitle": "Quality Guarantee",
     "qualityGuaranteeDesc": "Manufacturer warranty on every product. Returns within 14 days.",
     "ctaTitle": "Ready for an upgrade?",
@@ -1596,5 +1597,147 @@
     "deletedSupplier": "Deleted supplier #{id}",
     "deletedWarehouse": "Deleted warehouse #{id}",
     "bannedUser": "Banned user “{name}”"
+  },
+  "pages": {
+    "about": {
+      "title": "About us",
+      "sections": [
+        {
+          "body": "TechHub is a teaching online store for home appliances, built as a master's project. It shows the whole retail cycle: catalog, cart and payment, warehouse and purchasing, till sales, returns and warranty, analytics."
+        },
+        {
+          "body": "Nothing is actually sold here: prices, products and orders are demo data."
+        }
+      ]
+    },
+    "contacts": {
+      "title": "Contacts",
+      "sections": [
+        {
+          "body": "This is a teaching project, so there is no phone line or office."
+        },
+        {
+          "heading": "Questions about an order",
+          "body": "Your order status is in My orders. You can also file a return or a warranty claim there; the store replies on the claim."
+        }
+      ]
+    },
+    "delivery": {
+      "title": "Delivery and payment",
+      "sections": [
+        {
+          "heading": "Delivery",
+          "body": "Pickup from the showroom is free. Nova Poshta, courier or another carrier is paid to the carrier on receipt, at their rates; it is not part of the order total."
+        },
+        {
+          "heading": "Payment",
+          "body": "Online by card through Stripe at checkout, or at the till in the showroom. Promo codes are applied in the cart before paying."
+        },
+        {
+          "heading": "Timing",
+          "body": "Orders ship once paid. Delivery time depends on the carrier and the city."
+        }
+      ]
+    },
+    "warranty": {
+      "title": "Warranty and returns",
+      "sections": [
+        {
+          "heading": "Returns",
+          "body": "Unused goods in their original look and packaging can be returned within 14 days of receipt. Money goes back to the card you paid with; in-store purchases are refunded in cash."
+        },
+        {
+          "heading": "Warranty",
+          "body": "Each product page and order shows the warranty period (usually 12 months). Faulty goods are repaired, replaced or refunded."
+        },
+        {
+          "heading": "How to claim",
+          "body": "Open the order in My orders and choose Return / warranty next to the item. The claim status is shown there too."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "sections": [
+        {
+          "heading": "How do I order?",
+          "body": "Add products to the cart, go to checkout, enter your contacts and delivery method and pay by card. No account needed."
+        },
+        {
+          "heading": "How much is delivery?",
+          "body": "Pickup is free. Other methods are paid to the carrier on receipt."
+        },
+        {
+          "heading": "How can I pay?",
+          "body": "By card online (Stripe) or at the till in the showroom."
+        },
+        {
+          "heading": "Can I return a product?",
+          "body": "Yes, within 14 days of receipt, from My orders."
+        },
+        {
+          "heading": "What warranty do I get?",
+          "body": "It is shown on the product page; you can file a claim from My orders until it ends."
+        },
+        {
+          "heading": "Who writes reviews?",
+          "body": "Only buyers who received the product. The rating is the average of their scores."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of use",
+      "sections": [
+        {
+          "heading": "General",
+          "body": "By using the site you accept these terms. The site is a teaching project: orders create no real obligation to sell."
+        },
+        {
+          "heading": "Account",
+          "body": "You can order as a guest or with an account. You are responsible for keeping your password safe; turning on two-factor authentication is recommended."
+        },
+        {
+          "heading": "Prices and payment",
+          "body": "Prices are in hryvnias. The price at checkout applies; promo discounts are shown in the cart."
+        },
+        {
+          "heading": "Delivery",
+          "body": "Showroom pickup is free; other delivery is paid to the carrier on receipt."
+        },
+        {
+          "heading": "Returns and warranty",
+          "body": "Returns within 14 days of receipt, warranty claims until the product's warranty ends, both from My orders."
+        },
+        {
+          "heading": "Reviews",
+          "body": "Buyers who received a product can review it. The store may hide reviews that break the law or are not about the product."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "sections": [
+        {
+          "heading": "What we collect",
+          "body": "Name, email, phone and delivery address when you sign up or check out; your history of orders, claims and reviews."
+        },
+        {
+          "heading": "Why",
+          "body": "To fulfil and deliver orders, handle returns and email you about order status. Marketing emails only if you agreed at sign-up."
+        },
+        {
+          "heading": "Who we share it with",
+          "body": "Stripe for card payments (we never receive card details), an email service to send messages, and the carrier gets the recipient details for delivery. Nobody else."
+        },
+        {
+          "heading": "What others see",
+          "body": "Reviews show your first name only, never your surname or email."
+        },
+        {
+          "heading": "Protection",
+          "body": "Passwords are stored only as hashes, and store staff see data according to their role."
+        }
+      ]
+    }
   }
 }
