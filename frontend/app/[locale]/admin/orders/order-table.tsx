@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Package, ChevronDown } from "lucide-react";
 import {
   Card,
@@ -54,6 +54,7 @@ export function OrderTable({
   onToggleExpand,
   onStatusClick,
 }: OrderTableProps) {
+  const locale = useLocale();
   const t = useTranslations("orders");
   const tc = useTranslations("common");
 
@@ -109,7 +110,7 @@ export function OrderTable({
       id: "date",
       header: tc("date"),
       cell: (order: Order) => (
-        <span className="text-muted-foreground text-sm">{formatDate(order.created_at)}</span>
+        <span className="text-muted-foreground text-sm">{formatDate(order.created_at, locale)}</span>
       ),
     },
     {

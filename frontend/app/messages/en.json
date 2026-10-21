@@ -902,10 +902,6 @@
     "tagline": "Reliable home appliances for your home. Best prices and service in Ukraine.",
     "categories": "Categories",
     "allProducts": "All Products",
-    "refrigerators": "Refrigerators",
-    "washingMachines": "Washing Machines",
-    "ovens": "Ovens",
-    "smallAppliances": "Small Appliances",
     "information": "Information",
     "about": "About Us",
     "deliveryPayment": "Delivery & Payment",
@@ -1461,5 +1457,14 @@
     "user": "User",
     "changeLanguage": "Change language",
     "clearSearch": "Clear search"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "unexpected": "An unexpected error occurred",
+    "retry": "Try again",
+    "notFoundTitle": "Page not found",
+    "notFoundDesc": "It may have been removed, or the link is out of date",
+    "toHome": "Go home",
+    "catalogDown": "The catalog is unavailable right now. Please reload a little later."
   }
 }

@@ -14,37 +14,41 @@ import { WaveDivider } from "~/ui/components/wave-divider";
 
 import { Category, Product } from "../../lib/types";
 
-async function getCategories(): Promise<Category[]> {
+// null = the catalog could not be reached (shown to the visitor), [] = it is simply empty
+async function getCategories(): Promise<Category[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(`${apiUrl}/categories/`, { next: { revalidate: 60 } });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = await response.json();
     return data.results || data;
   } catch {
-    return [];
+    return null;
   }
 }
 
-async function getLatestProducts(): Promise<Product[]> {
+async function getLatestProducts(): Promise<Product[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(
       `${apiUrl}/products/?ordering=-created_at&page_size=8`,
       { next: { revalidate: 60 } }
     );
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = await response.json();
     return data.results || data;
   } catch {
-    return [];
+    return null;
   }
 }
 
 export default async function HomePage() {
-  const categories = await getCategories();
-  const latestProducts = await getLatestProducts();
+  const [loadedCategories, loadedProducts] = await Promise.all([getCategories(), getLatestProducts()]);
+  const catalogDown = loadedCategories === null || loadedProducts === null;
+  const categories = loadedCategories ?? [];
+  const latestProducts = loadedProducts ?? [];
   const t = await getTranslations("home");
+  const tErr = await getTranslations("errors");
 
   const features = [
     {
@@ -156,6 +160,11 @@ export default async function HomePage() {
               {t("categoriesSubtitle")}
             </p>
           </div>
+          {catalogDown && (
+            <p role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-center text-sm text-destructive">
+              {tErr("catalogDown")}
+            </p>
+          )}
           <StaggerContainer className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
             {categories.map((category) => (
               <StaggerItem key={category.id}>

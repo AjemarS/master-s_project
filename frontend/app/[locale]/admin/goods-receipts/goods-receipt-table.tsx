@@ -1,13 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "~/ui/primitives/table";
 import { ClipboardList, Eye } from "lucide-react";
 import { Button } from "~/ui/primitives/button";
-import { formatCurrency } from "~/lib/utils/format";
+import { formatCurrency, formatDate } from "~/lib/utils/format";
 import { TableSkeleton, EmptyState } from "../components";
 import type { GoodsReceiptNote } from "~/lib/types";
 
@@ -18,16 +18,12 @@ interface GoodsReceiptTableProps {
   onView: (receipt: GoodsReceiptNote) => void;
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("uk-UA", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  });
-}
 
 export function GoodsReceiptTable({
   receipts, isLoading, colSpan, onView,
 }: GoodsReceiptTableProps) {
   const t = useTranslations("goodsReceipts");
+  const locale = useLocale();
   const tc = useTranslations("common");
 
   return (
@@ -68,7 +64,7 @@ export function GoodsReceiptTable({
                       <TableCell className="font-medium">#{r.id}</TableCell>
                       <TableCell>{r.supplier_name}</TableCell>
                       <TableCell className="text-muted-foreground">{r.warehouse_name}</TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(r.receipt_date)}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(r.receipt_date, locale)}</TableCell>
                       <TableCell className="font-semibold">{formatCurrency(r.total_amount)}</TableCell>
                       <TableCell className="text-muted-foreground">{r.created_by}</TableCell>
                       <TableCell>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import Link from "next/link";
 import { Truck, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -23,6 +25,7 @@ interface SupplierPerformanceCardProps {
 }
 
 export default function SupplierPerformanceCard({ tSum }: SupplierPerformanceCardProps) {
+  const locale = useLocale();
   const { data, isLoading } = useSupplierStats();
 
   if (isLoading) {
@@ -97,7 +100,7 @@ export default function SupplierPerformanceCard({ tSum }: SupplierPerformanceCar
                     <div className="text-sm font-medium text-foreground truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatRelativeTime(s.lastDelivery)}
+                      {formatRelativeTime(s.lastDelivery, locale)}
                     </div>
                   </div>
                 </div>

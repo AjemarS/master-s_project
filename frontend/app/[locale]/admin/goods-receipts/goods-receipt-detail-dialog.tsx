@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Package, PackageOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "~/ui/primitives/dialog";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "~/ui/primitives/table";
 import { Separator } from "~/ui/primitives/separator";
 import { Button } from "~/ui/primitives/button";
-import { formatCurrency } from "~/lib/utils/format";
+import { formatCurrency, formatDate } from "~/lib/utils/format";
 import type { GoodsReceiptNote } from "~/lib/types";
 
 interface GoodsReceiptDetailDialogProps {
@@ -16,16 +16,12 @@ interface GoodsReceiptDetailDialogProps {
   receipt: GoodsReceiptNote | null;
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("uk-UA", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  });
-}
 
 export function GoodsReceiptDetailDialog({
   open, onOpenChange, receipt,
 }: GoodsReceiptDetailDialogProps) {
   const t = useTranslations("goodsReceipts");
+  const locale = useLocale();
   const tc = useTranslations("common");
 
   if (!receipt) return null;
@@ -61,7 +57,7 @@ export function GoodsReceiptDetailDialog({
             </div>
             <div>
               <span className="text-muted-foreground">{t("date")}:</span>
-              <p className="font-medium">{formatDate(receipt.receipt_date)}</p>
+              <p className="font-medium">{formatDate(receipt.receipt_date, locale)}</p>
             </div>
             <div>
               <span className="text-muted-foreground">{t("refNumber")}:</span>
