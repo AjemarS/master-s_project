@@ -111,7 +111,9 @@
     "repeatPasswordPlaceholder": "Repeat your password",
     "successMessage": "We recommend adding your personal information for a better shopping experience.",
     "successTitle": "Account created successfully!",
-    "otpResent": "A new code is on its way. Check your inbox."
+    "otpResent": "A new code is on its way. Check your inbox.",
+    "resendIn": "Resend in {seconds}s",
+    "changeEmail": "Use a different email"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -208,7 +210,15 @@
     "noActivity": "No activity yet",
     "activityError": "Failed to load activity",
     "viewAllActivity": "All activity",
-    "orderStatusSummary": "Order Status"
+    "orderStatusSummary": "Order Status",
+    "checking": "checking…",
+    "svc_product": "Products",
+    "svc_inventory": "Inventory",
+    "svc_order": "Orders",
+    "svc_auth": "Auth",
+    "svc_frontend": "Website",
+    "svc_rabbitmq": "RabbitMQ",
+    "svc_notification": "Notifications"
   },
   "products": {
     "title": "Products",

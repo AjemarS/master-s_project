@@ -200,7 +200,7 @@ export function SettingsClient() {
       const currentLocale = window.location.pathname.match(/^\/([a-z]{2})/)?.[1] || "ua";
       if (currentLocale !== language) {
         const currentPath = window.location.pathname.replace(/^\/[a-z]{2}/, "");
-        window.location.href = `/${language}${currentPath}`;
+        window.location.href = `/${language}${currentPath}${window.location.search}`;
       } else {
         toast.success(t("changesSaved"));
         setSavingProfile(false);
@@ -953,6 +953,7 @@ export function SettingsClient() {
                         value={verifyCode}
                         onChange={(e) => { setVerifyCode(e.target.value); setEnableError(null); }}
                         placeholder="000000"
+                        inputMode="numeric"
                         maxLength={6}
                         className="text-center text-lg tracking-widest"
                       />

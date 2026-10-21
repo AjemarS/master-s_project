@@ -66,7 +66,8 @@ export function StockMovementsClient() {
   const warehouses = useMemo(() => warehousesData?.results || [], [warehousesData?.results]);
   const totalCount = movementsData?.count || 0;
 
-  const lastUpdated = useMemo(() => new Date(), []);
+  // Moves on with every fetch instead of freezing at first render
+  const lastUpdated = useMemo(() => (movementsData ? new Date() : undefined), [movementsData]);
 
   const dateRangeError = !!(filterDateFrom && filterDateTo && filterDateFrom > filterDateTo);
 

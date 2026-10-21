@@ -92,7 +92,7 @@ export default async function HomePage() {
                 <div className="relative -ml-[20%] w-[130%] aspect-[5/4] overflow-hidden rounded-2xl border shadow-xl shadow-primary/10">
                   <div className="absolute inset-0 z-10 bg-linear-to-tr from-primary/20 via-transparent to-transparent" />
                   <Image
-                    alt={t("heroTitle")}
+                    alt="" // decorative: the heading next to it already says what the page is
                     className="object-cover"
                     fill
                     priority

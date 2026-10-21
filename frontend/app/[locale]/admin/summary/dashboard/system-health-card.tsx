@@ -33,16 +33,19 @@ const INITIAL_SERVICES: Record<string, ServiceHealth> = {
   rabbitmq: { status: "loading", label: "RabbitMQ" },
 };
 
-const StatusDot = ({ status }: { status: ServiceHealth["status"] }) => {
+// Services with a summary.svc_* label; anything new the gateway reports keeps its own label
+const TRANSLATED_SERVICES = new Set(["product", "inventory", "order", "auth", "frontend", "rabbitmq", "notification"]);
+
+/** Colour plus words: the dot alone says nothing to a screen reader or a colour-blind admin */
+const StatusDot = ({ status, text }: { status: ServiceHealth["status"]; text: string }) => {
   if (status === "loading") {
-    return <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20 animate-pulse" />;
+    return <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/20 animate-pulse" role="status" aria-label={text} />;
   }
   return (
-    <div
-      className={`h-2.5 w-2.5 rounded-full ${
-        status === "healthy" ? "bg-green-500" : "bg-destructive"
-      }`}
-    />
+    <span className="flex items-center gap-1.5">
+      <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${status === "healthy" ? "bg-green-500" : "bg-destructive"}`} />
+      <span className={`text-xs ${status === "healthy" ? "text-muted-foreground" : "text-destructive font-medium"}`}>{text}</span>
+    </span>
   );
 };
 
@@ -98,9 +101,12 @@ export default function SystemHealthCard({ tSum }: SystemHealthCardProps) {
                 {SERVICE_ICONS[key] || <BarChart3 className="h-4 w-4" />}
               </span>
               <span className="font-medium text-sm text-foreground flex-1 min-w-0 truncate">
-                {svc.label}
+                {TRANSLATED_SERVICES.has(key) ? tSum(`svc_${key}`) : svc.label}
               </span>
-              <StatusDot status={svc.status} />
+              <StatusDot
+                status={svc.status}
+                text={svc.status === "loading" ? tSum("checking") : svc.status === "healthy" ? tSum("healthy") : tSum("unhealthy")}
+              />
             </div>
           ))}
         </div>

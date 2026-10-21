@@ -111,7 +111,9 @@
     "repeatPasswordPlaceholder": "Повторіть пароль",
     "successMessage": "Рекомендуємо додати особисту інформацію для кращого досвіду покупок.",
     "successTitle": "Акаунт успішно створено!",
-    "otpResent": "Код надіслано ще раз. Перевірте пошту."
+    "otpResent": "Код надіслано ще раз. Перевірте пошту.",
+    "resendIn": "Надіслати ще раз через {seconds} с",
+    "changeEmail": "Змінити email"
   },
   "nav": {
     "dashboard": "Огляд",
@@ -208,7 +210,15 @@
     "noActivity": "Ще немає активності",
     "activityError": "Не вдалося завантажити активність",
     "viewAllActivity": "Вся активність",
-    "orderStatusSummary": "Статуси замовлень"
+    "orderStatusSummary": "Статуси замовлень",
+    "checking": "перевірка…",
+    "svc_product": "Товари",
+    "svc_inventory": "Склад",
+    "svc_order": "Замовлення",
+    "svc_auth": "Авторизація",
+    "svc_frontend": "Сайт",
+    "svc_rabbitmq": "RabbitMQ",
+    "svc_notification": "Сповіщення"
   },
   "products": {
     "title": "Керування товарами",

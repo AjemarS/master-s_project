@@ -1,9 +1,11 @@
 "use client";
 
+import { CheckCircle2 } from "lucide-react";
+
 import { toast } from "sonner";
 import Image from "next/image";
 import { Link } from "~/i18n/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { signIn, signUp, authClient } from "~/lib/auth-client";
@@ -16,6 +18,8 @@ import { Input } from "~/ui/primitives/input";
 import { Label } from "~/ui/primitives/label";
 import { Separator } from "~/ui/primitives/separator";
 import { Checkbox } from "~/ui/primitives/checkbox";
+
+const RESEND_SECONDS = 60;
 
 export function SignUpPageClient() {
   const locale = useLocale();
@@ -32,6 +36,14 @@ export function SignUpPageClient() {
   const [step, setStep] = useState<Step>("form");
   const [otpCode, setOtpCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  // Seconds until the code may be sent again: stops repeated clicks flooding the inbox
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
+  const passwordsDiffer = !!formData.repeatPassword && formData.password !== formData.repeatPassword;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -73,6 +85,7 @@ export function SignUpPageClient() {
         return;
       }
       setStep("otp");
+      setResendIn(RESEND_SECONDS);
     } catch (err) {
       setError(t("errorGeneric"));
       console.error(err);
@@ -109,6 +122,7 @@ export function SignUpPageClient() {
         email: formData.email,
         type: "email-verification",
       });
+      setResendIn(RESEND_SECONDS);
       toast.success(t("otpResent"));
     } catch {
       setError(t("errorGeneric"));
@@ -196,7 +210,7 @@ export function SignUpPageClient() {
             <CardContent className="pt-2">
               {step === "complete" ? (
                 <div className="space-y-4 rounded-lg border border-primary/20 bg-primary/10 dark:border-primary/30 dark:bg-primary/15 p-6 text-center">
-                  <div className="text-4xl">🎉</div>
+                  <CheckCircle2 className="mx-auto h-10 w-10 text-primary" aria-hidden />
                   <h3 className="text-lg font-semibold">{t("successTitle")}</h3>
                   <p className="text-sm text-muted-foreground">{t("successMessage")}</p>
                   <div className="flex flex-col gap-2 pt-2">
@@ -245,13 +259,22 @@ export function SignUpPageClient() {
                   <div className="text-sm text-muted-foreground">
                     {t("notReceivedCode")}{" "}
                     <button
-                      className="text-primary underline-offset-4 hover:underline cursor-pointer"
+                      className="text-primary underline-offset-4 hover:underline cursor-pointer disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
                       onClick={handleResendOtp}
+                      disabled={resendIn > 0}
                       type="button"
                     >
-                      {t("resendOtp")}
+                      {resendIn > 0 ? t("resendIn", { seconds: resendIn }) : t("resendOtp")}
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                    onClick={() => { setStep("form"); setOtpCode(""); setError(""); }}
+                  >
+                    {t("changeEmail")}
+                  </button>
                 </div>
               ) : (
                 <>
@@ -293,7 +316,15 @@ export function SignUpPageClient() {
                         required
                         type="password"
                         value={formData.repeatPassword}
+                        aria-invalid={passwordsDiffer}
+                        aria-describedby={passwordsDiffer ? "repeat-password-error" : undefined}
                       />
+                      {/* Said right here, before the disabled submit button leaves the user guessing */}
+                      {passwordsDiffer && (
+                        <p id="repeat-password-error" role="alert" className="text-xs text-destructive">
+                          {t("errorPasswordMismatch")}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Checkbox
