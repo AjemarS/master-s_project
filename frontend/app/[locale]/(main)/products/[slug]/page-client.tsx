@@ -16,6 +16,7 @@ import { ProductCard } from "~/ui/components/product-card";
 import { ProductGallery } from "~/ui/components/product-gallery";
 import { productApi } from "~/lib/api/admin-api";
 import { useBreadcrumbSegments } from "~/ui/components/breadcrumbs";
+import { ProductReviews } from "./product-reviews";
 
 const slugify = (str: string) =>
   str
@@ -107,8 +108,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
             <div className="flex flex-col">
               <div className="mb-6">
                 <h1 className="text-3xl font-bold">{product.name}</h1>
-                <div className="mt-2 flex items-center gap-2">
-                  <div aria-label={`Rating ${product.rating} out of 5`} className="flex items-center">
+                {product.review_count ? (
+                <a href="#reviews" className="mt-2 flex items-center gap-2 w-fit hover:underline underline-offset-4">
+                  <div role="img" aria-label={t("ratingLabel", { rating: product.rating.toFixed(1), count: product.review_count })} className="flex items-center">
                     {range(5).map((i) => (
                       <Star
                         className={`h-5 w-5 ${
@@ -123,9 +125,14 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                     ))}
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    ({product.rating.toFixed(1)})
+                    {product.rating.toFixed(1)} · {t("reviewsCount", { count: product.review_count })}
                   </span>
-                </div>
+                </a>
+                ) : (
+                  <a href="#reviews" className="mt-2 inline-block text-sm text-muted-foreground hover:underline underline-offset-4">
+                    {t("noReviewsYet")}
+                  </a>
+                )}
               </div>
 
               <div className="mb-6">
@@ -228,6 +235,8 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               </div>
             </section>
           </div>
+
+          <ProductReviews productId={product.id} />
 
           {similar.length > 0 && (
             <section className="mt-16">

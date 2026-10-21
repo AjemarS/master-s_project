@@ -103,11 +103,12 @@ class ProductSerializer(serializers.ModelSerializer):
             "category", "category_name",
             "price", "original_price",
             "image_url", "stock", "in_stock",
-            "features", "specs", "rating",
+            "features", "specs", "rating", "review_count",
             "brand", "color", "is_on_sale", "warranty_months",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["slug", "in_stock", "is_on_sale", "created_at", "updated_at"]
+        # rating and review_count come from reviews only
+        read_only_fields = ["slug", "in_stock", "is_on_sale", "rating", "review_count", "created_at", "updated_at"]
         extra_kwargs = {
             "name": {"required": True, "allow_blank": False, "max_length": 200},
             "name_uk": {"required": False, "allow_blank": True},
@@ -118,7 +119,6 @@ class ProductSerializer(serializers.ModelSerializer):
             "price": {"required": True, "min_value": 0},
             "original_price": {"required": False, "min_value": 0},
             "category": {"required": True},
-            "rating": {"required": False},
             "features": {"required": False},
             "specs": {"required": False},
             "brand": {"required": False, "allow_blank": True},
@@ -161,14 +161,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def validate_image(self, value):
         return validate_image_file(value)
-
-    def validate_rating(self, value):
-        from decimal import Decimal
-        if value is not None:
-            if Decimal("0") <= value <= Decimal("5"):
-                return value
-            raise serializers.ValidationError("Rating must be between 0 and 5.")
-        return value
 
     def validate_features(self, value):
         if value is not None:
@@ -215,10 +207,10 @@ class ProductListSerializer(serializers.ModelSerializer):
             "category", "category_name",
             "price", "original_price",
             "image_url", "stock", "in_stock",
-            "rating",
+            "rating", "review_count",
             "brand", "color", "is_on_sale",
         ]
-        read_only_fields = ["slug", "in_stock", "is_on_sale"]
+        read_only_fields = ["slug", "in_stock", "is_on_sale", "rating", "review_count"]
 
     def get_image_url(self, obj):
         if obj.image:

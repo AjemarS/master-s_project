@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution, Review, ReviewsPage } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -376,5 +376,19 @@ export const returnsApi = {
 
   async setStatus(id: number, data: { status: ReturnStatus; resolution?: ReturnResolution; restock?: boolean; comment?: string }): Promise<ApiResponse<ReturnRequest>> {
     return apiCall(`${ORDERS_API_URL}/returns/${id}/status/`, { method: "POST", body: JSON.stringify(data) });
+  },
+};
+
+export const reviewsApi = {
+  async list(productId: number, page = 1): Promise<ApiResponse<ReviewsPage>> {
+    return apiCall(`${API_URL}/products/${productId}/reviews/?page=${page}`);
+  },
+
+  async save(productId: number, data: { rating: number; text: string }): Promise<ApiResponse<Review>> {
+    return apiCall(`${API_URL}/products/${productId}/reviews/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async setPublished(reviewId: number, isPublished: boolean): Promise<ApiResponse<Review>> {
+    return apiCall(`${API_URL}/reviews/${reviewId}/`, { method: "PATCH", body: JSON.stringify({ is_published: isPublished }) });
   },
 };

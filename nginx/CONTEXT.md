@@ -54,6 +54,11 @@ docker run --rm nginx-test nginx -t
 | GRN create | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Suppliers CRUD | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Product/Category write | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Review (POST `/api/products/{id}/reviews/`) | ❌ | ✅* | ✅* | ✅* | ✅ |
+| Review moderation (`/api/reviews/{id}/`) | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Returns (file own / process) | ❌ | ✅ / ❌ | ❌ | ❌ | ✅ |
+
+\* any signed-in user passes the gateway; product-service accepts only buyers who received the product.
 | Users manage | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Reports | ❌ | ❌ | ❌ | ❌ | ✅ |
 

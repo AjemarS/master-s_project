@@ -16,7 +16,9 @@ export interface Product {
   original_price_usd?: number;
   stock: number;
   in_stock: boolean;
+  /** Average of published reviews; meaningless while review_count is 0 */
   rating: number;
+  review_count?: number;
   /** Seller's warranty in months */
   warranty_months?: number;
   brand?: string;
@@ -202,6 +204,29 @@ export interface OrderItem {
   /** Months of warranty at the time of sale; null for items sold before it was tracked */
   warranty_months: number | null;
   created_at: string;
+}
+
+export interface Review {
+  id: number;
+  /** First name only; empty when the buyer has none to show */
+  author_name: string;
+  rating: number;
+  text: string;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewsPage {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Review[];
+  summary: { average: number; count: number; distribution: Record<"1" | "2" | "3" | "4" | "5", number> };
+  /** Present only when signed in */
+  mine?: Review | null;
+  /** true: bought and received; false: did not; null: could not be checked */
+  can_review?: boolean | null;
 }
 
 export type ReturnKind = "return" | "warranty";

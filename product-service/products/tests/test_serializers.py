@@ -69,11 +69,11 @@ class ProductSerializerTest(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("stock", serializer.errors)
 
-    def test_rating_out_of_range(self):
-        payload = {**self.valid_payload, "rating": "5.5"}
-        serializer = ProductSerializer(data=payload)
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("rating", serializer.errors)
+    def test_rating_cannot_be_set_directly(self):
+        # It is the average of reviews: a client-sent value is ignored
+        serializer = ProductSerializer(data={**self.valid_payload, "rating": "5.0"})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertNotIn("rating", serializer.validated_data)
 
     def test_features_must_be_list(self):
         payload = {**self.valid_payload, "features": "not-a-list"}

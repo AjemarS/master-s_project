@@ -77,6 +77,15 @@ function checkAndProxy(r) {
             r.internalRedirect(r.variables.api_backend);
             return;
         }
+        // Signed-in buyers can post a review; product-service checks they received the product
+        if (userId && apiAccess === "product" && method === "POST" && /^\/api\/products\/\d+\/reviews\/?$/.test(r.uri)) {
+            r.variables.gateway_user_id = userId;
+            r.variables.gateway_user_role = userRole;
+            r.variables.gateway_user_email = userEmail;
+            r.variables.gateway_user_name = userName;
+            r.internalRedirect(r.variables.api_backend);
+            return;
+        }
         // Authenticated user role can create online orders
         if (userRole === "user" && apiAccess === "orders" && method === "POST") {
             r.variables.gateway_user_id = userId;

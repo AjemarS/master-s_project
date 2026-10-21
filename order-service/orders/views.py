@@ -14,7 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
-from orders.models import Order
+from orders.models import Order, OrderItem
 from orders import order_service as svc
 from orders.inventory_client import check_availability, release_stock
 from orders.serializers import (
@@ -126,7 +126,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         if self.action == "health":
             return [AllowAny()]
-        if self.action in ("list", "my", "retrieve"):
+        if self.action in ("list", "my", "retrieve", "purchased"):
             return [IsAuthenticated()]
         if self.action == "create":
             return [AllowAny()]
@@ -327,6 +327,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = OrderListSerializer(orders, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def purchased(self, request):
+        """Whether the current user received this product (?product_id=): product-service gates reviews on it."""
+        try:
+            product_id = int(request.query_params.get("product_id", ""))
+        except ValueError:
+            return Response({"error": "product_id must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+        bought = OrderItem.objects.filter(
+            product_id=product_id,
+            order__created_by=request.user.username,
+            order__status__in=(Order.DELIVERED, Order.COMPLETED),
+        ).exists()
+        return Response({"purchased": bought})
 
     @action(detail=False, methods=["post"])
     def pos(self, request):

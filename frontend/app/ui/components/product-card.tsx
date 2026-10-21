@@ -62,7 +62,7 @@ export const ProductCard = React.memo(function ProductCard({
     const hasHalfStar = rating % 1 >= 0.5;
 
     return (
-      <div className="flex items-center">
+      <div className="flex items-center" role="img" aria-label={t("ratingLabel", { rating: rating.toFixed(1), count: product.review_count ?? 0 })}>
         {Array.from({ length: 5 }).map((_, i) => (
           <Star
             className={cn(
@@ -76,9 +76,9 @@ export const ProductCard = React.memo(function ProductCard({
             key={`star-${product.id}-position-${i + 1}`}
           />
         ))}
-        {rating > 0 && (
-          <span className="ml-1 text-xs text-muted-foreground">{rating.toFixed(1)}</span>
-        )}
+        <span className="ml-1 text-xs text-muted-foreground">
+          {rating.toFixed(1)} ({product.review_count})
+        </span>
       </div>
     );
   };
@@ -150,7 +150,8 @@ export const ProductCard = React.memo(function ProductCard({
 
             {variant === "default" && (
               <>
-                <div className="mt-1.5">{renderStars()}</div>
+                {/* No stars without reviews: an empty rating is not a bad one */}
+                {!!product.review_count && <div className="mt-1.5">{renderStars()}</div>}
                 <div className="mt-2 flex items-center gap-1.5">
                   <span className="font-medium text-foreground">{formatCurrency(price)}</span>
                   {discount > 0 && (

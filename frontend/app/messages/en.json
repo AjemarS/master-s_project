@@ -310,7 +310,10 @@
     "wishlist": "Wishlist",
     "wishlistEmpty": "Your wishlist is empty",
     "wishlistEmptyDesc": "Save items you love to your wishlist",
-    "goShopping": "Start shopping"
+    "goShopping": "Start shopping",
+    "ratingLabel": "Rated {rating} out of 5 from {count} reviews",
+    "reviewsCount": "{count, plural, one {# review} other {# reviews}}",
+    "noReviewsYet": "No reviews yet"
   },
   "orders": {
     "title": "Orders",
@@ -1300,5 +1303,30 @@
     "commentRequired": "Reason for rejection (the buyer will see it)",
     "commentOptional": "Comment for the buyer (optional)",
     "confirm": "Confirm"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "basedOn": "based on {count} reviews",
+    "distribution": "Rating distribution",
+    "none": "No reviews yet. Bought this product? Be the first to review it.",
+    "signIn": "Sign in",
+    "signInSuffix": "to review a product you bought.",
+    "buyersOnly": "Only buyers who received this product can review it.",
+    "editMine": "Edit my review",
+    "yourRating": "Your rating",
+    "yourReview": "Your review (optional)",
+    "placeholder": "What you liked, what you did not, how it holds up in use",
+    "publish": "Publish",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "saved": "Thank you! Your review is published.",
+    "starsCount": "{count, plural, one {# star} other {# stars}}",
+    "anonymousBuyer": "Buyer",
+    "verifiedBuyer": "Verified buyer",
+    "hide": "Hide review",
+    "show": "Show review",
+    "hidden": "Hidden by a moderator",
+    "prev": "Previous",
+    "next": "Next"
   }
 }

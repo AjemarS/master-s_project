@@ -83,6 +83,7 @@ class Product(models.Model):
         null=True,
         verbose_name="Зображення продукту",
     )
+    # Average of published reviews, kept in sync by Review.refresh_product_rating; 0 with no reviews
     rating = models.DecimalField(
         default=Decimal("0.0"),
         decimal_places=1,
@@ -90,6 +91,7 @@ class Product(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(5)],
         verbose_name="Рейтинг",
     )
+    review_count = models.PositiveIntegerField(default=0, verbose_name="Кількість відгуків")
     specs = models.JSONField(default=dict, verbose_name="Специфікації")
     # Seller's warranty; order-service snapshots it per sale for warranty claims
     warranty_months = models.PositiveSmallIntegerField(
@@ -141,3 +143,39 @@ class ProcessedEvent(models.Model):
 
     def __str__(self):
         return self.event_id
+
+
+class Review(models.Model):
+    """A buyer's review: one per user and product, written only after the purchase was handed over."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews", verbose_name="Продукт")
+    user_id = models.CharField(max_length=255, verbose_name="Користувач")
+    # Shown publicly: a first name only, never an email
+    author_name = models.CharField(max_length=60, blank=True, verbose_name="Автор")
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], verbose_name="Оцінка"
+    )
+    text = models.TextField(blank=True, max_length=3000, verbose_name="Текст")
+    is_published = models.BooleanField(default=True, verbose_name="Опубліковано")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+
+    class Meta:
+        verbose_name = "Відгук"
+        verbose_name_plural = "Відгуки"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["product", "user_id"], name="one_review_per_user_and_product"),
+        ]
+
+    def __str__(self):
+        return f"{self.product_id}: {self.rating}★ by {self.user_id}"
+
+    @staticmethod
+    def refresh_product_rating(product_id):
+        stats = Review.objects.filter(product_id=product_id, is_published=True).aggregate(
+            avg=models.Avg("rating"), n=models.Count("id"),
+        )
+        Product.objects.filter(pk=product_id).update(
+            rating=Decimal(str(round(stats["avg"] or 0, 1))), review_count=stats["n"],
+        )

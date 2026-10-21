@@ -948,3 +948,16 @@ class ReturnsAPITest(APITestCase):
         ret = ReturnRequest.objects.filter(status=ReturnRequest.SUBMITTED).get()
         ReturnRequest.objects.filter(pk=ret.pk).update(status=ReturnRequest.RECEIVED)
         self.assertEqual(self._set(ret.pk, status="resolved", resolution="repair").status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class PurchasedCheckTest(APITestCase):
+    def test_only_handed_over_orders_of_this_user_count(self):
+        buyer = User.objects.create_user("gw_1", "b@test.com", "pw")
+        _create_order_item(_create_order(status=Order.DELIVERED), product_id=5)
+        _create_order_item(_create_order(order_number="ORD-2", status=Order.PAID), product_id=6)
+        _create_order_item(_create_order(order_number="ORD-3", status=Order.COMPLETED, created_by="gw_2"), product_id=7)
+        self.client.force_authenticate(user=buyer)
+        got = {pid: self.client.get(f"/api/orders/purchased/?product_id={pid}").data["purchased"] for pid in (5, 6, 7)}
+        self.assertEqual(got, {5: True, 6: False, 7: False})
+        self.assertEqual(self.client.get("/api/orders/purchased/?product_id=x").status_code, status.HTTP_400_BAD_REQUEST)
+

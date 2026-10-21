@@ -65,6 +65,7 @@ Transitions enforced in `Order.can_transition_to()`.
 | GET | `/api/reports/abc/` | Admin | ABC analysis by cumulative revenue (A ≤80%, B ≤95%, C rest), per class totals (`?from=&to=`) |
 | GET | `/api/reports/fulfillment/` | Admin | Funnel, payment conversion, cancellations by stage, median/avg hours between stages (`?from=&to=&channel=online`) |
 | GET | `/api/reports/inventory-value/` | Admin | Stock at weighted-average cost (proxies inventory-service `stock/valuation/`) |
+| GET | `/api/orders/purchased/?product_id=` | Auth | `{purchased}`: the user has a delivered/completed order with it (gates reviews) |
 | GET/POST | `/api/orders/returns/` | Auth (own) / Admin (all) | Returns and warranty claims (`?status=&kind=&order=`); POST `{item_id, kind, quantity, reason}` |
 | POST | `/api/orders/returns/{id}/status/` | Admin | `{status, resolution?, restock?, comment?}` |
 | GET | `/api/docs/` | Any | Swagger UI |
