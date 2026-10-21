@@ -126,16 +126,6 @@ export function useCreateGoodsReceipt() {
   );
 }
 
-export function useUpdateGoodsReceipt() {
-  return useApiMutation<GoodsReceiptNote, { id: number; data: Partial<GoodsReceiptNote> }>(
-    "goods-receipts-update", ({ id, data }) => goodsReceiptApi.update(id, data)
-  );
-}
-
-export function useDeleteGoodsReceipt() {
-  return useApiMutation<void, number>("goods-receipts-delete", (id) => goodsReceiptApi.delete(id));
-}
-
 export function useTransferStock() {
   return useApiMutation<{ message: string; movements: { from: number; to: number } }, {
     product_id: number; from_warehouse_id: number; to_warehouse_id: number;

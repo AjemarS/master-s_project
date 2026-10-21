@@ -108,4 +108,4 @@ app/
 - **Status:** Coverage and pass rate undocumented
 
 ## Known Issues
-- Testimonials hardcoded in Ukrainian (not in translation files)
+- None tracked here; UX and a11y findings are in `BAD_UX.md`

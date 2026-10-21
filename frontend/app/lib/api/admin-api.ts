@@ -184,13 +184,6 @@ export const goodsReceiptApi = {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`, { method: "POST", body: JSON.stringify(data) });
   },
 
-  async update(id: number, data: Partial<GoodsReceiptNote>): Promise<ApiResponse<GoodsReceiptNote>> {
-    return apiCall(`${INVENTORY_API_URL}/goods-receipts/${id}/`, { method: "PUT", body: JSON.stringify(data) });
-  },
-
-  async delete(id: number): Promise<ApiResponse<void>> {
-    return apiCall(`${INVENTORY_API_URL}/goods-receipts/${id}/`, { method: "DELETE" });
-  },
 };
 
 export const orderApi = {

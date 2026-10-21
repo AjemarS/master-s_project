@@ -886,9 +886,7 @@
     "support247Title": "24/7 Support",
     "support247Desc": "Always in touch to help you choose.",
     "qualityGuaranteeTitle": "Quality Guarantee",
-    "qualityGuaranteeDesc": "Quality guarantee on every product. Returns within 30 days.",
-    "testimonialsTitle": "Customer Reviews",
-    "testimonialsSubtitle": "Over 10,000 satisfied customers across Ukraine",
+    "qualityGuaranteeDesc": "Manufacturer warranty on every product. Returns within 14 days.",
     "ctaTitle": "Ready for an upgrade?",
     "ctaSubtitle": "Join thousands of satisfied customers. Sign up today and get exclusive offers.",
     "ctaSignUp": "Sign Up",
@@ -914,25 +912,7 @@
     "terms": "Terms of Service",
     "copyright": "© {year} TechHub. For educational purposes only.",
     "privacyShort": "Privacy",
-    "termsShort": "Terms",
-    "newsletter": "Subscribe to Newsletter",
-    "newsletterDesc": "Get the best offers and new arrivals",
-    "emailPlaceholder": "Your email",
-    "subscribe": "Subscribe",
-    "subscribeSuccess": "Thank you for subscribing!",
-    "subscribeError": "Please enter a valid email"
-  },
-  "testimonials": {
-    "0_name": "Olena Kovalchuk",
-    "0_text": "Ordered a refrigerator — delivered the next day. Everything works perfectly. Very satisfied with the service!",
-    "1_name": "Andriy Melnyk",
-    "1_text": "Bought a washing machine. They helped me choose without pushing the most expensive option. Fast delivery, thank you!",
-    "2_name": "Mariya Shevchenko",
-    "2_text": "Great appliance store! Found everything I needed for my new kitchen. The prices were pleasantly surprising.",
-    "3_name": "Dmytro Bondarenko",
-    "3_text": "Microservice architecture is awesome. But seriously, the store works flawlessly. Recommend!",
-    "4_name": "Sofia Kravchenko",
-    "4_text": "Finally an appliance store where you don't feel stupid. They explain everything clearly, top-notch support!"
+    "termsShort": "Terms"
   },
   "impersonation": {
     "badge": "Impersonation Mode",

@@ -5,7 +5,6 @@ import { Link } from "~/i18n/navigation";
 
 import { FadeIn } from "~/ui/components/motion/fade-in";
 import { StaggerContainer, StaggerItem } from "~/ui/components/motion/stagger";
-import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-with-marquee";
 import { Button } from "~/ui/primitives/button";
 import { CtaButtons } from "./cta-buttons";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -13,7 +12,6 @@ import { CategoryImage } from "~/ui/components/category-image";
 import { NewArrivalsCartWrapper } from "~/ui/components/new-arrivals-cart-wrapper";
 import { WaveDivider } from "~/ui/components/wave-divider";
 
-import { getTestimonials } from "~/data/testimonials";
 import { Category, Product } from "../../lib/types";
 
 async function getCategories(): Promise<Category[]> {
@@ -47,8 +45,6 @@ export default async function HomePage() {
   const categories = await getCategories();
   const latestProducts = await getLatestProducts();
   const t = await getTranslations("home");
-  const tTestimonials = await getTranslations("testimonials");
-  const testimonials = getTestimonials(tTestimonials);
 
   const features = [
     {
@@ -242,22 +238,6 @@ export default async function HomePage() {
               </StaggerItem>
             ))}
           </StaggerContainer>
-        </div>
-      </section>
-      </FadeIn>
-
-      <WaveDivider />
-
-      {/* Testimonials */}
-      <FadeIn direction="up">
-      <section className="bg-muted/50 py-12 md:py-16">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <TestimonialsSection
-            className="py-0"
-            description={t("testimonialsSubtitle")}
-            testimonials={testimonials}
-            title={t("testimonialsTitle")}
-          />
         </div>
       </section>
       </FadeIn>

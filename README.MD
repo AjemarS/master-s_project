@@ -23,7 +23,7 @@ User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
 | **Product Service** | Django + DRF | 8000 | Catalog, categories, cart, bilingual fields (UA/EN) |
 | **Inventory Service** | Django + DRF | 8001 | Warehouses, stock, movements, suppliers, GRN |
 | **Order Service** | Django + DRF | 8002 | Orders, POS, reports, Stripe payments, Saga pattern |
-| **Notification Service** | Express | 8003 | In-app notifications, email (Resend), SSE |
+| **Notification Service** | Express | 8003 | In-app notifications, email (SMTP or Resend), SSE |
 | **Audit Service** | Express | 8005 | Centralized audit logging (HTTP + events) |
 | **Frontend** | Next.js 16 | 3000 | Storefront, admin panel, POS (bilingual UA/EN) |
 
@@ -38,7 +38,7 @@ User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui, Framer Motion, next-intl v4.13
 - **Auth:** Better Auth v1.4.3 (sessions, 2FA, OAuth)
 - **Databases:** PostgreSQL 15 (×5), Redis 7
-- **Event Bus:** RabbitMQ 3.13 (topic exchange)
+- **Event Bus:** RabbitMQ 4.1 (topic exchange)
 - **Authentication:** Gateway-injected `X-Gateway-User-*` headers, trusted by downstream Django services via `GatewayAuthentication`
 
 ---
@@ -115,7 +115,6 @@ techhub/
 ├── docker-compose.yaml       # Development environment
 ├── docker-compose.prod.yaml  # Production profile
 ├── CONCEPT.md                # Detailed architecture documentation
-├── PRODUCTION.md             # Deployment guide (OCI)
 ├── AGENTS.md                 # AI assistant context (OpenCode)
 └── README.MD                 # This file
 ```
@@ -151,7 +150,7 @@ TechHub uses a topic exchange `techhub.events` for asynchronous communication:
 ## Further Reading
 
 - [CONCEPT.md](./CONCEPT.md) — Detailed architecture, data flow, design decisions
-- [PRODUCTION.md](./PRODUCTION.md) — OCI deployment guide (SSL, secrets, CI/CD, monitoring)
+- [deploy/README.md](./deploy/README.md) — staging/prod on one VPS: host setup, CI/CD, releases, monitoring
 - [AGENTS.md](./AGENTS.md) — AI assistant context for development
 - Per-service CONTEXT.md files (linked above) — Developer deep-dives per service
 

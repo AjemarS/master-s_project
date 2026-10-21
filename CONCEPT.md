@@ -60,19 +60,15 @@ System fully functional. Microservices run via Docker Compose. All core retail f
                  ▼           ▼                 ▼
      ┌──────────────────┐ ┌──────────────────────────┐
      │  Product Consumer│ │  Notification Service    │
-     │  (Django)        │ │  (Express + Resend + SSE)│
+     │  (Django)        │ │  (Express + SMTP/Resend) │
      │  Port: N/A       │ │  Port: 8003              │
-     │  DB: products_db │ │  DB: notifications_db    │
+     │  DB: products_db │ │  DB: logging_db          │
      └──────────────────┘ │  Email + SSE + admin prefs│
                           └──────────────────────────┘
-          ┌──────────────────┐
-          │  Inventory       │
-          │  Consumer        │
-          │  (Django)        │
-          │  Port: N/A       │
-          │  DB: inventory_db│
-          └──────────────────┘
 ```
+
+Not drawn: audit-service (Express, port 8005, `logging_db`), Redis (sessions, rate limits, SSE fan-out),
+Prometheus + Grafana (scrape every service's `/metrics`).
 
 ### 1.2 Service Responsibilities
 
@@ -494,6 +490,14 @@ Network: microservices_network (bridge)
 | Frontend Admin Panel | ✅ Products, orders, POS, reports, users, warehouses, suppliers, GRN, stock movements |
 | Frontend i18n | ✅ UA/EN routes, message files (~400 keys), language switcher, bilingual backend fields |
 | Agent Rules (AGENTS.md) | ✅ Context per service, test-as-spec rule |
+| Pricing trust boundary | ✅ Prices from the catalog, cost of goods from inventory at write-off |
+| Analytics | ✅ KPIs with period comparison, daily/weekly/monthly trend, top products, ABC, fulfilment funnel, stock health, CSV export |
+| Returns & warranty | ✅ 14-day returns, warranty claims, restock, Stripe partial refunds |
+| Reviews | ✅ Buyers-only reviews, rating computed from them, moderation |
+| Comparison | ✅ Up to 4 products side by side |
+| Purchasing | ✅ Reorder points, suggestions, purchase orders received through GRNs |
+| Promo codes | ✅ Percent / fixed, limits, once per customer, Stripe coupon |
+| Monitoring | ✅ Prometheus metrics in every service, Grafana dashboard |
 
 ### Known Issues 🐛
 
@@ -501,8 +505,6 @@ Network: microservices_network (bridge)
 |-------|-------|
 | `orders_db` test DB leftover | Fixed: run `manage.py test --noinput` (the `autoclobber` prompt raised `EOFError`) |
 | Backend tests assertion count | Fixed: order tests that accepted either outcome now stub inventory and assert one result |
-| Testimonials mock data | Hardcoded in Ukrainian (not yet extracted to translations) |
-| Frontend `/products` i18n | Recently added — verify coverage |
 | Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction |
 
 ---
@@ -513,7 +515,7 @@ Network: microservices_network (bridge)
 |-------|-----------|
 | **Runtime** | Python 3.13 (Django services), Node.js 24 LTS (Auth, Audit, Notification, Frontend) |
 | **Frameworks** | Django 5 + DRF, Next.js 16, Express 4 |
-| **Database** | PostgreSQL 15 (4 instances) |
+| **Database** | PostgreSQL 15 (5 instances) |
 | **Cache** | Redis 7 |
 | **Message broker** | RabbitMQ 4.1 |
 | **Gateway** | Nginx + njs (auth plugin) |
@@ -521,4 +523,4 @@ Network: microservices_network (bridge)
 | **i18n** | next-intl v4.13 |
 | **Auth** | Better Auth |
 | **Payments** | Stripe (webhook integration) |
-| **Notifications** | Resend (email), RabbitMQ events |
+| **Notifications** | SMTP (e.g. Gmail) or Resend (email), SSE, RabbitMQ events |

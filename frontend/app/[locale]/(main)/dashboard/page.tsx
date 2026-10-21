@@ -1,13 +1,10 @@
-"use client";
+import { getLocale } from "next-intl/server";
+import { redirect } from "~/i18n/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "~/i18n/navigation";
+export const dynamic = "force-dynamic";
 
-export default function DashboardRedirect() {
-  const router = useRouter();
-  useEffect(() => {
-    const timer = setTimeout(() => router.replace("/my/overview"), 80);
-    return () => clearTimeout(timer);
-  }, [router]);
-  return null;
+// Old link: the personal area moved to /my/overview
+export default async function DashboardRedirect() {
+  const locale = await getLocale();
+  redirect({ href: "/my/overview", locale });
 }
