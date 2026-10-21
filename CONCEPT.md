@@ -529,8 +529,8 @@ Network: microservices_network (bridge)
 | `orders_db` test DB leftover | Fixed: run `manage.py test --noinput` (the `autoclobber` prompt raised `EOFError`) |
 | Backend tests assertion count | Fixed: order tests that accepted either outcome now stub inventory and assert one result |
 | Cart in product-service, orders in order-service | Checkout spans two services; no distributed transaction |
-| POS sales made before POS sales were completed at the till | They stay `unpaid` and out of the reports until a one-off data migration marks them `completed` + paid |
-| Dev compose publishes service and database ports on all interfaces | e.g. auth-service `/api/internal/users` (no auth, lists users) and PostgreSQL with the default password are reachable from the LAN in dev; prod publishes only the gateway and Grafana on loopback |
+| POS sales made before POS sales were completed at the till | Fixed: migration `orders.0009` marks unpaid offline orders `completed` + paid as of their creation time |
+| Dev compose published service and database ports on all interfaces | Fixed: dev binds every port except the gateway (80) to `127.0.0.1`, so auth-service `/api/internal/*` (no auth) and PostgreSQL are reachable only from the dev machine; prod publishes only the gateway and Grafana on loopback |
 | Stripe not exercised end to end locally | Without `STRIPE_SECRET_KEY` checkout stops at "Payment session creation failed"; run the payment, coupon and partial refund paths on staging with test keys |
 | Carrier delivery is not charged online | By design: the customer pays the carrier on receipt; the order total and Stripe charge cover goods only |
 

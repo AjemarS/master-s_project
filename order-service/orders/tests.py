@@ -1077,3 +1077,24 @@ class PayPermissionTest(APITestCase):
         self.client.force_authenticate(user=User.objects.create_user("gw_10", "x@test.com", "pw"))
         self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", {}, format="json").status_code, 404)
 
+
+
+class CompleteOldPosSalesMigrationTest(TestCase):
+    def test_marks_only_unpaid_offline_orders_completed(self):
+        from importlib import import_module
+
+        from django.apps import apps
+
+        old_pos = _create_order(channel=Order.OFFLINE)
+        online = _create_order(order_number="ORD-000002")
+        cancelled_pos = _create_order(order_number="ORD-000003", channel=Order.OFFLINE, status=Order.CANCELLED)
+
+        import_module("orders.migrations.0009_complete_old_pos_sales").complete_old_pos_sales(apps, None)
+
+        old_pos.refresh_from_db()
+        self.assertEqual((old_pos.status, old_pos.payment_status), (Order.COMPLETED, Order.PAYMENT_PAID))
+        self.assertEqual(old_pos.paid_at, old_pos.created_at)
+        online.refresh_from_db()
+        cancelled_pos.refresh_from_db()
+        self.assertEqual(online.status, Order.UNPAID)
+        self.assertEqual(cancelled_pos.status, Order.CANCELLED)
