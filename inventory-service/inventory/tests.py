@@ -1,5 +1,6 @@
 import random
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -536,3 +537,61 @@ class DeductBatchTest(APITestCase):
         response = self._deduct([{"product_id": 1, "quantity": 2}])
         self.assertEqual(response.data["unit_costs"], {"1": "123.45"})
         self.assertNotIn("average_cost", response.data["items"][0])  # stock rows stay public-safe
+
+
+class AnalyticsEndpointsTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.warehouse = _create_warehouse()
+        Stock.objects.create(product_id=1, warehouse=self.warehouse, quantity=4, average_cost=Decimal("100.00"))
+        Stock.objects.create(product_id=1, warehouse=_create_warehouse("Showroom", "showroom"), quantity=1, average_cost=Decimal("120.00"))
+        Stock.objects.create(product_id=2, warehouse=self.warehouse, quantity=3)  # no GRN yet: cost 0
+        Stock.objects.create(product_id=3, warehouse=self.warehouse, quantity=0, average_cost=Decimal("50.00"))
+
+    def test_valuation_uses_average_cost_and_skips_empty_stock(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        data = self.client.get("/api/stock/valuation/").data
+        self.assertEqual(data["total_value"], 520.0)
+        self.assertEqual(data["item_count"], 2)
+        self.assertEqual(data["uncosted_quantity"], 3)
+        self.assertEqual(data["by_product"][0], {"product_id": 1, "total_quantity": 5, "total_value": 520.0})
+
+    def test_valuation_is_admin_only(self):
+        self.client.force_authenticate(user=_create_regular_user())
+        self.assertEqual(self.client.get("/api/stock/valuation/").status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_supplier_stats_aggregates_all_receipts(self):
+        big, small = _create_supplier("Big"), _create_supplier("Small")
+        for supplier, day, qty, cost in [(big, "2026-06-01", 10, "100"), (big, "2026-06-05", 2, "100"), (small, "2026-06-03", 1, "50")]:
+            grn = GoodsReceiptNote.objects.create(supplier=supplier, warehouse=self.warehouse, receipt_date=day)
+            GoodsReceiptItem.objects.create(goods_receipt=grn, product_id=1, quantity=qty, cost_price=Decimal(cost))
+        self.client.force_authenticate(user=_create_admin_user())
+        rows = self.client.get("/api/goods-receipts/supplier-stats/").data
+        self.assertEqual([r["supplier_name"] for r in rows], ["Big", "Small"])
+        self.assertEqual(rows[0]["total_items"], 12)
+        self.assertEqual(rows[0]["total_value"], 1200.0)
+        self.assertEqual(rows[0]["delivery_count"], 2)
+        self.assertEqual(rows[0]["last_delivery"], "2026-06-05")
+
+    def test_stock_analytics_cover_turnover_and_dead_stock(self):
+        # setUp: product 1 has 5 on hand (value 520), product 2 has 3 uncosted, product 3 has 0
+        StockMovement.objects.create(product_id=1, from_warehouse=self.warehouse, quantity=9, type=StockMovement.DEDUCT)
+        old = StockMovement.objects.create(product_id=2, from_warehouse=self.warehouse, quantity=4, type=StockMovement.DEDUCT)
+        StockMovement.objects.filter(pk=old.pk).update(created_at=old.created_at - timedelta(days=200))
+        self.client.force_authenticate(user=_create_admin_user())
+
+        data = self.client.get("/api/stock/analytics/?days=90").data
+        rows = {r["product_id"]: r for r in data["products"]}
+        self.assertEqual(rows[1]["units_sold"], 9)
+        self.assertEqual(rows[1]["days_of_cover"], 50.0)          # 5 / (9 / 90)
+        self.assertEqual(rows[1]["turnover"], 1.8)
+        self.assertFalse(rows[1]["dead"])
+        self.assertTrue(rows[2]["dead"])                           # sold only 200 days ago
+        self.assertIsNotNone(rows[2]["last_sale_at"])
+        self.assertFalse(rows[3]["dead"])                          # nothing on hand
+        self.assertEqual(data["summary"]["dead_products"], 1)
+        self.assertEqual(data["summary"]["units_sold"], 9)
+
+    def test_stock_analytics_rejects_bad_window(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        self.assertEqual(self.client.get("/api/stock/analytics/?days=1").status_code, status.HTTP_400_BAD_REQUEST)

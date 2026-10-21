@@ -5,6 +5,9 @@ from . import reports
 urlpatterns = [
     path("sales/", reports.sales_report, name="sales-report"),
     path("revenue/", reports.revenue_report, name="revenue-report"),
+    path("top-products/", reports.top_products_report, name="top-products-report"),
+    path("abc/", reports.abc_report, name="abc-report"),
+    path("fulfillment/", reports.fulfillment_report, name="fulfillment-report"),
     path("inventory-value/", reports.inventory_value_report, name="inventory-value-report"),
     path("daily-sales/", reports.daily_sales_report, name="daily-sales-report"),
 ]

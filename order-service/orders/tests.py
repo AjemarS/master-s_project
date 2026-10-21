@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from unittest import mock
 from urllib.error import URLError
@@ -6,10 +7,12 @@ from urllib.error import URLError
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import Order, OrderItem
+from . import order_service as svc
+from .models import Order, OrderItem, OrderStatusHistory
 
 User = get_user_model()
 
@@ -268,6 +271,8 @@ class POSAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["channel"], Order.OFFLINE)
+        self.assertEqual(response.data["status"], Order.COMPLETED)
+        self.assertEqual(response.data["payment_status"], Order.PAYMENT_PAID)
         deduct.assert_called_once()
 
     def test_pos_order_without_warehouse_fails(self):
@@ -337,6 +342,151 @@ class ReportsAPITest(APITestCase):
         self.client.force_authenticate(user=user)
         response = self.client.get("/api/reports/revenue/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class ReportNumbersTest(APITestCase):
+    """Every report counts the same orders and the same revenue."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(user=_create_admin_user())
+        self.today = timezone.localdate()
+
+    def _order(self, number, status, channel=Order.ONLINE, days_ago=0, lines=((2, "100.00", "60.00"),)):
+        order = _create_order(
+            order_number=number, status=status, channel=channel,
+            total_amount=Decimal("999.00"),  # includes shipping: must not leak into revenue
+        )
+        for qty, price, cost in lines:
+            OrderItem.objects.create(order=order, product_id=1, quantity=qty, price=Decimal(price), cost_price=Decimal(cost))
+        created = timezone.make_aware(datetime.combine(self.today - timedelta(days=days_ago), time(12)))
+        Order.objects.filter(pk=order.pk).update(created_at=created)
+        return order
+
+    def test_sales_revenue_and_daily_agree(self):
+        self._order("A", Order.PAID)
+        self._order("B", Order.COMPLETED, channel=Order.OFFLINE, lines=((1, "50.00", "20.00"),))
+        self._order("C", Order.UNPAID)
+        self._order("D", Order.CANCELLED)
+
+        sales = self.client.get("/api/reports/sales/").data
+        revenue = self.client.get("/api/reports/revenue/").data
+        daily = self.client.get("/api/reports/daily-sales/").data["daily"]
+
+        self.assertEqual(sales["total_orders"], 2)
+        self.assertEqual(sales["total_revenue"], 250.0)
+        self.assertEqual(sales["total_margin"], 110.0)
+        self.assertEqual(sales["margin_percent"], 44.0)
+        self.assertEqual(revenue["total_revenue"], sales["total_revenue"])
+        self.assertEqual(revenue["order_count"], sales["total_orders"])
+        self.assertEqual(sum(d["revenue"] for d in daily), sales["total_revenue"])
+        self.assertEqual({c["channel"]: c["revenue"] for c in sales["by_channel"]}, {"online": 200.0, "offline": 50.0})
+
+    def test_date_only_to_includes_whole_day(self):
+        self._order("A", Order.PAID)
+        data = self.client.get(f"/api/reports/sales/?to={self.today.isoformat()}").data
+        self.assertEqual(data["total_orders"], 1)
+
+    def test_from_excludes_older_orders(self):
+        self._order("OLD", Order.PAID, days_ago=10)
+        self._order("NEW", Order.PAID)
+        frm = (self.today - timedelta(days=1)).isoformat()
+        self.assertEqual(self.client.get(f"/api/reports/sales/?from={frm}").data["total_orders"], 1)
+
+    def test_invalid_date_is_rejected(self):
+        self.assertEqual(self.client.get("/api/reports/sales/?from=yesterday").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_daily_is_zero_filled(self):
+        self._order("A", Order.PAID, days_ago=2)
+        frm = (self.today - timedelta(days=3)).isoformat()
+        daily = self.client.get(f"/api/reports/daily-sales/?from={frm}&to={self.today.isoformat()}").data["daily"]
+        self.assertEqual([d["orders"] for d in daily], [0, 1, 0, 0])
+
+    def test_previous_period_and_kpis(self):
+        self._order("NOW", Order.PAID)                                       # revenue 200
+        self._order("NOW-X", Order.CANCELLED)
+        self._order("PREV", Order.PAID, days_ago=8, lines=((1, "50.00", "20.00"),))
+        self._order("OLDER", Order.PAID, days_ago=20)
+        frm, to = (self.today - timedelta(days=6)).isoformat(), self.today.isoformat()
+        data = self.client.get(f"/api/reports/sales/?from={frm}&to={to}").data
+        self.assertEqual(data["average_order_value"], 200.0)
+        self.assertEqual(data["cancelled_orders"], 1)
+        self.assertEqual(data["cancellation_rate"], 50.0)
+        self.assertEqual(data["previous"]["total_revenue"], 50.0)            # days 7..13 ago only
+        self.assertIsNone(self.client.get("/api/reports/sales/").data["previous"])
+
+    def test_top_products_sorted_and_shared(self):
+        order = self._order("A", Order.PAID, lines=())
+        OrderItem.objects.create(order=order, product_id=1, product_name="Fridge", quantity=1, price=Decimal("300.00"), cost_price=Decimal("280.00"))
+        OrderItem.objects.create(order=order, product_id=2, product_name="Kettle", quantity=5, price=Decimal("20.00"), cost_price=Decimal("5.00"))
+        by_revenue = self.client.get("/api/reports/top-products/").data["products"]
+        self.assertEqual([p["product_name"] for p in by_revenue], ["Fridge", "Kettle"])
+        self.assertEqual(by_revenue[0]["revenue_share"], 75.0)
+        by_margin = self.client.get("/api/reports/top-products/?sort=margin&limit=1").data["products"]
+        self.assertEqual([(p["product_name"], p["margin"]) for p in by_margin], [("Kettle", 75.0)])
+        self.assertEqual(self.client.get("/api/reports/top-products/?sort=price").status_code, 400)
+
+    def test_abc_classes_follow_cumulative_revenue(self):
+        order = self._order("A", Order.PAID, lines=())
+        for pid, price in [(1, "700.00"), (2, "150.00"), (3, "100.00"), (4, "50.00")]:
+            OrderItem.objects.create(order=order, product_id=pid, product_name=f"P{pid}", quantity=1, price=Decimal(price), cost_price=Decimal("1.00"))
+        data = self.client.get("/api/reports/abc/").data
+        # cumulative share before each product: 0, 70, 85, 95
+        self.assertEqual([p["abc_class"] for p in data["products"]], ["A", "A", "B", "C"])
+        self.assertEqual(data["products"][-1]["cumulative_share"], 100.0)
+        self.assertEqual(data["classes"]["A"], {"products": 2, "revenue": 850.0, "revenue_share": 85.0})
+        self.assertEqual(data["classes"]["C"]["products"], 1)
+
+    def _history(self, order, steps, start_hours_ago):
+        """steps: [(to_status, hours after creation)]; rewrites timestamps to fixed offsets."""
+        base = timezone.now() - timedelta(hours=start_hours_ago)
+        Order.objects.filter(pk=order.pk).update(created_at=base)
+        prev = Order.UNPAID
+        for to, hours in steps:
+            row = OrderStatusHistory.objects.create(order=order, from_status=prev, to_status=to)
+            OrderStatusHistory.objects.filter(pk=row.pk).update(changed_at=base + timedelta(hours=hours))
+            prev = to
+
+    def test_fulfillment_funnel_durations_and_cancel_stage(self):
+        shipped = self._order("S", Order.DELIVERED)
+        self._history(shipped, [(Order.PAID, 2), (Order.DELIVERING, 26), (Order.DELIVERED, 74)], 100)
+        paid = self._order("P", Order.PAID)
+        self._history(paid, [(Order.PAID, 4)], 10)
+        dropped = self._order("X", Order.CANCELLED)
+        self._history(dropped, [(Order.PAID, 1), (Order.CANCELLED, 3)], 10)
+        self._order("U", Order.UNPAID)
+        self._order("POS", Order.COMPLETED, channel=Order.OFFLINE)
+
+        data = self.client.get("/api/reports/fulfillment/").data
+        self.assertEqual(data["orders"], 4)
+        self.assertEqual([f["count"] for f in data["funnel"]], [4, 3, 1, 1, 0])
+        self.assertEqual(data["payment_conversion"], 75.0)
+        self.assertEqual(data["cancelled"]["by_stage"]["paid"], 1)
+        to_paid = data["durations"][0]
+        self.assertEqual((to_paid["count"], to_paid["median_hours"]), (3, 2.0))
+        self.assertEqual(data["durations"][1]["avg_hours"], 24.0)
+
+    def test_status_change_is_recorded(self):
+        order = _create_order(status=Order.UNPAID)
+        svc.update_order_status(order, Order.PAID)
+        self.assertEqual(
+            list(order.status_history.values_list("from_status", "to_status")), [(Order.UNPAID, Order.PAID)]
+        )
+
+    def test_monthly_grouping_zero_fills_months(self):
+        self._order("A", Order.PAID)
+        first_of_month = self.today.replace(day=1)
+        frm = (first_of_month - timedelta(days=40)).isoformat()
+        data = self.client.get(f"/api/reports/daily-sales/?group=month&from={frm}&to={self.today.isoformat()}").data
+        self.assertEqual(data["group"], "month")
+        self.assertEqual(len(data["daily"]), 3)
+        self.assertTrue(all(d["date"].endswith("-01") for d in data["daily"]))
+        self.assertEqual([d["orders"] for d in data["daily"]], [0, 0, 1])
+        self.assertEqual(data["daily"][-1]["revenue"], 200.0)
+
+    @mock.patch("orders.reports.get_stock_valuation", return_value=(None, "connection refused"))
+    def test_inventory_value_reports_unreachable_inventory(self, _):
+        self.assertEqual(self.client.get("/api/reports/inventory-value/").status_code, 503)
 
 
 class _FakeUrlopenResponse:

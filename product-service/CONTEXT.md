@@ -37,7 +37,7 @@ python manage.py test
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/products/` | Any | Product list (filtering, pagination, locale-aware) |
+| GET | `/api/products/` | Any | Product list (filtering incl. `?ids=1,2,3`, pagination, locale-aware) |
 | GET | `/api/products/{id}/` | Any | Product detail (locale-aware) |
 | POST | `/api/products/` | Admin | Create product |
 | PUT | `/api/products/{id}/` | Admin | Update product |

@@ -115,6 +115,9 @@ class Order(models.Model):
             models.Index(fields=["channel"]),
             models.Index(fields=["customer_email"]),
             models.Index(fields=["order_number"]),
+            # Declared in migration 0005 but missing here; reports filter by date and warehouse
+            models.Index(fields=["created_at"], name="orders_orde_created_0e92de_idx"),
+            models.Index(fields=["warehouse_id"], name="orders_orde_warehou_378921_idx"),
         ]
 
     def __str__(self):
@@ -148,3 +151,24 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name or self.product_id} x{self.quantity}"
+
+
+class OrderStatusHistory(models.Model):
+    """One row per status change: the basis for funnel and time-in-status analytics."""
+
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="status_history", verbose_name="Замовлення"
+    )
+    from_status = models.CharField(max_length=20, choices=Order.STATUS_CHOICES, verbose_name="Зі статусу")
+    to_status = models.CharField(max_length=20, choices=Order.STATUS_CHOICES, verbose_name="У статус")
+    changed_by = models.CharField(max_length=255, blank=True, verbose_name="Змінено користувачем")
+    changed_at = models.DateTimeField(auto_now_add=True, verbose_name="Змінено")
+
+    class Meta:
+        verbose_name = "Зміна статусу"
+        verbose_name_plural = "Історія статусів"
+        ordering = ["changed_at"]
+        indexes = [models.Index(fields=["to_status"])]
+
+    def __str__(self):
+        return f"{self.order_id}: {self.from_status} -> {self.to_status}"

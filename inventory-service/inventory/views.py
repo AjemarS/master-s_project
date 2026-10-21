@@ -1,10 +1,12 @@
 import logging
+from datetime import timedelta
 from uuid import uuid4
 
 from django.conf import settings
 from django.db import connection
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Max, Sum
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, views, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -388,6 +390,107 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(StockSerializer(stock).data)
 
+    @action(detail=False, methods=["get"])
+    def valuation(self, request):
+        """On-hand stock valued at weighted-average cost (admin only, falls to IsAdminUser)."""
+        on_hand = Stock.objects.filter(quantity__gt=0)
+        value = ExpressionWrapper(F("quantity") * F("average_cost"), output_field=DecimalField())
+        by_product = on_hand.values("product_id").annotate(
+            total_quantity=Sum("quantity"), total_value=Sum(value),
+        ).order_by("-total_value")
+        rows = [
+            {
+                "product_id": r["product_id"],
+                "total_quantity": r["total_quantity"],
+                "total_value": float(r["total_value"] or 0),
+            }
+            for r in by_product
+        ]
+        return Response({
+            "total_value": round(sum(r["total_value"] for r in rows), 2),
+            "item_count": len(rows),
+            # Stock that arrived without a GRN has no cost yet, so it adds nothing to total_value
+            "uncosted_quantity": on_hand.filter(average_cost=0).aggregate(n=Sum("quantity"))["n"] or 0,
+            "by_product": rows,
+        })
+
+    @action(detail=False, methods=["get"])
+    def analytics(self, request):
+        """
+        Per-product stock health over the last ?days= (default 90): sell-through, days of cover,
+        turnover and dead stock. Admin only (falls to IsAdminUser).
+        """
+        try:
+            days = int(request.query_params.get("days", 90))
+        except ValueError:
+            raise ValidationError({"days": "Expected an integer"})
+        if not 7 <= days <= 730:
+            raise ValidationError({"days": "Expected 7..730"})
+        since = timezone.now() - timedelta(days=days)
+
+        value = ExpressionWrapper(F("quantity") * F("average_cost"), output_field=DecimalField())
+        stock = {
+            r["product_id"]: r
+            for r in Stock.objects.values("product_id").annotate(
+                on_hand=Sum("quantity"), reserved=Sum("reserved"), value=Sum(value),
+            )
+        }
+        sold_types = [StockMovement.DEDUCT, StockMovement.SALE]
+        out = StockMovement.objects.filter(type__in=sold_types)
+        sold = dict(
+            out.filter(created_at__gte=since).values("product_id")
+            .annotate(n=Sum("quantity")).values_list("product_id", "n")
+        )
+        written_off = dict(
+            StockMovement.objects.filter(type=StockMovement.WRITE_OFF, created_at__gte=since)
+            .values("product_id").annotate(n=Sum("quantity")).values_list("product_id", "n")
+        )
+        last_sale = dict(out.values("product_id").annotate(at=Max("created_at")).values_list("product_id", "at"))
+
+        rows = []
+        for pid in set(stock) | set(sold):
+            s = stock.get(pid, {})
+            on_hand = s.get("on_hand") or 0
+            units = sold.get(pid, 0)
+            per_day = units / days
+            stock_value = float(s.get("value") or 0)
+            rows.append({
+                "product_id": pid,
+                "on_hand": on_hand,
+                "reserved": s.get("reserved") or 0,
+                "stock_value": round(stock_value, 2),
+                "units_sold": units,
+                "units_written_off": written_off.get(pid, 0),
+                "avg_daily_sales": round(per_day, 3),
+                # How long the current stock lasts at the window's sales pace; null = no sales to judge by
+                "days_of_cover": round(on_hand / per_day, 1) if per_day else None,
+                # shortcut: divides by current stock, not the average over the window; upgrade with daily snapshots
+                "turnover": round(units / on_hand, 2) if on_hand else None,
+                "last_sale_at": last_sale[pid].isoformat() if pid in last_sale else None,
+                "dead": on_hand > 0 and units == 0,
+            })
+        rows.sort(key=lambda r: r["stock_value"], reverse=True)
+
+        dead = [r for r in rows if r["dead"]]
+        total_value = sum(r["stock_value"] for r in rows)
+        total_on_hand = sum(r["on_hand"] for r in rows)
+        total_sold = sum(r["units_sold"] for r in rows)
+        return Response({
+            "days": days,
+            "summary": {
+                "stock_value": round(total_value, 2),
+                "units_on_hand": total_on_hand,
+                "units_sold": total_sold,
+                "turnover": round(total_sold / total_on_hand, 2) if total_on_hand else None,
+                "dead_products": len(dead),
+                "dead_stock_value": round(sum(r["stock_value"] for r in dead), 2),
+                "dead_stock_share": round(sum(r["stock_value"] for r in dead) / total_value * 100, 2) if total_value else 0,
+                # Will sell out within two weeks at the current pace
+                "low_cover_products": sum(1 for r in rows if r["days_of_cover"] is not None and r["days_of_cover"] < 14),
+            },
+            "products": rows,
+        })
+
     @action(detail=True, methods=["get"])
     def movements(self, request, pk=None):
         stock = self.get_object()
@@ -432,6 +535,28 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve", "create", "product_info"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
+
+    @action(detail=False, methods=["get"], url_path="supplier-stats")
+    def supplier_stats(self, request):
+        """Per-supplier delivery totals over all GRNs (admin only, falls to IsAdminUser)."""
+        line_value = ExpressionWrapper(F("quantity") * F("cost_price"), output_field=DecimalField())
+        rows = (
+            GoodsReceiptItem.objects.values(
+                supplier_id=F("goods_receipt__supplier_id"),
+                supplier_name=F("goods_receipt__supplier__name"),
+            )
+            .annotate(
+                total_items=Sum("quantity"),
+                total_value=Sum(line_value),
+                delivery_count=Count("goods_receipt", distinct=True),
+                last_delivery=Max("goods_receipt__receipt_date"),
+            )
+            .order_by("-total_value")
+        )
+        return Response([
+            {**r, "total_value": float(r["total_value"] or 0), "last_delivery": r["last_delivery"].isoformat()}
+            for r in rows
+        ])
 
     @action(detail=False, methods=["get"])
     def product_info(self, request):

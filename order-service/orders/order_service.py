@@ -9,7 +9,7 @@ from decimal import Decimal
 
 from django.db import IntegrityError, transaction
 
-from orders.models import Order, OrderItem
+from orders.models import Order, OrderItem, OrderStatusHistory
 from orders.eventbus import publish_event
 from orders.inventory_client import reserve_stock, deduct_stock_batch, release_stock
 from orders.event_builder import build_order_event
@@ -87,6 +87,16 @@ def create_order(serializer_data, items_data, channel, user_id):
             continue
 
 
+def record_status_change(order, from_status, request=None):
+    """Append the order's current status to its history (call after the new status is saved)."""
+    changed_by = ""
+    if request is not None:
+        changed_by = request.META.get("HTTP_X_GATEWAY_USER_ID", "") or getattr(request.user, "username", "")
+    OrderStatusHistory.objects.create(
+        order=order, from_status=from_status, to_status=order.status, changed_by=changed_by,
+    )
+
+
 def update_order_status(order, new_status, request=None, release_reserved=True):
     """
     Update order status with inventory side effects.
@@ -123,6 +133,8 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
             )
             return order, {"error": "Stock deduct failed, status reverted", "detail": "Inventory service error"}
 
+    # Recorded only once the change has stuck: a reverted shipment leaves no trace in the history
+    record_status_change(order, old_status, request)
     logger.info("Order status changed | number=%s %s->%s", order.order_number, old_status, new_status)
     return order, None
 

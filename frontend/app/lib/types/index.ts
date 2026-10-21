@@ -199,14 +199,42 @@ export interface OrderItem {
   created_at: string;
 }
 
-export interface SalesReport {
+export interface SalesKpis {
   total_orders: number;
   total_quantity: number;
   total_revenue: number;
   total_cost: number;
   total_margin: number;
   margin_percent: number;
+  average_order_value: number;
+  cancelled_orders: number;
+  cancellation_rate: number;
+}
+
+export interface SalesReport extends SalesKpis {
+  /** Same-length period right before from..to; null unless both dates are set */
+  previous: SalesKpis | null;
   by_channel: { channel: string; count: number; revenue: number }[];
+}
+
+export type SalesGroup = "day" | "week" | "month";
+
+export interface SalesSeries {
+  group: SalesGroup;
+  daily: { date: string; revenue: number; orders: number }[];
+}
+
+export type TopProductsSort = "revenue" | "quantity" | "margin";
+
+export interface TopProduct {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  orders: number;
+  revenue: number;
+  margin: number;
+  margin_percent: number;
+  revenue_share: number;
 }
 
 export interface RevenueReport {
@@ -215,6 +243,66 @@ export interface RevenueReport {
   gross_margin: number;
   margin_percent: number;
   order_count: number;
+}
+
+export type AbcClass = "A" | "B" | "C";
+
+export interface AbcProduct extends TopProduct {
+  abc_class: AbcClass;
+  cumulative_share: number;
+}
+
+export interface AbcReport {
+  classes: Record<AbcClass, { products: number; revenue: number; revenue_share: number }>;
+  products: AbcProduct[];
+}
+
+export interface StockHealthRow {
+  product_id: number;
+  on_hand: number;
+  reserved: number;
+  stock_value: number;
+  units_sold: number;
+  units_written_off: number;
+  avg_daily_sales: number;
+  /** null when the product did not sell in the window */
+  days_of_cover: number | null;
+  turnover: number | null;
+  last_sale_at: string | null;
+  dead: boolean;
+}
+
+export interface StockAnalytics {
+  days: number;
+  summary: {
+    stock_value: number;
+    units_on_hand: number;
+    units_sold: number;
+    turnover: number | null;
+    dead_products: number;
+    dead_stock_value: number;
+    dead_stock_share: number;
+    low_cover_products: number;
+  };
+  products: StockHealthRow[];
+}
+
+export interface FulfillmentReport {
+  channel: "online" | "offline";
+  orders: number;
+  funnel: { stage: string; count: number }[];
+  payment_conversion: number;
+  cancelled: { total: number; by_stage: Record<string, number>; unknown_stage: number };
+  durations: { from: string; to: string; count: number; avg_hours: number | null; median_hours: number | null }[];
+}
+
+export interface SupplierStats {
+  supplier_id: number;
+  supplier_name: string;
+  total_items: number;
+  total_value: number;
+  delivery_count: number;
+  last_delivery: string;
 }
 
 export interface ActivityEvent {

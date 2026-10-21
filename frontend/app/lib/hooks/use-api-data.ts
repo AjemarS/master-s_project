@@ -3,7 +3,7 @@ import useSWR, { useSWRConfig } from "swr";
 import type { SWRConfiguration } from "swr";
 import useSWRMutation from "swr/mutation";
 import { useApiGet, useApiMutation } from "./use-api";
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, SupplierStats, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
 import { authClient } from "~/lib/auth-client";
 import { productApi, categoryApi, warehouseApi, stockApi, supplierApi, goodsReceiptApi, orderApi, stockMovementApi, stockTransferApi, stockAdjustApi } from "~/lib/api/admin-api";
 import { apiCall, ORDERS_API_URL } from "~/lib/api/client";
@@ -100,6 +100,10 @@ export function useSuppliers() {
 
 export function useGoodsReceipts(config?: SWRConfiguration<{ results: GoodsReceiptNote[]; count: number }>) {
   return useApiGet<{ results: GoodsReceiptNote[]; count: number }>("/goods-receipts", () => goodsReceiptApi.getAll(), config);
+}
+
+export function useSupplierStats() {
+  return useApiGet<SupplierStats[]>("/goods-receipts/supplier-stats", () => goodsReceiptApi.supplierStats());
 }
 
 export function useCreateSupplier() {
