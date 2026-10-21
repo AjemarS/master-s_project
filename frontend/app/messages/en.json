@@ -1087,7 +1087,8 @@
     "firstNameLabel": "First name",
     "firstNamePlaceholder": "Enter your first name",
     "lastNameLabel": "Last name",
-    "lastNamePlaceholder": "Enter your last name"
+    "lastNamePlaceholder": "Enter your last name",
+    "copy": "Copy"
   },
   "signIn": {
     "pageTitle": "Sign In",
@@ -1436,5 +1437,22 @@
     "always": "No end date",
     "expired": "expired",
     "toggleNamed": "Turn {code} on or off"
+  },
+  "a11y": {
+    "decreaseQuantity": "Decrease quantity",
+    "increaseQuantity": "Increase quantity",
+    "removeItem": "Remove item",
+    "toggleMenu": "Menu",
+    "search": "Search",
+    "breadcrumb": "Breadcrumb",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "closeLightbox": "Close viewer",
+    "wishlist": "Wishlist",
+    "navigation": "Navigation",
+    "adminPanel": "Admin",
+    "user": "User",
+    "changeLanguage": "Change language",
+    "clearSearch": "Clear search"
   }
 }

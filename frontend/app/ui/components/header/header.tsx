@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { memo, useState } from "react";
 import { Globe, Heart, Search, X } from "lucide-react";
 
@@ -69,6 +69,7 @@ const Logo = memo(function Logo() {
 });
 
 export function Header({ showAuth = true }: HeaderProps) {
+  const ta = useTranslations("a11y");
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -118,7 +119,7 @@ export function Header({ showAuth = true }: HeaderProps) {
             <button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
               className="md:hidden flex items-center justify-center text-muted-foreground hover:text-foreground"
-              aria-label="Search"
+              aria-label={ta("search")}
               type="button"
             >
               {mobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
@@ -128,7 +129,7 @@ export function Header({ showAuth = true }: HeaderProps) {
               <>
                 <Link href="/wishlist" className="relative">
                   <Button
-                    aria-label="Обрані товари"
+                    aria-label={ta("wishlist")}
                     className="relative h-9 w-9 rounded-full"
                     size="icon"
                     variant="outline"
@@ -149,19 +150,19 @@ export function Header({ showAuth = true }: HeaderProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                  <Globe className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={ta("changeLanguage")}>
+                  <Globe className="h-4 w-4" aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => { window.location.href = `/ua${pathname}`; }}
+                  onClick={() => { window.location.href = `/ua${pathname}${window.location.search}`; }}
                   className={currentLocale === "ua" ? "font-semibold text-accent-electric" : ""}
                 >
                   UA
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => { window.location.href = `/en${pathname}`; }}
+                  onClick={() => { window.location.href = `/en${pathname}${window.location.search}`; }}
                   className={currentLocale === "en" ? "font-semibold text-accent-electric" : ""}
                 >
                   EN

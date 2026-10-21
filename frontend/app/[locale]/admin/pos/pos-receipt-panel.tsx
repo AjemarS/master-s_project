@@ -43,6 +43,7 @@ export function POSReceiptPanel({
   submitting,
 }: POSReceiptPanelProps) {
   const t = useTranslations("pos");
+  const ta = useTranslations("a11y");
 
   return (
     <div className="space-y-4">
@@ -119,27 +120,30 @@ export function POSReceiptPanel({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6"
+                        className="h-9 w-9"
                         onClick={() => onUpdateQuantity(item.product_id, -1)}
+                        aria-label={ta("decreaseQuantity")}
                       >
-                        <Minus className="h-3 w-3" />
+                        <Minus className="h-4 w-4" aria-hidden />
                       </Button>
                       <span className="w-6 text-center text-sm font-medium text-foreground">{item.quantity}</span>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6"
+                        className="h-9 w-9"
                         onClick={() => onUpdateQuantity(item.product_id, 1)}
+                        aria-label={ta("increaseQuantity")}
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-4 w-4" aria-hidden />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6 text-destructive"
+                        className="h-9 w-9 text-destructive"
                         onClick={() => onRemoveItem(item.product_id)}
+                        aria-label={ta("removeItem")}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" aria-hidden />
                       </Button>
                     </div>
                   </div>

@@ -12,13 +12,15 @@ interface MobileMenuButtonProps {
 }
 
 export function MobileMenuButton({ isOpen, onToggle }: MobileMenuButtonProps) {
+  const ta = useTranslations("a11y");
   return (
     <Button
       className="md:hidden"
       onClick={onToggle}
       size="icon"
       variant="ghost"
-      aria-label="Toggle menu"
+      aria-label={ta("toggleMenu")}
+      aria-expanded={isOpen}
     >
       {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
     </Button>
@@ -34,6 +36,7 @@ interface MobileMenuProps {
 export function MobileMenu({ showAuth, user, onClose }: MobileMenuProps) {
   const t = useTranslations("common");
   const nav = useTranslations("nav");
+  const ta = useTranslations("a11y");
   const pathname = usePathname();
   const isAdmin = user?.role === "admin";
 
@@ -61,7 +64,7 @@ export function MobileMenu({ showAuth, user, onClose }: MobileMenuProps) {
       {/* Navigation */}
       <div className="border-b px-4 py-3">
         <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Навігація
+          {ta("navigation")}
         </p>
         <div className="space-y-1">
           <Link
@@ -119,7 +122,7 @@ export function MobileMenu({ showAuth, user, onClose }: MobileMenuProps) {
                 href="/admin/summary"
                 onClick={onClose}
               >
-                Адмінка
+                {ta("adminPanel")}
               </Link>
             )}
           </div>

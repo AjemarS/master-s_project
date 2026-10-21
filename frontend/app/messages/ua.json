@@ -1085,7 +1085,8 @@
     "firstNameLabel": "Ім'я",
     "firstNamePlaceholder": "Введіть ім'я",
     "lastNameLabel": "Прізвище",
-    "lastNamePlaceholder": "Введіть прізвище"
+    "lastNamePlaceholder": "Введіть прізвище",
+    "copy": "Копіювати"
   },
   "signIn": {
     "pageTitle": "Вхід",
@@ -1434,5 +1435,22 @@
     "always": "Безстроково",
     "expired": "минув",
     "toggleNamed": "Увімкнути або вимкнути {code}"
+  },
+  "a11y": {
+    "decreaseQuantity": "Зменшити кількість",
+    "increaseQuantity": "Збільшити кількість",
+    "removeItem": "Видалити товар",
+    "toggleMenu": "Меню",
+    "search": "Пошук",
+    "breadcrumb": "Навігаційний ланцюжок",
+    "previousImage": "Попереднє зображення",
+    "nextImage": "Наступне зображення",
+    "closeLightbox": "Закрити перегляд",
+    "wishlist": "Обрані товари",
+    "navigation": "Навігація",
+    "adminPanel": "Адмінка",
+    "user": "Користувач",
+    "changeLanguage": "Змінити мову",
+    "clearSearch": "Очистити пошук"
   }
 }

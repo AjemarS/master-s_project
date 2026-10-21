@@ -916,7 +916,8 @@ export function SettingsClient() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 shrink-0"
+                            className="h-9 w-9 shrink-0"
+                            aria-label={t("copy")}
                             onClick={() => {
                               navigator.clipboard.writeText(totpSecret);
                               toast.success(t("copied"));

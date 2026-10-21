@@ -159,7 +159,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="flex items-center">
                   <Button
-                    aria-label="Decrease quantity"
+                    aria-label={tCommon("a11y.decreaseQuantity")}
                     disabled={quantity <= 1}
                     onClick={() => handleQuantityChange(quantity - 1)}
                     size="icon"
@@ -169,7 +169,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   </Button>
                   <span className="w-12 text-center select-none">{quantity}</span>
                   <Button
-                    aria-label="Increase quantity"
+                    aria-label={tCommon("a11y.increaseQuantity")}
                     onClick={() => handleQuantityChange(quantity + 1)}
                     size="icon"
                     variant="outline"

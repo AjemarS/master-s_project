@@ -310,7 +310,6 @@ export function SignInPageClient() {
                       className="w-full"
                       disabled={loading || !email || !password}
                       type="submit"
-                      aria-label="Sign in"
                     >
                       {loading ? t("signingIn") : t("signInButton")}
                     </Button>

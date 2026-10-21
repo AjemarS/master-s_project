@@ -79,7 +79,7 @@ export function Breadcrumbs() {
   if (items.length <= 1) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="py-3 text-sm">
+    <nav aria-label={t("a11y.breadcrumb")} className="py-3 text-sm">
       <ol className="flex items-center gap-1">
         {items.map((item, i) => (
           <li           key={item.href || item.label} className="flex items-center gap-1">
