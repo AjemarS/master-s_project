@@ -12,6 +12,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from orders import metrics
 from orders.inventory_client import deduct_stock_batch, return_stock
 from orders.models import Order, OrderItem, ReturnRequest
 
@@ -73,6 +74,7 @@ def _create_return_locked(item, kind, quantity, reason, created_by):
     ret = ReturnRequest.objects.create(
         order=order, item=item, kind=kind, quantity=quantity, reason=reason, created_by=created_by,
     )
+    transaction.on_commit(lambda: metrics.RETURNS_CREATED.labels(kind).inc())
     logger.info("Return created | id=%s order=%s kind=%s qty=%d", ret.pk, order.order_number, kind, quantity)
     return ret
 

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib import admin
+from shared_metrics import metrics_view
 from django.urls import include, path, re_path
 from django.views.static import serve
 from drf_spectacular.views import (
@@ -9,6 +10,7 @@ from drf_spectacular.views import (
 )
 
 urlpatterns = [
+    path("metrics", metrics_view, name="metrics"),
     path("admin/", admin.site.urls),
     path("api/", include("products.urls")),
     path("api/", include("products.cart_urls")),

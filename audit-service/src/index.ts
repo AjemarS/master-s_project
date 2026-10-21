@@ -3,11 +3,14 @@ import logger from "./logger";
 import { initTables } from "./store";
 import { startConsumer, stopConsumer } from "./consumer";
 import routes from "./routes";
+import { metricsHandler, metricsMiddleware } from "./metrics";
 
 async function main() {
   await initTables();
 
   const app = express();
+  app.use(metricsMiddleware);
+  app.get("/metrics", metricsHandler);
   app.use(express.json({ limit: "1mb" }));
 
   app.use(routes);

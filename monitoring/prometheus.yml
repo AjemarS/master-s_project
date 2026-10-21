@@ -1,0 +1,22 @@
+# Scrapes every service's /metrics inside the compose network (the gateway never proxies /metrics)
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: product-service
+    static_configs: [{ targets: ["product-service:8000"] }]
+  - job_name: inventory-service
+    static_configs: [{ targets: ["inventory-service:8001"] }]
+  - job_name: order-service
+    static_configs: [{ targets: ["order-service:8002"] }]
+  - job_name: auth-service
+    static_configs: [{ targets: ["auth-service:3001"] }]
+  - job_name: notification-service
+    static_configs: [{ targets: ["notification-service:8003"] }]
+  - job_name: audit-service
+    static_configs: [{ targets: ["audit-service:8005"] }]
+  # rabbitmq_prometheus plugin, enabled in the management image; per-object adds the queue label
+  - job_name: rabbitmq
+    metrics_path: /metrics/per-object
+    static_configs: [{ targets: ["rabbitmq:15692"] }]

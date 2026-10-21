@@ -15,6 +15,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from orders.models import Order, OrderItem
+from orders import metrics
 from orders import order_service as svc
 from orders.inventory_client import check_availability, release_stock
 from orders.serializers import (
@@ -47,6 +48,7 @@ def _handle_webhook_expired(order, session):
 
 def _handle_webhook_payment_failed(order, session):
     error_msg = session.get("last_payment_error", {}).get("message", "Unknown error")
+    metrics.PAYMENTS.labels("failed").inc()
     logger.error("Payment failed | order=%s error=%s", order.order_number, error_msg)
     return Response({"status": "ok"})
 
@@ -89,6 +91,7 @@ def _handle_webhook_completed(order, session, request):
             logger.error("Order cancelled after payment — reserve failure | number=%s", order.order_number)
             return Response({"status": "reserve_failed"})
 
+    metrics.PAYMENTS.labels("paid").inc()
     logger.info("Payment confirmed | order=%s", order.order_number)
     return Response({"status": "ok"})
 

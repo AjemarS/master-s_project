@@ -9,6 +9,7 @@ setup(
         "djangorestframework>=3.15",
         "pika>=1.3",
         "requests",
+        "prometheus-client>=0.20",
     ],
     python_requires=">=3.11",
 )

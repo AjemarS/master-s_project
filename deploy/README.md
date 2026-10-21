@@ -70,3 +70,15 @@ After editing `.env`, recreate the two mail senders: `docker compose -p techhub-
 - Prod: `git tag v1.0.0 && git push origin v1.0.0`, then approve the deployment in the Actions run.
 - Roll back: re-run the deploy job of an earlier tag, or on the host
   `cd /opt/techhub-prod && git checkout --detach <sha> && sh deploy/deploy.sh prod <sha>`.
+
+## Monitoring
+
+Each environment runs its own Prometheus and Grafana (`monitoring/`). Every service exposes `/metrics`
+inside the compose network only (the gateway proxies `/api/*`, never `/metrics`).
+
+- In each `/opt/techhub-<env>/.env` set `GRAFANA_ADMIN_PASSWORD` and a distinct `GRAFANA_PORT`
+  (e.g. 3002 for prod, 3012 for staging): Grafana binds to `127.0.0.1` only.
+- Open it from your machine: `ssh -L 3002:127.0.0.1:3002 <user>@<host>`, then <http://localhost:3002>,
+  dashboard **TechHub → TechHub overview** (request rate, 5xx rate, p95 latency, slowest routes, orders,
+  payments, returns, RabbitMQ backlog).
+- Prometheus keeps 15 days of data in the `prometheus_data` volume.

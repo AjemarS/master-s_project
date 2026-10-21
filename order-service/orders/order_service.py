@@ -10,6 +10,7 @@ from decimal import Decimal
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from orders import metrics
 from orders import promo as promo_svc
 from orders.models import Order, OrderItem, OrderStatusHistory
 from orders.eventbus import publish_event
@@ -85,6 +86,7 @@ def create_order(serializer_data, items_data, channel, user_id):
                 transaction.on_commit(
                     lambda o=order: publish_event("order.created", build_order_event(o))
                 )
+                transaction.on_commit(lambda c=channel: metrics.ORDERS_CREATED.labels(c).inc())
 
             logger.info(
                 "Order created | number=%s channel=%s items=%d",
@@ -131,6 +133,7 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
         transaction.on_commit(lambda: publish_event("order.status_changed", build_order_event(order)))
         if new_status == Order.CANCELLED:
             promo_svc.release_use(order)
+            transaction.on_commit(lambda: metrics.ORDERS_CANCELLED.labels(order.channel).inc())
             transaction.on_commit(lambda: publish_event("order.cancelled", build_order_event(order)))
 
     # Release stock on cancellation

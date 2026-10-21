@@ -1036,3 +1036,14 @@ class PromoCodeTest(APITestCase):
         data = self.client.get("/api/reports/sales/").data
         self.assertEqual((data["total_revenue"], data["total_discount"]), (359.98, 40.0))
         self.assertEqual(refund_amount(order.items.get(), 1), Decimal("179.99"))
+
+
+class MetricsEndpointTest(APITestCase):
+    def test_metrics_expose_http_and_business_counters(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post("/api/orders/", {"items": [{"product_id": 1, "quantity": 1}]}, format="json")
+        body = self.client.get("/metrics").content.decode()
+        self.assertIn('techhub_orders_created_total{channel="online"}', body)
+        # Router URLs are regexes, so that is the route label
+        self.assertIn('http_requests_total{method="POST",route="api/orders/$",status="201"}', body)
+

@@ -135,7 +135,7 @@ services:
     networks:
       - microservices_network
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "rm -rf $$PROMETHEUS_MULTIPROC_DIR && mkdir -p $$PROMETHEUS_MULTIPROC_DIR && python manage.py migrate &&
              python manage.py seed_data &&
              gunicorn product_service.wsgi:application -w 2 --reload --reload-extra-file /shared-lib --bind 0.0.0.0:8000 --log-level debug"
 
@@ -217,7 +217,7 @@ services:
     networks:
       - microservices_network
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "rm -rf $$PROMETHEUS_MULTIPROC_DIR && mkdir -p $$PROMETHEUS_MULTIPROC_DIR && python manage.py migrate &&
              python manage.py seed_data &&
              gunicorn inventory_service.wsgi:application -w 2 --reload --reload-extra-file /shared-lib --bind 0.0.0.0:8001 --log-level debug"
 
@@ -255,7 +255,7 @@ services:
     networks:
       - microservices_network
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "rm -rf $$PROMETHEUS_MULTIPROC_DIR && mkdir -p $$PROMETHEUS_MULTIPROC_DIR && python manage.py migrate &&
              python manage.py seed_orders &&
              gunicorn order_service.wsgi:application -w 2 --reload --reload-extra-file /shared-lib --bind 0.0.0.0:8002 --log-level debug"
 
@@ -429,7 +429,43 @@ services:
     networks:
       - microservices_network
 
+  # Monitoring: Prometheus scrapes /metrics of every service, Grafana shows monitoring/grafana/dashboards
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - microservices_network
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      # Default admin/admin is only reachable on loopback, and Grafana asks to change it at first login
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    # Loopback only: open it through an SSH tunnel; staging and prod on one host need different ports
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3002}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - microservices_network
+
 volumes:
+  prometheus_data:
+  grafana_data:
   postgres_products_data:
   postgres_inventory_data:
   postgres_orders_data:
