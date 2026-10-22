@@ -1,4 +1,5 @@
-"""Order service HTTP client: whether a user has received a product, which gates writing a review."""
+"""Order service HTTP client: whether a user has received a product (gates writing a review)."""
+
 import logging
 
 import requests
@@ -15,19 +16,23 @@ _GATEWAY_HEADERS = {
 }
 
 
-class OrdersUnavailable(Exception):
+class OrdersUnavailableError(Exception):
     pass
 
 
 def has_purchased(request, product_id):
-    headers = {name: request.META[key] for key, name in _GATEWAY_HEADERS.items() if key in request.META}
+    headers = {
+        name: request.META[key] for key, name in _GATEWAY_HEADERS.items() if key in request.META
+    }
     try:
         resp = requests.get(
             f"{settings.ORDER_SERVICE_URL}/api/orders/purchased/",
-            params={"product_id": product_id}, headers=headers, timeout=5,
+            params={"product_id": product_id},
+            headers=headers,
+            timeout=5,
         )
         resp.raise_for_status()
         return bool(resp.json().get("purchased"))
     except (requests.RequestException, ValueError) as e:
         logger.error("has_purchased: order-service error: %s", e)
-        raise OrdersUnavailable(str(e)) from e
+        raise OrdersUnavailableError(str(e)) from e

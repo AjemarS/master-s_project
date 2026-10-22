@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.contrib import admin
-from shared_metrics import metrics_view
 from django.urls import include, path, re_path
 from django.views.static import serve
 from drf_spectacular.views import (
@@ -8,6 +7,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from shared_metrics import metrics_view
 
 urlpatterns = [
     path("metrics", metrics_view, name="metrics"),

@@ -108,7 +108,15 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
         ]
         # rating and review_count come from reviews only
-        read_only_fields = ["slug", "in_stock", "is_on_sale", "rating", "review_count", "created_at", "updated_at"]
+        read_only_fields = [
+            "slug",
+            "in_stock",
+            "is_on_sale",
+            "rating",
+            "review_count",
+            "created_at",
+            "updated_at",
+        ]
         extra_kwargs = {
             "name": {"required": True, "allow_blank": False, "max_length": 200},
             "name_uk": {"required": False, "allow_blank": True},
@@ -179,9 +187,7 @@ class ProductSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         original_price = attrs.get("original_price")
         if original_price is None:
-            original_price = (
-                self.instance.original_price if self.instance else Decimal("0")
-            )
+            original_price = self.instance.original_price if self.instance else Decimal("0")
         price = attrs.get("price")
         if price is None:
             price = self.instance.price if self.instance else None
@@ -202,13 +208,23 @@ class ProductListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "slug",
-            "name", "name_uk", "name_en",
-            "category", "category_name",
-            "price", "original_price",
-            "image_url", "stock", "in_stock",
-            "rating", "review_count",
-            "brand", "color", "is_on_sale",
+            "id",
+            "slug",
+            "name",
+            "name_uk",
+            "name_en",
+            "category",
+            "category_name",
+            "price",
+            "original_price",
+            "image_url",
+            "stock",
+            "in_stock",
+            "rating",
+            "review_count",
+            "brand",
+            "color",
+            "is_on_sale",
         ]
         read_only_fields = ["slug", "in_stock", "is_on_sale", "rating", "review_count"]
 

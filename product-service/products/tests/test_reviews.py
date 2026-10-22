@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from ..models import Review
-from ..order_client import OrdersUnavailable
+from ..order_client import OrdersUnavailableError
 from .helpers import _create_admin_user, _create_product
 
 User = get_user_model()
@@ -18,7 +18,9 @@ class ReviewsAPITest(APITestCase):
     def setUp(self):
         self.product = _create_product(rating=Decimal("0.0"))
         self.url = f"/api/products/{self.product.pk}/reviews/"
-        self.buyer = User.objects.create_user("gw_1", "buyer@test.com", "pw", first_name="Olena Petrenko")
+        self.buyer = User.objects.create_user(
+            "gw_1", "buyer@test.com", "pw", first_name="Olena Petrenko"
+        )
 
     def _post(self, user, rating=5, text="Great fridge", bought=True):
         self.client.force_authenticate(user=user)
@@ -36,28 +38,36 @@ class ReviewsAPITest(APITestCase):
 
     def test_second_post_replaces_own_review(self):
         self._post(self.buyer, 5)
-        self.assertEqual(self._post(self.buyer, 1, "Broke after a week").status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self._post(self.buyer, 1, "Broke after a week").status_code, status.HTTP_200_OK
+        )
         self.assertEqual(Review.objects.count(), 1)
         self.product.refresh_from_db()
         self.assertEqual(self.product.rating, Decimal("1.0"))
 
     def test_non_buyer_cannot_review(self):
-        self.assertEqual(self._post(self.buyer, bought=False).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            self._post(self.buyer, bought=False).status_code, status.HTTP_403_FORBIDDEN
+        )
         self.assertFalse(Review.objects.exists())
 
     def test_anonymous_cannot_review_and_rating_is_bounded(self):
-        self.assertIn(self.client.post(self.url, {"rating": 5}, format="json").status_code, (401, 403))
+        self.assertIn(
+            self.client.post(self.url, {"rating": 5}, format="json").status_code, (401, 403)
+        )
         self.assertEqual(self._post(self.buyer, rating=6).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_order_service_outage_refuses_the_review(self):
         self.client.force_authenticate(user=self.buyer)
-        with mock.patch(PURCHASED, side_effect=OrdersUnavailable("down")):
+        with mock.patch(PURCHASED, side_effect=OrdersUnavailableError("down")):
             response = self.client.post(self.url, {"rating": 5}, format="json")
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
 
     def test_public_list_has_summary_and_hides_moderated_reviews(self):
         self._post(self.buyer, 4)
-        hidden = Review.objects.create(product=self.product, user_id="gw_9", rating=1, text="spam", is_published=False)
+        hidden = Review.objects.create(
+            product=self.product, user_id="gw_9", rating=1, text="spam", is_published=False
+        )
         self.client.force_authenticate(user=None)
         data = self.client.get(self.url).data
         self.assertEqual([r["rating"] for r in data["results"]], [4])
@@ -75,7 +85,9 @@ class ReviewsAPITest(APITestCase):
         self._post(self.buyer, 5)
         review = Review.objects.get()
         self.client.force_authenticate(user=_create_admin_user())
-        response = self.client.patch(f"/api/reviews/{review.pk}/", {"is_published": False}, format="json")
+        response = self.client.patch(
+            f"/api/reviews/{review.pk}/", {"is_published": False}, format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.product.refresh_from_db()
         self.assertEqual((self.product.rating, self.product.review_count), (Decimal("0.0"), 0))
@@ -83,10 +95,14 @@ class ReviewsAPITest(APITestCase):
     def test_buyer_cannot_moderate(self):
         self._post(self.buyer, 5)
         review = Review.objects.get()
-        response = self.client.patch(f"/api/reviews/{review.pk}/", {"is_published": False}, format="json")
+        response = self.client.patch(
+            f"/api/reviews/{review.pk}/", {"is_published": False}, format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_catalog_can_sort_by_rating(self):
-        better = _create_product(category=self.product.category, name="Better", rating=Decimal("4.8"))
+        better = _create_product(
+            category=self.product.category, name="Better", rating=Decimal("4.8")
+        )
         response = self.client.get("/api/products/?ordering=-rating")
         self.assertEqual(response.data["results"][0]["id"], better.pk)

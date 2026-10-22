@@ -146,9 +146,11 @@ class ProcessedEvent(models.Model):
 
 
 class Review(models.Model):
-    """A buyer's review: one per user and product, written only after the purchase was handed over."""
+    """A buyer's review: one per user and product, written after the purchase was received."""
 
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews", verbose_name="Продукт")
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="reviews", verbose_name="Продукт"
+    )
     user_id = models.CharField(max_length=255, verbose_name="Користувач")
     # Shown publicly: a first name only, never an email
     author_name = models.CharField(max_length=60, blank=True, verbose_name="Автор")
@@ -165,7 +167,9 @@ class Review(models.Model):
         verbose_name_plural = "Відгуки"
         ordering = ["-created_at"]
         constraints = [
-            models.UniqueConstraint(fields=["product", "user_id"], name="one_review_per_user_and_product"),
+            models.UniqueConstraint(
+                fields=["product", "user_id"], name="one_review_per_user_and_product"
+            ),
         ]
 
     def __str__(self):
@@ -174,8 +178,10 @@ class Review(models.Model):
     @staticmethod
     def refresh_product_rating(product_id):
         stats = Review.objects.filter(product_id=product_id, is_published=True).aggregate(
-            avg=models.Avg("rating"), n=models.Count("id"),
+            avg=models.Avg("rating"),
+            n=models.Count("id"),
         )
         Product.objects.filter(pk=product_id).update(
-            rating=Decimal(str(round(stats["avg"] or 0, 1))), review_count=stats["n"],
+            rating=Decimal(str(round(stats["avg"] or 0, 1))),
+            review_count=stats["n"],
         )

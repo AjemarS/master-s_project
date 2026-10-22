@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Product, Review
-from .order_client import OrdersUnavailable, has_purchased
+from .order_client import OrdersUnavailableError, has_purchased
 from .pagination import StandardResultsSetPagination
 
 
@@ -26,7 +26,7 @@ class OrderServiceUnavailable(APIException):
 
 
 def _public_name(request):
-    """First word of the display name; nothing if it is an email (sign-up uses the email as the name)."""
+    """First word of the display name; nothing if it is an email (sign-up may use the email)."""
     name = (request.META.get("HTTP_X_GATEWAY_USER_NAME") or request.user.first_name or "").strip()
     first = name.split()[0] if name else ""
     return "" if "@" in first else first[:60]
@@ -40,12 +40,14 @@ class ProductReviewsView(APIView):
     def get(self, request, product_id):
         product = get_object_or_404(Product, pk=product_id)
         published = product.reviews.filter(is_published=True)
-        distribution = dict(published.values("rating").annotate(n=Count("id")).values_list("rating", "n"))
+        distribution = dict(
+            published.values("rating").annotate(n=Count("id")).values_list("rating", "n")
+        )
 
         # Admins see hidden reviews too, so they can publish them back
         listed = product.reviews.all() if request.user.is_staff else published
         paginator = StandardResultsSetPagination()
-        page = paginator.paginate_queryset(listed, request, view=self)
+        page: list[Review] | None = paginator.paginate_queryset(listed, request, view=self)
         body = paginator.get_paginated_response(ReviewSerializer(page, many=True).data).data
 
         body["summary"] = {
@@ -58,7 +60,7 @@ class ProductReviewsView(APIView):
             body["mine"] = ReviewSerializer(mine).data if mine else None
             try:
                 body["can_review"] = has_purchased(request, product.pk)
-            except OrdersUnavailable:
+            except OrdersUnavailableError:
                 body["can_review"] = None  # unknown: the page hides the form rather than failing
         return Response(body)
 
@@ -68,8 +70,8 @@ class ProductReviewsView(APIView):
         data.is_valid(raise_exception=True)
         try:
             bought = has_purchased(request, product.pk)
-        except OrdersUnavailable:
-            raise OrderServiceUnavailable()
+        except OrdersUnavailableError:
+            raise OrderServiceUnavailable() from None
         if not bought:
             return Response(
                 {"error": "Only buyers who received this product can review it."},
@@ -77,7 +79,8 @@ class ProductReviewsView(APIView):
             )
         with transaction.atomic():
             review, created = Review.objects.update_or_create(
-                product=product, user_id=request.user.username,
+                product=product,
+                user_id=request.user.username,
                 defaults={
                     "rating": data.validated_data["rating"],
                     "text": data.validated_data.get("text", ""),
@@ -85,7 +88,10 @@ class ProductReviewsView(APIView):
                 },
             )
             Review.refresh_product_rating(product.pk)
-        return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        return Response(
+            ReviewSerializer(review).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 class ReviewModerationView(APIView):
@@ -97,7 +103,9 @@ class ReviewModerationView(APIView):
         review = get_object_or_404(Review, pk=pk)
         published = request.data.get("is_published")
         if not isinstance(published, bool):
-            return Response({"is_published": "Expected true or false"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"is_published": "Expected true or false"}, status=status.HTTP_400_BAD_REQUEST
+            )
         with transaction.atomic():
             review.is_published = published
             review.save(update_fields=["is_published", "updated_at"])
