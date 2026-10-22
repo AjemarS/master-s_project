@@ -207,7 +207,7 @@ export function MyOrdersClient() {
                 >
                   {t("orderNumber", { id: order.order_number })}
                 </Link>
-                <OrderStatusBadge status={order.status} t={t} />
+                <OrderStatusBadge status={order.status} />
                 <Badge variant={order.channel === "online" ? "default" : "secondary"}>
                   {order.channel === "online" ? t("online") : t("offline")}
                 </Badge>

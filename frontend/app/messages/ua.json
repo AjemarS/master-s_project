@@ -629,6 +629,8 @@
     "productId": "ID товару",
     "fromWarehouse": "Зі складу",
     "toWarehouse": "На склад",
+    "from": "Звідки",
+    "to": "Куди",
     "qty": "Кількість",
     "notes": "Примітка",
     "noWarehouses": "Немає складів",

@@ -11,8 +11,8 @@ test.describe("Admin Summary", () => {
   });
 
   test("renders dashboard heading and stat cards", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /dashboard/i })).toBeVisible();
-    await expect(page.getByText(/загальна кількість/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /огляд системи/i })).toBeVisible();
+    await expect(page.getByText(/вартість запасів/i)).toBeVisible();
   });
 });
 
@@ -39,14 +39,13 @@ test.describe("Admin Orders", () => {
   });
 
   test("renders orders page with heading", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /orders/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /керування замовленнями/i })).toBeVisible();
   });
 
   test("renders status filter tabs", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /всі/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /в обробці/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /відправлено/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /доставлено/i })).toBeVisible();
+    for (const name of ["Всі", "Не сплачено", "Сплачено", "В дорозі", "Доставлено", "Виконано", "Скасовано"]) {
+      await expect(page.getByRole("button", { name, exact: true }).first()).toBeVisible();
+    }
   });
 
   test("renders channel filter tabs", async ({ page }) => {
@@ -56,9 +55,9 @@ test.describe("Admin Orders", () => {
 
   test("renders orders table with columns", async ({ page }) => {
     const table = page.locator("table");
-    await expect(table.locator("th").getByText(/номер/i)).toBeVisible();
-    await expect(table.locator("th").getByText(/статус/i)).toBeVisible();
-    await expect(table.locator("th").getByText(/канал/i)).toBeVisible();
+    await expect(table.locator("th").getByText("№", { exact: true })).toBeVisible();
+    await expect(table.locator("th").getByText("Статус", { exact: true })).toBeVisible();
+    await expect(table.locator("th").getByText("Канал", { exact: true })).toBeVisible();
     await expect(table.locator("th").getByText(/сума/i)).toBeVisible();
   });
 });
@@ -72,7 +71,7 @@ test.describe("Admin Warehouses", () => {
   });
 
   test("renders warehouses page", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /warehouses/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /склади/i })).toBeVisible();
   });
 });
 
@@ -85,7 +84,7 @@ test.describe("Admin Suppliers", () => {
   });
 
   test("renders suppliers page", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /suppliers/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /постачальники/i })).toBeVisible();
   });
 });
 
@@ -98,7 +97,7 @@ test.describe("Admin Goods Receipts", () => {
   });
 
   test("renders goods receipts page", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /goods receipts/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /прибуткові накладні/i })).toBeVisible();
   });
 });
 
@@ -111,7 +110,7 @@ test.describe("Admin POS", () => {
   });
 
   test("renders POS page", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /pos/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /pos-термінал/i })).toBeVisible();
   });
 
   test("has product search input", async ({ page }) => {
@@ -128,7 +127,7 @@ test.describe("Admin Reports", () => {
   });
 
   test("renders reports page", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /reports/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /звіти/i })).toBeVisible();
   });
 });
 
@@ -137,15 +136,9 @@ test.describe("Admin Sidebar Navigation", () => {
 
   test("sidebar contains all nav items", async ({ page }) => {
     await page.goto("/admin/summary");
-    await expect(page.getByText("Dashboard")).toBeVisible();
-    await expect(page.getByText("Products")).toBeVisible();
-    await expect(page.getByText("Orders")).toBeVisible();
-    await expect(page.getByText("POS")).toBeVisible();
-    await expect(page.getByText("Warehouses")).toBeVisible();
-    await expect(page.getByText("Suppliers")).toBeVisible();
-    await expect(page.getByText("Goods Receipts")).toBeVisible();
-    await expect(page.getByText("Reports")).toBeVisible();
-    await expect(page.getByText("Users")).toBeVisible();
+    for (const name of ["Огляд", "Повернення", "Промокоди", "Звіти", "Користувачі"]) {
+      await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
+    }
   });
 });
 
@@ -158,12 +151,12 @@ test.describe("Admin Users", () => {
   });
 
   test("renders users page", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /users/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Користувачі", exact: true })).toBeVisible();
   });
 
   test("renders user table with columns", async ({ page }) => {
     const table = page.locator("table");
-    await expect(table.locator("th").getByText(/ім'я/i)).toBeVisible();
+    await expect(table.locator("th").getByText("Користувач", { exact: true })).toBeVisible();
     await expect(table.locator("th").getByText(/email/i)).toBeVisible();
     await expect(table.locator("th").getByText(/роль/i)).toBeVisible();
   });

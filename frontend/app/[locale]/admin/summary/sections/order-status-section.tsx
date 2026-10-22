@@ -7,7 +7,7 @@ import { OrderStatusCard } from "../dashboard";
 
 export function OrderStatusSection() {
   const tSum = useTranslations("summary");
-  const tc = useTranslations("common");
+  const tStatus = useTranslations("orders");
 
   const { data: ordersData, isLoading } = useOrders(undefined, {
     refreshInterval: 15000,
@@ -28,7 +28,7 @@ export function OrderStatusSection() {
         statusCounts={statusCounts}
         isLoading={isLoading}
         tSum={tSum}
-        tc={tc}
+        tStatus={tStatus}
       />
     </div>
   );

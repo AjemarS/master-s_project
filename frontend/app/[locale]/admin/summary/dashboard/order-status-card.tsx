@@ -13,7 +13,7 @@ interface OrderStatusCardProps {
   statusCounts: StatusCount[];
   isLoading: boolean;
   tSum: (key: string, values?: Record<string, string | number | Date>) => string;
-  tc: (key: string) => string;
+  tStatus: (key: string) => string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -31,7 +31,7 @@ export default function OrderStatusCard({
   statusCounts,
   isLoading,
   tSum,
-  tc,
+  tStatus,
 }: OrderStatusCardProps) {
   // Sort by canonical order
   const sorted = STATUS_ORDER.map((s) => {
@@ -95,7 +95,7 @@ export default function OrderStatusCard({
                 key={s.status}
                 className={`${STATUS_COLORS[s.status] || "bg-gray-400"} transition-all`}
                 style={{ width: `${(s.count / total) * 100}%` }}
-                title={`${s.status}: ${s.count}`}
+                title={`${tStatus(s.status)}: ${s.count}`}
               />
             ) : null
           )}
@@ -106,7 +106,7 @@ export default function OrderStatusCard({
           {sorted.filter((s) => s.count > 0).map((s) => (
             <div key={s.status} className="flex items-center gap-2 text-xs">
               <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${STATUS_COLORS[s.status] || "bg-gray-400"}`} />
-              <span className="text-muted-foreground capitalize">{tc(s.status)}</span>
+              <span className="text-muted-foreground capitalize">{tStatus(s.status)}</span>
               <span className="font-medium text-foreground ml-auto">{s.count}</span>
             </div>
           ))}

@@ -18,7 +18,7 @@ export function PriceRangeSlider({
   onChange,
   formatValue,
 }: PriceRangeSliderProps) {
-  const format = formatValue || ((v: number) => `${v.toLocaleString()} ₴`);
+  const format = formatValue || ((v: number) => `${v.toLocaleString("uk-UA")} ₴`);
 
   return (
     <div className="space-y-3">

@@ -166,7 +166,7 @@ function MyOrderDetailContent({ id }: { id: number }) {
             {t("pageSubtitle")}
           </p>
         </div>
-        <OrderStatusBadge status={order.status} t={to} />
+        <OrderStatusBadge status={order.status} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mb-8">
