@@ -17,7 +17,7 @@ import { ErrorAlert } from "~/ui/components/error-alert";
 import { useApiGet } from "~/lib/hooks/use-api";
 import { useSuppliers, useWarehouses } from "~/lib/hooks/use-api-data";
 import { useCurrentUser } from "~/lib/auth-client";
-import { productApi, purchaseOrderApi, stockApi } from "~/lib/api/admin-api";
+import { purchaseOrderApi, stockApi } from "~/lib/api/admin-api";
 import { apiErrorText } from "~/lib/utils/error-handler";
 import { formatCurrency } from "~/lib/utils/format";
 import type { PurchaseOrder, PurchaseOrderStatus, ReorderSuggestion } from "~/lib/types";
@@ -30,16 +30,10 @@ const STATUS_COLORS: Record<PurchaseOrderStatus, string> = {
   received: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
 };
+import { useProductNames } from "~/lib/hooks/use-product-names";
+
 const FILTERS: (PurchaseOrderStatus | "all")[] = ["all", "draft", "sent", "partially_received", "received", "cancelled"];
 
-/** One batched lookup for the names inventory-service does not know */
-function useProductNames(ids: number[]) {
-  const sorted = [...new Set(ids)].sort((a, b) => a - b);
-  const { data } = useApiGet(sorted.length ? `/products?ids=${sorted.join(",")}` : null, () =>
-    productApi.getAll({ ids: sorted.join(","), pageSize: 100 })
-  );
-  return (id: number) => data?.results.find((p) => p.id === id)?.name ?? `#${id}`;
-}
 
 function Suggestions({ onCreated }: { onCreated: () => void }) {
   const t = useTranslations("purchasing");
@@ -54,14 +48,16 @@ function Suggestions({ onCreated }: { onCreated: () => void }) {
   const rows = useMemo(() => data ?? [], [data]);
   const nameOf = useProductNames(rows.map((r) => r.product_id));
 
-  // Per-row overrides; default: every row picked, suggested quantity, last supplier
-  const [skip, setSkip] = useState<Set<number>>(new Set());
+  // Per-row overrides; default: rows with a known supplier picked, suggested quantity, last supplier.
+  // Rows without one start unpicked, so a large list can be turned into drafts right away.
+  const [chosen, setChosen] = useState<Record<number, boolean>>({});
   const [qty, setQty] = useState<Record<number, string>>({});
   const [supplierFor, setSupplierFor] = useState<Record<number, string>>({});
   const [creating, setCreating] = useState(false);
 
   const supplierOf = (r: ReorderSuggestion) => supplierFor[r.stock_id] ?? (r.last_supplier_id ? String(r.last_supplier_id) : "");
-  const picked = rows.filter((r) => !skip.has(r.stock_id));
+  const isPicked = (r: ReorderSuggestion) => chosen[r.stock_id] ?? !!supplierOf(r);
+  const picked = rows.filter(isPicked);
   const missingSupplier = picked.some((r) => !supplierOf(r));
 
   const createDrafts = async () => {
@@ -88,7 +84,7 @@ function Suggestions({ onCreated }: { onCreated: () => void }) {
     }
     setCreating(false);
     if (made) toast.success(t("draftsCreated", { count: made }));
-    setSkip(new Set());
+    setChosen({});
     setQty({});
     mutate();
     onCreated();
@@ -134,11 +130,11 @@ function Suggestions({ onCreated }: { onCreated: () => void }) {
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? <EmptyState icon={PackageCheck} message={t("nothingToReorder")} colSpan={7} /> : rows.map((r) => (
-                  <TableRow key={r.stock_id} className={skip.has(r.stock_id) ? "opacity-50" : undefined}>
+                  <TableRow key={r.stock_id} className={isPicked(r) ? undefined : "opacity-60"}>
                     <TableCell>
                       <Checkbox
-                        checked={!skip.has(r.stock_id)}
-                        onCheckedChange={(v) => setSkip((prev) => { const n = new Set(prev); if (v) n.delete(r.stock_id); else n.add(r.stock_id); return n; })}
+                        checked={isPicked(r)}
+                        onCheckedChange={(v) => setChosen((prev) => ({ ...prev, [r.stock_id]: v === true }))}
                         aria-label={t("pickNamed", { name: nameOf(r.product_id) })}
                       />
                     </TableCell>
@@ -157,7 +153,7 @@ function Suggestions({ onCreated }: { onCreated: () => void }) {
                         aria-label={t("orderQtyFor", { name: nameOf(r.product_id) })} />
                     </TableCell>
                     <TableCell>
-                      <Select value={supplierOf(r)} onValueChange={(v) => setSupplierFor((prev) => ({ ...prev, [r.stock_id]: v }))}>
+                      <Select value={supplierOf(r)} onValueChange={(v) => { setSupplierFor((prev) => ({ ...prev, [r.stock_id]: v })); setChosen((prev) => ({ ...prev, [r.stock_id]: true })); }}>
                         <SelectTrigger className="h-8 w-44" aria-label={t("supplierFor", { name: nameOf(r.product_id) })}>
                           <SelectValue placeholder={t("chooseSupplier")} />
                         </SelectTrigger>

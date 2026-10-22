@@ -40,6 +40,14 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+def _author(request):
+    """Who did it, as people read it in the admin: name, else email ("gw_<id>" means nothing to them)."""
+    user = request.user
+    if not user.is_authenticated:
+        return ""
+    return user.first_name or user.email or user.username
+
+
 def _stock_action(request, serializer_cls, movement_type, check_and_update, post_action=None, inbound=False):
     serializer = serializer_cls(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -79,7 +87,7 @@ def _stock_action(request, serializer_cls, movement_type, check_and_update, post
             reference_type=reference_type,
             reference_id=reference_id,
             idempotency_key=idempotency_key,
-            created_by=request.user.username if request.user.is_authenticated else "",
+            created_by=_author(request),
         )
 
     if post_action:
@@ -290,7 +298,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                     product_id=pid, from_warehouse_id=warehouse_id, quantity=qty, type=StockMovement.DEDUCT,
                     reference_type=data["reference_type"], reference_id=data["reference_id"],
                     idempotency_key=item_keys.get(pid, ""),
-                    created_by=request.user.username if request.user.is_authenticated else "",
+                    created_by=_author(request),
                 )
                 transaction.on_commit(lambda pid=pid, qty=qty: _publish_deducted(pid, warehouse_id, qty, stocks[pid].warehouse.name))
             logger.info("Stock batch deducted | warehouse=%s items=%s from_reserved=%s", warehouse_id, wanted, from_reserved)
@@ -363,7 +371,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 reference_type=reference_type,
                 reference_id=reference_id,
                 notes=notes,
-                created_by=request.user.username if request.user.is_authenticated else "",
+                created_by=_author(request),
             )
 
             _check_and_publish_low_stock(
@@ -410,7 +418,7 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
                 type=StockMovement.ADJUSTMENT,
                 reference_type="adjustment",
                 notes=f"{reason} (delta: {delta:+d})" if reason else f"Delta: {delta:+d}",
-                created_by=request.user.username if request.user.is_authenticated else "",
+                created_by=_author(request),
             )
 
             logger.info(
@@ -629,7 +637,11 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_create(self, serializer):
         # One transaction: a delivery that does not match its purchase order leaves no stock behind
-        instance = serializer.save()
+        instance = serializer.save(created_by=_author(self.request))
+        if not instance.reference_number:
+            # Unique by construction; the browser used to number receipts and repeated itself
+            instance.reference_number = f"GRN-{instance.receipt_date:%Y%m%d}-{instance.pk:04d}"
+            instance.save(update_fields=["reference_number"])
 
         for item in instance.items.all():
             stock, _ = Stock.objects.select_for_update().get_or_create(
@@ -759,7 +771,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         return [IsAdminOrWarehouseWorker()]
 
     def perform_create(self, serializer):
-        po = serializer.save(created_by=getattr(self.request.user, "username", ""))
+        po = serializer.save(created_by=_author(self.request))
         logger.info("PO created | id=%s supplier=%s items=%d", po.pk, po.supplier_id, po.items.count())
 
     def perform_update(self, serializer):
