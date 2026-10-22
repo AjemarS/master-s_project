@@ -1,11 +1,14 @@
 import { betterAuth } from "better-auth";
 import { admin, emailOTP, twoFactor } from "better-auth/plugins";
 import { Pool } from "pg";
+import logger from "./logger";
 import { sendOtpEmail, sendResetPasswordEmail, sendVerificationEmail } from "./email/sender";
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+// pg emits "error" when the server drops an idle connection (DB restart); unhandled, it kills the process
+pool.on("error", (err) => logger.error("PostgreSQL idle client error", { error: err.message }));
 
 export const auth = betterAuth({
   database: pool,

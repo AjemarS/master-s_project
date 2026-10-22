@@ -23,6 +23,8 @@ async function queryWithRetry(pool: Pool, queryText: string, params?: any[], ret
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+// pg emits "error" when the server drops an idle connection (DB restart); unhandled, it kills the process
+pool.on("error", (err) => logger.error("PostgreSQL idle client error", { error: err.message }));
 
 export interface AuditEntry {
   request_id?: string;

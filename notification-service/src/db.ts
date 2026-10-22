@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import logger from "./logger";
 
 function createMockPool() {
   return {
@@ -16,6 +17,8 @@ export function getNotifPool(): Pool {
       connectionString: process.env.NOTIFICATIONS_DATABASE_URL || "postgresql://postgres:postgres@localhost:5436/notifications_db",
       max: 10,
     });
+    // pg emits "error" when the server drops an idle connection (DB restart); unhandled, it kills the process
+    notifPool.on("error", (err) => logger.error("PostgreSQL idle client error", { error: err.message }));
   }
   return notifPool;
 }
