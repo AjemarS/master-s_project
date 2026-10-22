@@ -107,6 +107,12 @@ class ProductAPITest(APITestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["id"], self.product.pk)
 
+    def test_filter_by_ids(self):
+        second = _create_product(category=self.cat, name="Second")
+        _create_product(category=self.cat, name="Not asked")
+        response = self.client.get(self.list_url, {"ids": f"{self.product.pk},{second.pk}"})
+        self.assertEqual({r["id"] for r in response.data["results"]}, {self.product.pk, second.pk})
+
     def test_filter_by_name(self):
         _create_product(category=self.cat, name="Unique Widget")
         response = self.client.get(self.list_url, {"search": "Unique"})

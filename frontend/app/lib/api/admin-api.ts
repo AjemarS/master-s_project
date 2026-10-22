@@ -1,4 +1,4 @@
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail, SalesReport, RevenueReport, ActivityEvent, SupplierStats, SalesGroup, SalesSeries, TopProduct, TopProductsSort, AbcReport, StockAnalytics, FulfillmentReport, ReturnRequest, ReturnKind, ReturnStatus, ReturnResolution, Review, ReviewsPage, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, ReorderSuggestion, PromoCode } from "~/lib/types";
 import { apiCall, API_URL, INVENTORY_API_URL, ORDERS_API_URL } from "./client";
 import type { ApiResponse } from "./client";
 
@@ -135,6 +135,18 @@ export const stockApi = {
     const qs = q.toString();
     return apiCall(`${INVENTORY_API_URL}/stock/${qs ? `?${qs}` : ""}`, { signal });
   },
+
+  async setReorder(stockId: number, data: { reorder_point: number; reorder_quantity: number }): Promise<ApiResponse<Stock>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/${stockId}/reorder/`, { method: "PATCH", body: JSON.stringify(data) });
+  },
+
+  async reorderSuggestions(warehouseId?: number): Promise<ApiResponse<ReorderSuggestion[]>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/reorder-suggestions/${warehouseId ? `?warehouse_id=${warehouseId}` : ""}`);
+  },
+
+  async analytics(days = 90): Promise<ApiResponse<StockAnalytics>> {
+    return apiCall(`${INVENTORY_API_URL}/stock/analytics/?days=${days}`);
+  },
 };
 
 export const supplierApi = {
@@ -160,6 +172,10 @@ export const goodsReceiptApi = {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`);
   },
 
+  async supplierStats(): Promise<ApiResponse<SupplierStats[]>> {
+    return apiCall(`${INVENTORY_API_URL}/goods-receipts/supplier-stats/`);
+  },
+
   async productInfo(product_id: number, warehouse_id: number): Promise<ApiResponse<{ product_id: number; warehouse_id: number; last_cost_price: string | null; current_stock: number }>> {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/product_info/?product_id=${product_id}&warehouse_id=${warehouse_id}`);
   },
@@ -168,13 +184,6 @@ export const goodsReceiptApi = {
     return apiCall(`${INVENTORY_API_URL}/goods-receipts/`, { method: "POST", body: JSON.stringify(data) });
   },
 
-  async update(id: number, data: Partial<GoodsReceiptNote>): Promise<ApiResponse<GoodsReceiptNote>> {
-    return apiCall(`${INVENTORY_API_URL}/goods-receipts/${id}/`, { method: "PUT", body: JSON.stringify(data) });
-  },
-
-  async delete(id: number): Promise<ApiResponse<void>> {
-    return apiCall(`${INVENTORY_API_URL}/goods-receipts/${id}/`, { method: "DELETE" });
-  },
 };
 
 export const orderApi = {
@@ -188,13 +197,20 @@ export const orderApi = {
     customer_phone?: string;
     customer_email?: string;
     notes?: string;
+    promo_code?: string;
     items: { product_id: number; product_name?: string; quantity: number; price: number }[];
   }): Promise<ApiResponse<OrderDetail>> {
     return apiCall(`${ORDERS_API_URL}/`, { method: "POST", body: JSON.stringify(data) });
   },
 
-  async pay(id: number): Promise<ApiResponse<{ checkout_url: string; session_id: string }>> {
-    return apiCall(`${ORDERS_API_URL}/${id}/pay/`, { method: "POST" });
+  async checkPromo(code: string, subtotal: number): Promise<ApiResponse<{ code: string; kind: string; value: string; discount: string; total: string }>> {
+    const q = new URLSearchParams({ code, subtotal: subtotal.toFixed(2) });
+    return apiCall(`${ORDERS_API_URL}/promo-check/?${q}`);
+  },
+
+  /** token: the pay_token from order creation, needed by guests (signed-in buyers are recognised) */
+  async pay(id: number, token?: string): Promise<ApiResponse<{ checkout_url: string; session_id: string }>> {
+    return apiCall(`${ORDERS_API_URL}/${id}/pay/`, { method: "POST", body: JSON.stringify(token ? { token } : {}) });
   },
 
   async getAll(params?: { page?: number; status?: string; channel?: string; search?: string; ordering?: string }): Promise<
@@ -299,12 +315,39 @@ export const reportApi = {
     return apiCall(url);
   },
 
-  async inventoryValue(): Promise<ApiResponse<{ total_value: string; item_count: number }>> {
+  async abc(from?: string, to?: string): Promise<ApiResponse<AbcReport>> {
+    const q = new URLSearchParams();
+    if (from) q.append("from", from);
+    if (to) q.append("to", to);
+    return apiCall(`${API_URL}/reports/abc/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async fulfillment(from?: string, to?: string): Promise<ApiResponse<FulfillmentReport>> {
+    const q = new URLSearchParams();
+    if (from) q.append("from", from);
+    if (to) q.append("to", to);
+    return apiCall(`${API_URL}/reports/fulfillment/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async inventoryValue(): Promise<ApiResponse<{ total_value: number; item_count: number }>> {
     return apiCall(`${API_URL}/reports/inventory-value/`);
   },
 
-  async dailySales(): Promise<ApiResponse<{ daily: { date: string; revenue: number; orders: number }[] }>> {
-    return apiCall(`${API_URL}/reports/daily-sales/`);
+  async dailySales(params?: { from?: string; to?: string; group?: SalesGroup }): Promise<ApiResponse<SalesSeries>> {
+    const q = new URLSearchParams();
+    if (params?.from) q.append("from", params.from);
+    if (params?.to) q.append("to", params.to);
+    if (params?.group) q.append("group", params.group);
+    return apiCall(`${API_URL}/reports/daily-sales/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async topProducts(params?: { from?: string; to?: string; sort?: TopProductsSort; limit?: number }): Promise<ApiResponse<{ sort: TopProductsSort; products: TopProduct[] }>> {
+    const q = new URLSearchParams();
+    if (params?.from) q.append("from", params.from);
+    if (params?.to) q.append("to", params.to);
+    if (params?.sort) q.append("sort", params.sort);
+    if (params?.limit) q.append("limit", String(params.limit));
+    return apiCall(`${API_URL}/reports/top-products/${q.toString() ? `?${q}` : ""}`);
   },
 };
 
@@ -323,5 +366,68 @@ export const activityEventApi = {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+};
+
+export const returnsApi = {
+  async list(params?: { status?: ReturnStatus; order?: number; page?: number }): Promise<ApiResponse<{ results: ReturnRequest[]; count: number }>> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append("status", params.status);
+    if (params?.order) q.append("order", String(params.order));
+    if (params?.page) q.append("page", String(params.page));
+    return apiCall(`${ORDERS_API_URL}/returns/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async create(data: { item_id: number; kind: ReturnKind; quantity: number; reason: string }): Promise<ApiResponse<ReturnRequest>> {
+    return apiCall(`${ORDERS_API_URL}/returns/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async setStatus(id: number, data: { status: ReturnStatus; resolution?: ReturnResolution; restock?: boolean; comment?: string }): Promise<ApiResponse<ReturnRequest>> {
+    return apiCall(`${ORDERS_API_URL}/returns/${id}/status/`, { method: "POST", body: JSON.stringify(data) });
+  },
+};
+
+export const reviewsApi = {
+  async list(productId: number, page = 1): Promise<ApiResponse<ReviewsPage>> {
+    return apiCall(`${API_URL}/products/${productId}/reviews/?page=${page}`);
+  },
+
+  async save(productId: number, data: { rating: number; text: string }): Promise<ApiResponse<Review>> {
+    return apiCall(`${API_URL}/products/${productId}/reviews/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async setPublished(reviewId: number, isPublished: boolean): Promise<ApiResponse<Review>> {
+    return apiCall(`${API_URL}/reviews/${reviewId}/`, { method: "PATCH", body: JSON.stringify({ is_published: isPublished }) });
+  },
+};
+
+export const purchaseOrderApi = {
+  async list(params?: { status?: PurchaseOrderStatus; page?: number }): Promise<ApiResponse<{ results: PurchaseOrder[]; count: number }>> {
+    const q = new URLSearchParams();
+    if (params?.status) q.append("status", params.status);
+    if (params?.page) q.append("page", String(params.page));
+    return apiCall(`${INVENTORY_API_URL}/purchase-orders/${q.toString() ? `?${q}` : ""}`);
+  },
+
+  async create(data: { supplier: number; warehouse: number; expected_date?: string | null; notes?: string; items: PurchaseOrderItem[] }): Promise<ApiResponse<PurchaseOrder>> {
+    return apiCall(`${INVENTORY_API_URL}/purchase-orders/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async setStatus(id: number, status: "sent" | "cancelled"): Promise<ApiResponse<PurchaseOrder>> {
+    return apiCall(`${INVENTORY_API_URL}/purchase-orders/${id}/status/`, { method: "POST", body: JSON.stringify({ status }) });
+  },
+};
+
+export const promoCodeApi = {
+  async list(): Promise<ApiResponse<{ results: PromoCode[]; count: number }>> {
+    return apiCall(`${ORDERS_API_URL}/promo-codes/?page_size=100`);
+  },
+
+  async create(data: Partial<PromoCode>): Promise<ApiResponse<PromoCode>> {
+    return apiCall(`${ORDERS_API_URL}/promo-codes/`, { method: "POST", body: JSON.stringify(data) });
+  },
+
+  async update(id: number, data: Partial<PromoCode>): Promise<ApiResponse<PromoCode>> {
+    return apiCall(`${ORDERS_API_URL}/promo-codes/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
   },
 };

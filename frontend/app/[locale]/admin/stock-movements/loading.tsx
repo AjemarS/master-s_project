@@ -3,7 +3,7 @@ import { TableSkeleton } from "../components/loading-skeleton";
 
 export default function StockMovementsLoading() {
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">

@@ -20,49 +20,36 @@ export function formatPrice(product: { price: number; original_price: number; pr
   };
 }
 
-export function formatDate(dateStr: string | null | undefined): string {
+/** App locale ("ua" | "en") -> Intl locale */
+const intlLocale = (locale: string) => (locale === "en" ? "en-US" : "uk-UA");
+
+export function formatDate(dateStr: string | null | undefined, locale = "ua"): string {
   if (!dateStr) return "—";
-  try {
-    return new Date(dateStr).toLocaleDateString("uk-UA", {
-      day: "numeric", month: "short", year: "numeric",
-    });
-  } catch {
-    return "—";
-  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function formatDateTime(dateStr: string | null | undefined): string {
+export function formatDateTime(dateStr: string | null | undefined, locale = "ua"): string {
   if (!dateStr) return "—";
-  try {
-    return new Date(dateStr).toLocaleDateString("uk-UA", {
-      day: "numeric", month: "short", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-  } catch {
-    return "—";
-  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(intlLocale(locale), {
+    day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 }
 
-export function formatRelativeTime(dateStr: string | null | undefined): string {
+/** "5 min ago" / "5 хв тому" up to a week, then a short date */
+export function formatRelativeTime(dateStr: string | null | undefined, locale = "ua"): string {
   if (!dateStr) return "—";
-  const now = Date.now();
-  const date = new Date(dateStr).getTime();
-  const diffMs = now - date;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  try {
-    if (diffSeconds < 60) return "щойно";
-    if (diffMinutes < 60) return `${diffMinutes} хв. тому`;
-    if (diffHours < 24) return `${diffHours} год. тому`;
-    if (diffDays < 7) return `${diffDays} дн. тому`;
-    return new Date(dateStr).toLocaleDateString("uk-UA", {
-      day: "numeric",
-      month: "short",
-    });
-  } catch {
-    return "—";
-  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  const seconds = Math.round((d.getTime() - Date.now()) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto", style: "short" });
+  const abs = Math.abs(seconds);
+  if (abs < 60) return rtf.format(0, "second");
+  if (abs < 3600) return rtf.format(Math.round(seconds / 60), "minute");
+  if (abs < 86400) return rtf.format(Math.round(seconds / 3600), "hour");
+  if (abs < 7 * 86400) return rtf.format(Math.round(seconds / 86400), "day");
+  return d.toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short" });
 }

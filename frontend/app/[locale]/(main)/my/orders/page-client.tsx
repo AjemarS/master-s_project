@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSWRConfig } from "swr";
-import { useTranslations } from "next-intl";
-import { Link } from "~/i18n/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import { Link, useRouter } from "~/i18n/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";
@@ -14,7 +15,7 @@ import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { Skeleton } from "~/ui/primitives/skeleton";
 import { AlertCircle, Search, Package, XCircle, Archive, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
 import { useCancelOrder, useMyOrders, useOrder } from "~/lib/hooks/use-api-data";
-import { formatCurrency } from "~/lib/utils/format";
+import { formatCurrency, formatDate } from "~/lib/utils/format";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { getAllowedTransitions } from "~/lib/utils/order-status";
 import type { Order } from "~/lib/types";
@@ -69,7 +70,13 @@ export function MyOrdersClient() {
   const { trigger: cancelOrder } = useCancelOrder();
   const { mutate: globalMutate } = useSWRConfig();
   const orders = useMemo(() => myOrdersData?.results ?? [], [myOrdersData]);
-  const [tab, setTab] = useState("all");
+  // The tab lives in ?tab= like the settings page, so back/forward and shared links keep it
+  const locale = useLocale();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = searchParams.get("tab");
+  const tab = tabParam && ["active", "completed", "cancelled"].includes(tabParam) ? tabParam : "all";
+  const setTab = (v: string) => router.replace(v === "all" ? "/my/orders" : `/my/orders?tab=${v}`);
   const [search, setSearch] = useState("");
   const [showArchive, setShowArchive] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -200,14 +207,14 @@ export function MyOrdersClient() {
                 >
                   {t("orderNumber", { id: order.order_number })}
                 </Link>
-                <OrderStatusBadge status={order.status} t={t} />
+                <OrderStatusBadge status={order.status} />
                 <Badge variant={order.channel === "online" ? "default" : "secondary"}>
                   {order.channel === "online" ? t("online") : t("offline")}
                 </Badge>
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span>{t("total")}: <strong className="text-foreground">{formatCurrency(order.total_amount)}</strong></span>
-                <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                <span>{formatDate(order.created_at, locale)}</span>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -218,6 +225,7 @@ export function MyOrdersClient() {
                   className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
                   disabled={cancellingId === order.id}
                   onClick={(e) => { e.preventDefault(); handleCancel(order.id); }}
+                  aria-label={t("cancelOrderNamed", { id: order.order_number })}
                 >
                   {cancellingId === order.id ? (
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -226,8 +234,14 @@ export function MyOrdersClient() {
                   )}
                 </Button>
               )}
-              <Button size="sm" variant="ghost" onClick={() => toggleExpand(order.id)}>
-                {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => toggleExpand(order.id)}
+                aria-expanded={isExpanded}
+                aria-label={isExpanded ? t("hideDetails") : t("showDetails")}
+              >
+                {isExpanded ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
               </Button>
             </div>
           </div>
@@ -248,8 +262,10 @@ export function MyOrdersClient() {
         </TabsList>
 
         <div className="relative mt-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
           <Input
+            type="search"
+            aria-label={t("search")}
             placeholder={t("search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}

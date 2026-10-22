@@ -74,7 +74,9 @@
     "saveOrderDesc": "Enter your email to track this order and all future orders",
     "searchProducts": "Search products...",
     "sendCode": "Send code",
-    "lastUpdated": "Last updated: {time}"
+    "lastUpdated": "Last updated: {time}",
+    "skipToContent": "Skip to content",
+    "refresh": "Refresh"
   },
   "signUp": {
     "pageTitle": "Sign Up",
@@ -108,7 +110,10 @@
     "repeatPasswordLabel": "Repeat Password",
     "repeatPasswordPlaceholder": "Repeat your password",
     "successMessage": "We recommend adding your personal information for a better shopping experience.",
-    "successTitle": "Account created successfully!"
+    "successTitle": "Account created successfully!",
+    "otpResent": "A new code is on its way. Check your inbox.",
+    "resendIn": "Resend in {seconds}s",
+    "changeEmail": "Use a different email"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -143,7 +148,10 @@
     "suppliersDesc": "Supplier management",
     "goodsReceiptsDesc": "Stock receiving",
     "reportsDesc": "Sales, revenue, margin",
-    "usersDesc": "Accounts and roles"
+    "usersDesc": "Accounts and roles",
+    "returns": "Returns",
+    "purchaseOrders": "Purchasing",
+    "promoCodes": "Promo codes"
   },
   "summary": {
     "title": "System Overview",
@@ -202,7 +210,15 @@
     "noActivity": "No activity yet",
     "activityError": "Failed to load activity",
     "viewAllActivity": "All activity",
-    "orderStatusSummary": "Order Status"
+    "orderStatusSummary": "Order Status",
+    "checking": "checking…",
+    "svc_product": "Products",
+    "svc_inventory": "Inventory",
+    "svc_order": "Orders",
+    "svc_auth": "Auth",
+    "svc_frontend": "Website",
+    "svc_rabbitmq": "RabbitMQ",
+    "svc_notification": "Notifications"
   },
   "products": {
     "title": "Products",
@@ -309,7 +325,19 @@
     "wishlist": "Wishlist",
     "wishlistEmpty": "Your wishlist is empty",
     "wishlistEmptyDesc": "Save items you love to your wishlist",
-    "goShopping": "Start shopping"
+    "goShopping": "Start shopping",
+    "ratingLabel": "Rated {rating} out of 5 from {count} reviews",
+    "reviewsCount": "{count, plural, one {# review} other {# reviews}}",
+    "noReviewsYet": "No reviews yet",
+    "addToWishlist": "Add to wishlist",
+    "removeFromWishlist": "Remove from wishlist",
+    "addToCartFailed": "Could not add the item to the cart. Please try again.",
+    "stockInvalidChange": "Enter a valid quantity change",
+    "stockUpdated": "Stock updated",
+    "stockUpdateFailed": "Could not update the stock",
+    "eventStockAdjusted": "Stock of “{name}”: {from} → {to}",
+    "addedToWishlist": "Added to wishlist",
+    "removedFromWishlist": "Removed from wishlist"
   },
   "orders": {
     "title": "Orders",
@@ -375,7 +403,10 @@
     "statusChanged": "Order #{id} status changed to {status}",
     "statusUpdateError": "Failed to update status",
     "confirmStatusTitle": "Change Order Status",
-    "confirmStatusDesc": "Are you sure you want to change Order #{id} status to {status}?"
+    "confirmStatusDesc": "Are you sure you want to change Order #{id} status to {status}?",
+    "cancelOrderNamed": "Cancel order {id}",
+    "hideDetails": "Hide details",
+    "showDetails": "Show details"
   },
   "pos": {
     "title": "POS Terminal",
@@ -409,7 +440,9 @@
     "stockUnavailable": "Stock data unavailable for this warehouse",
     "confirmSaleTitle": "Complete Sale",
     "confirmSaleDesc": "Review the receipt before finalizing the sale.",
-    "confirmSale": "Confirm Sale"
+    "confirmSale": "Confirm Sale",
+    "hintSelectWarehouse": "Choose a warehouse to make the sale",
+    "hintAddItems": "Add items to the receipt"
   },
   "cart": {
     "title": "Your Cart",
@@ -423,7 +456,8 @@
     "checkout": "Checkout",
     "continueShopping": "Continue Shopping",
     "clearCart": "Clear Cart",
-    "shoppingCart": "Shopping Cart"
+    "shoppingCart": "Shopping Cart",
+    "clearConfirm": "Clear the cart? All items will be removed."
   },
   "checkout": {
     "title": "Checkout",
@@ -505,7 +539,18 @@
     "statusEmpty": "Not filled",
     "statusPartial": "Partially filled",
     "statusFilled": "Filled",
-    "statusError": "Has errors"
+    "statusError": "Has errors",
+    "promoLabel": "Promo code",
+    "promoApply": "Apply",
+    "promoRemove": "Remove promo code",
+    "promoInvalid": "This promo code does not apply",
+    "promoDiscount": "Promo {code}",
+    "step_empty": "not filled",
+    "step_partial": "partly filled",
+    "step_filled": "done",
+    "step_error": "has an error",
+    "stepsLabel": "Checkout steps",
+    "deliveryByCarrier": "carrier's rate, paid on receipt"
   },
   "orderDetail": {
     "title": "Order #{id}",
@@ -533,7 +578,9 @@
     "pageSubtitle": "Track your order status and details",
     "customerInfo": "Customer Information",
     "orderTimeline": "Order Timeline",
-    "cancelOrder": "Cancel Order"
+    "cancelOrder": "Cancel Order",
+    "payNow": "Pay now",
+    "payFailed": "Could not open the payment page. Please try again."
   },
   "categories": {
     "title": "Categories",
@@ -559,7 +606,9 @@
     "createButton": "Create Category",
     "creatingButton": "Creating...",
     "createdSuccess": "Category created",
-    "createdDesc": "Category \"{name}\" created."
+    "createdDesc": "Category \"{name}\" created.",
+    "editNamed": "Edit “{name}”",
+    "deleteNamed": "Delete “{name}”"
   },
   "warehouses": {
     "title": "Warehouses & Stock",
@@ -726,7 +775,6 @@
     "subtitle": "Sales, revenue and margin analytics",
     "totalOrders": "Total Orders",
     "totalRevenue": "Total Revenue",
-    "totalCost": "Total Cost",
     "grossProfit": "Gross Profit",
     "marginPercent": "Margin %",
     "inventoryValue": "Inventory Value",
@@ -734,13 +782,97 @@
     "channelDistribution": "Channel Distribution",
     "channelDesc": "Online vs offline sales",
     "revenueByChannel": "Revenue by Channel",
-    "revenue30days": "30-Day Revenue",
-    "dailyRevenue": "Daily Revenue",
-    "dailyOrders": "Daily Orders",
     "dateFrom": "From",
     "dateTo": "To",
     "update": "Update",
-    "reset": "Reset"
+    "reset": "Reset",
+    "revenueDynamics": "Revenue trend",
+    "ordersDynamics": "Orders trend",
+    "revenueBy_day": "Revenue per day",
+    "revenueBy_week": "Revenue per week",
+    "revenueBy_month": "Revenue per month",
+    "ordersBy_day": "Orders per day",
+    "ordersBy_week": "Orders per week",
+    "ordersBy_month": "Orders per month",
+    "groupBy": "Group by",
+    "group_day": "Day",
+    "group_week": "Week",
+    "group_month": "Month",
+    "quickRange": "Quick range",
+    "lastDays": "{count}d",
+    "dateRangeError": "Date from cannot be after date to",
+    "averageOrderValue": "Average order value",
+    "unitsSold": "Units sold",
+    "cancellationRate": "Cancellation rate",
+    "cancelledOrders": "Cancelled: {count}",
+    "vsPrevious": "vs previous period",
+    "newVsPrevious": "new vs previous period",
+    "pp": "pp",
+    "atCost": "at cost",
+    "topProducts": "Top products",
+    "topProductsDesc": "Best 10 products for the selected period",
+    "sortBy": "Sort by",
+    "sort_revenue": "Revenue",
+    "sort_quantity": "Quantity",
+    "sort_margin": "Profit",
+    "product": "Product",
+    "revenueShare": "Revenue share",
+    "noData": "No sales in the selected period",
+    "tabSales": "Sales",
+    "tabAbc": "ABC analysis",
+    "tabStock": "Stock",
+    "abc_A": "Class A",
+    "abc_B": "Class B",
+    "abc_C": "Class C",
+    "abcHint_A": "First 80% of revenue: the core range",
+    "abcHint_B": "Next 15% of revenue",
+    "abcHint_C": "Last 5% of revenue: review candidates",
+    "productsCount": "{count} products",
+    "ofRevenue": "of revenue",
+    "shareOfProducts": "Share of products",
+    "shareOfRevenue": "Share of revenue",
+    "abcTitle": "ABC range analysis",
+    "abcDesc": "Products by revenue, highest first, with cumulative share",
+    "abcClass": "Class",
+    "cumulativeShare": "Cumulative",
+    "analysisWindow": "Analysis window",
+    "turnover": "Turnover",
+    "turnoverHint": "sold / on hand over {days}d",
+    "deadStock": "Dead stock",
+    "deadStockHint": "{count} products · {share}% of stock value",
+    "deadStockDesc": "On hand but no sales in {days}d",
+    "lowCover": "Running out",
+    "lowCoverHint": "under 14 days of stock at the current pace",
+    "runningOut": "Running out",
+    "runningOutDesc": "Stock lasts under {days} days",
+    "onHand": "On hand",
+    "stockValue": "Value",
+    "lastSale": "Last sale",
+    "avgDailySales": "Sales / day",
+    "daysOfCover": "Cover",
+    "daysCount": "{count}d",
+    "never": "never",
+    "noDeadStock": "No dead stock",
+    "noRunningOut": "Nothing below 14 days of stock",
+    "exportCsv": "CSV",
+    "period": "Period",
+    "tabFulfillment": "Fulfillment",
+    "funnel": "Online order funnel",
+    "funnelDesc": "{count} orders in the period · {conversion}% paid",
+    "noOnlineOrders": "No online orders in the period",
+    "stageCreated": "Created",
+    "stageDurations": "Time between stages",
+    "stageDurationsDesc": "The median is not skewed by a few stuck orders",
+    "stage": "Stage",
+    "median": "Median",
+    "average": "Average",
+    "ordersShort": "Orders",
+    "minutesShort": "{count} min",
+    "hoursShort": "{count} h",
+    "daysShort": "{count} d",
+    "cancellationsByStage": "Cancellations by stage",
+    "cancelledAt": "From “{stage}”",
+    "cancelledUnknown": "Stage unknown (before history)"
   },
   "users": {
     "title": "Users",
@@ -769,7 +901,41 @@
     "admin": "Admin",
     "cashier": "Cashier",
     "warehouseWorker": "Warehouse Worker",
-    "user": "User"
+    "user": "User",
+    "removedToast": "User “{name}” removed",
+    "removeFailed": "Could not remove the user",
+    "bannedToast": "User banned",
+    "bannedToastDesc": "Reason: {reason}",
+    "banFailed": "Could not ban the user",
+    "unbannedToast": "User “{name}” unbanned",
+    "unbanFailed": "Could not unban the user",
+    "unexpected": "An unexpected error occurred",
+    "eventDeleted": "Deleted user “{name}”",
+    "eventBanned": "Banned user “{name}”",
+    "eventUnbanned": "Unbanned user “{name}”",
+    "eventCreated": "Created user “{name}”",
+    "eventUpdated": "Updated user “{name}”",
+    "removeTitle": "Remove user",
+    "removeConfirm": "Permanently remove {name}? This cannot be undone.",
+    "unbanTitle": "Unban user",
+    "unbanConfirm": "Unban {name}?",
+    "unknown": "No name",
+    "accountsTitle": "User accounts",
+    "accountsDesc": "Roles, access and account status",
+    "noUsersFound": "Nobody matches this search",
+    "createFailed": "Could not create the user",
+    "updateFailed": "Could not save the user",
+    "createdToast": "User “{name}” created",
+    "updatedToast": "User “{name}” saved",
+    "createDesc": "A new account.",
+    "editDesc": "Change the user details.",
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "errName": "Enter a name.",
+    "errEmail": "Enter an email.",
+    "errEmailInvalid": "Invalid email address.",
+    "errPassword": "Enter a password.",
+    "errPasswordShort": "The password needs at least 8 characters."
   },
   "home": {
     "heroTitle": "Home Appliances for",
@@ -777,7 +943,7 @@
     "heroSubtitle": "Reliable appliances from leading manufacturers. Great prices, fast delivery, and professional service.",
     "heroCatalog": "Catalog",
     "heroDelivery": "Delivery throughout Ukraine",
-    "heroSupport": "24/7 Support",
+    "heroSupport": "Claims online",
     "categoriesTitle": "Categories",
     "categoriesSubtitle": "Choose from a wide range of home appliances",
     "newArrivalsTitle": "New Arrivals",
@@ -785,16 +951,14 @@
     "categoriesProducts": "{count} products",
     "featuresTitle": "Why choose us",
     "featuresSubtitle": "We offer the best service and quality",
-    "freeShippingTitle": "Free Shipping",
-    "freeShippingDesc": "Free delivery on orders over 1000 UAH. Fast and reliable.",
+    "freeShippingTitle": "Delivery across Ukraine",
+    "freeShippingDesc": "Free showroom pickup; Nova Poshta and courier at the carrier's rates.",
     "securePaymentTitle": "Secure Payment",
-    "securePaymentDesc": "Your data is always safe. We use modern encryption.",
-    "support247Title": "24/7 Support",
-    "support247Desc": "Always in touch to help you choose.",
+    "securePaymentDesc": "Card payment through Stripe: your card details never reach us.",
+    "support247Title": "Claims online",
+    "support247Desc": "File returns and warranty claims in My orders and see the store's reply there.",
     "qualityGuaranteeTitle": "Quality Guarantee",
-    "qualityGuaranteeDesc": "Quality guarantee on every product. Returns within 30 days.",
-    "testimonialsTitle": "Customer Reviews",
-    "testimonialsSubtitle": "Over 10,000 satisfied customers across Ukraine",
+    "qualityGuaranteeDesc": "Manufacturer warranty on every product. Returns within 14 days.",
     "ctaTitle": "Ready for an upgrade?",
     "ctaSubtitle": "Join thousands of satisfied customers. Sign up today and get exclusive offers.",
     "ctaSignUp": "Sign Up",
@@ -804,10 +968,6 @@
     "tagline": "Reliable home appliances for your home. Best prices and service in Ukraine.",
     "categories": "Categories",
     "allProducts": "All Products",
-    "refrigerators": "Refrigerators",
-    "washingMachines": "Washing Machines",
-    "ovens": "Ovens",
-    "smallAppliances": "Small Appliances",
     "information": "Information",
     "about": "About Us",
     "deliveryPayment": "Delivery & Payment",
@@ -820,25 +980,7 @@
     "terms": "Terms of Service",
     "copyright": "© {year} TechHub. For educational purposes only.",
     "privacyShort": "Privacy",
-    "termsShort": "Terms",
-    "newsletter": "Subscribe to Newsletter",
-    "newsletterDesc": "Get the best offers and new arrivals",
-    "emailPlaceholder": "Your email",
-    "subscribe": "Subscribe",
-    "subscribeSuccess": "Thank you for subscribing!",
-    "subscribeError": "Please enter a valid email"
-  },
-  "testimonials": {
-    "0_name": "Olena Kovalchuk",
-    "0_text": "Ordered a refrigerator — delivered the next day. Everything works perfectly. Very satisfied with the service!",
-    "1_name": "Andriy Melnyk",
-    "1_text": "Bought a washing machine. They helped me choose without pushing the most expensive option. Fast delivery, thank you!",
-    "2_name": "Mariya Shevchenko",
-    "2_text": "Great appliance store! Found everything I needed for my new kitchen. The prices were pleasantly surprising.",
-    "3_name": "Dmytro Bondarenko",
-    "3_text": "Microservice architecture is awesome. But seriously, the store works flawlessly. Recommend!",
-    "4_name": "Sofia Kravchenko",
-    "4_text": "Finally an appliance store where you don't feel stupid. They explain everything clearly, top-notch support!"
+    "termsShort": "Terms"
   },
   "impersonation": {
     "badge": "Impersonation Mode",
@@ -889,7 +1031,8 @@
       "marketing_desc": "Receive news and promotions",
       "low_stock": "Low Stock Alerts",
       "low_stock_desc": "Notifications about low stock (administrators)"
-    }
+    },
+    "clearAllConfirm": "Delete all notifications?"
   },
   "profile": {
     "pageTitle": "Profile",
@@ -938,7 +1081,8 @@
     "enterCode": "Enter the 6-digit code from your authenticator app",
     "verify": "Verify",
     "backupCodesWarning": "Store these codes securely. Each code can only be used once.",
-    "done": "Done"
+    "done": "Done",
+    "disable2faConfirm": "Turn off two-factor authentication? The account will be protected by the password only."
   },
   "settings": {
     "pageTitle": "Settings",
@@ -1010,7 +1154,9 @@
     "firstNameLabel": "First name",
     "firstNamePlaceholder": "Enter your first name",
     "lastNameLabel": "Last name",
-    "lastNamePlaceholder": "Enter your last name"
+    "lastNamePlaceholder": "Enter your last name",
+    "copy": "Copy",
+    "revokeSessionsConfirm": "Sign out on all other devices?"
   },
   "signIn": {
     "pageTitle": "Sign In",
@@ -1160,5 +1306,438 @@
     "lv": "Latvia",
     "ee": "Estonia",
     "other": "Other"
+  },
+  "returns": {
+    "fileClaim": "Return / warranty",
+    "warrantyUntil": "Warranty until",
+    "actions": "Actions",
+    "returnOpenUntil": "Unused goods can be returned until {date}. Warranty claims are open until the date in the table.",
+    "returnClosed": "The 14-day return period is over. Warranty claims are open until the date in the table.",
+    "myClaims": "My claims",
+    "storeComment": "Store comment",
+    "dialogTitle": "Claim for an item",
+    "kind": "Claim type",
+    "kind_return": "Return",
+    "kind_warranty": "Warranty",
+    "kindHint_return": "Within 14 days: unused, in original look and packaging",
+    "kindHint_warranty": "A fault within the warranty period: repair, replacement or refund",
+    "quantity": "Quantity",
+    "reason": "Describe the reason",
+    "reasonHint": "At least 10 characters",
+    "reasonPlaceholderReturn": "E.g. wrong size, packaging never opened",
+    "reasonPlaceholderWarranty": "What does not work and since when",
+    "submit": "Send",
+    "sending": "Sending…",
+    "cancel": "Cancel",
+    "created": "Claim sent. We will contact you.",
+    "status_submitted": "Submitted",
+    "status_approved": "Approved",
+    "status_received": "Item received",
+    "status_resolved": "Resolved",
+    "status_rejected": "Rejected",
+    "resolution_refund": "Refund",
+    "resolution_replace": "Replacement",
+    "resolution_repair": "Repair",
+    "adminTitle": "Returns & warranty",
+    "adminSubtitle": "Customer claims: review, receive the item, decide",
+    "filterByStatus": "Filter by status",
+    "all": "All",
+    "date": "Date",
+    "order": "Order",
+    "product": "Product",
+    "status": "Status",
+    "empty": "No claims",
+    "restocked": "returned to stock",
+    "updated": "Claim updated",
+    "action_approved": "Approve",
+    "action_received": "Item received",
+    "action_resolved": "Resolve",
+    "action_rejected": "Reject",
+    "restockLabel": "Put the item back in stock",
+    "restockHint": "For working goods. A faulty warranty unit is not put back on sale.",
+    "resolution": "Resolution",
+    "refundHint": "{amount}: through Stripe for online payments, in cash for POS",
+    "resolutionHint_replace": "A new unit is taken from the order's warehouse",
+    "resolutionHint_repair": "The item goes back to the buyer after repair",
+    "commentRequired": "Reason for rejection (the buyer will see it)",
+    "commentOptional": "Comment for the buyer (optional)",
+    "confirm": "Confirm"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "basedOn": "based on {count} reviews",
+    "distribution": "Rating distribution",
+    "none": "No reviews yet. Bought this product? Be the first to review it.",
+    "signIn": "Sign in",
+    "signInSuffix": "to review a product you bought.",
+    "buyersOnly": "Only buyers who received this product can review it.",
+    "editMine": "Edit my review",
+    "yourRating": "Your rating",
+    "yourReview": "Your review (optional)",
+    "placeholder": "What you liked, what you did not, how it holds up in use",
+    "publish": "Publish",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "saved": "Thank you! Your review is published.",
+    "starsCount": "{count, plural, one {# star} other {# stars}}",
+    "anonymousBuyer": "Buyer",
+    "verifiedBuyer": "Verified buyer",
+    "hide": "Hide review",
+    "show": "Show review",
+    "hidden": "Hidden by a moderator",
+    "prev": "Previous",
+    "next": "Next"
+  },
+  "compare": {
+    "title": "Compare products",
+    "add": "Add to comparison",
+    "remove": "Remove from comparison",
+    "added": "Added to comparison",
+    "full": "You can compare up to {limit} products. Remove one to add another.",
+    "barLabel": "Products to compare",
+    "open": "Compare ({count}/{limit})",
+    "clear": "Clear comparison",
+    "empty": "No products yet. Tap the scales icon on a product card.",
+    "toCatalog": "Browse catalog",
+    "onlyDifferences": "Only differences",
+    "clearAll": "Clear",
+    "mixedCategories": "Products from different categories: some specs may not line up.",
+    "selected": "{count, plural, one {# product} other {# products}}",
+    "price": "Price",
+    "rating": "Rating",
+    "brand": "Brand",
+    "category": "Category",
+    "warranty": "Warranty",
+    "months": "{count} mo",
+    "availability": "Availability",
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "yes": "Yes",
+    "no": "No",
+    "buy": "Buy",
+    "addedToCart": "Added to cart",
+    "removeNamed": "Remove “{name}” from comparison",
+    "noDifferences": "The selected products do not differ in these specs.",
+    "addMore": "Add at least one more product to compare.",
+    "loadFailed": "Could not load the products. Try reloading the page.",
+    "gone": "These products are no longer in the catalog.",
+    "addToCartFailed": "Could not add the item to the cart. Please try again."
+  },
+  "purchasing": {
+    "title": "Purchasing",
+    "subtitle": "What is running out, what is on order and what has arrived",
+    "tabSuggestions": "Needs reordering",
+    "tabOrders": "Purchase orders",
+    "suggestionsTitle": "Needs reordering",
+    "suggestionsDesc": "Stock at or below its reorder point. The quantity tops it up to point + batch, minus what is already ordered.",
+    "warehouse": "Warehouse",
+    "allWarehouses": "All warehouses",
+    "createDrafts": "Create drafts ({count})",
+    "pickSupplier": "Choose a supplier for every selected line.",
+    "pick": "Select",
+    "pickNamed": "Include “{name}”",
+    "product": "Product",
+    "availableVsPoint": "Available / point",
+    "onOrder": "On order",
+    "orderQty": "Order",
+    "orderQtyFor": "Quantity for “{name}”",
+    "supplier": "Supplier",
+    "supplierFor": "Supplier for “{name}”",
+    "chooseSupplier": "Choose a supplier",
+    "lastCost": "last price {price}",
+    "nothingToReorder": "All good: nothing is below its reorder point.",
+    "draftsCreated": "Drafts created: {count}",
+    "filterByStatus": "Filter by status",
+    "all": "All",
+    "items": "Items",
+    "amount": "Amount",
+    "status": "Status",
+    "actions": "Actions",
+    "noOrders": "No purchase orders",
+    "status_draft": "Draft",
+    "status_sent": "Sent",
+    "status_partially_received": "Partially received",
+    "status_received": "Received",
+    "status_cancelled": "Cancelled",
+    "receivedOf": "{received} of {total} received",
+    "send": "Send",
+    "receive": "Receive",
+    "cancelNamed": "Cancel order PO-{id}",
+    "sentDone": "Order sent",
+    "cancelledDone": "Order cancelled",
+    "cancelTitle": "Cancel this order?",
+    "cancelDesc": "The supplier should not fulfil it. This cannot be undone.",
+    "cancelPartialDesc": "What arrived stays in stock; what is missing no longer counts as on order.",
+    "cancelConfirm": "Cancel order",
+    "reorderColumn": "Reorder",
+    "reorderHint": "Reorder point / batch. 0 turns reordering off.",
+    "reorderSaved": "Reorder settings saved",
+    "reorderPointFor": "Reorder point for product #{id}",
+    "reorderQtyFor": "Reorder batch for product #{id}"
+  },
+  "promoCodes": {
+    "title": "Promo codes",
+    "subtitle": "Discounts for online orders and the till",
+    "create": "New promo code",
+    "edit": "Edit {code}",
+    "dialogDesc": "Typed at checkout or at the till. The discount applies to goods, not delivery.",
+    "code": "Code",
+    "kind": "Type",
+    "kind_percent": "Percentage",
+    "kind_fixed": "Fixed amount",
+    "valuePercent": "Discount, %",
+    "valueFixed": "Discount, ₴",
+    "minOrder": "Minimum order, ₴",
+    "maxUses": "Use limit",
+    "unlimited": "unlimited",
+    "startsAt": "Starts",
+    "endsAt": "Ends",
+    "oncePerCustomer": "Once per customer (by email or account)",
+    "saved": "Promo code saved",
+    "discount": "Discount",
+    "conditions": "Conditions",
+    "period": "Period",
+    "used": "Used",
+    "active": "Active",
+    "actions": "Actions",
+    "empty": "No promo codes yet",
+    "fromAmount": "from {amount}",
+    "oncePerCustomerShort": "once per customer",
+    "always": "No end date",
+    "expired": "expired",
+    "toggleNamed": "Turn {code} on or off"
+  },
+  "a11y": {
+    "decreaseQuantity": "Decrease quantity",
+    "increaseQuantity": "Increase quantity",
+    "removeItem": "Remove item",
+    "toggleMenu": "Menu",
+    "search": "Search",
+    "breadcrumb": "Breadcrumb",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "closeLightbox": "Close viewer",
+    "wishlist": "Wishlist",
+    "navigation": "Navigation",
+    "adminPanel": "Admin",
+    "user": "User",
+    "changeLanguage": "Change language",
+    "clearSearch": "Clear search"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "unexpected": "An unexpected error occurred",
+    "retry": "Try again",
+    "notFoundTitle": "Page not found",
+    "notFoundDesc": "It may have been removed, or the link is out of date",
+    "toHome": "Go home",
+    "catalogDown": "The catalog is unavailable right now. Please reload a little later."
+  },
+  "productForm": {
+    "featurePlaceholder": "Type and press Enter",
+    "specKey": "Spec",
+    "specValue": "Value",
+    "removeSpec": "Remove spec",
+    "addSpec": "Add spec",
+    "removeFeature": "Remove “{name}”",
+    "categoryCreateFailed": "Could not create the category",
+    "errName": "Enter a name.",
+    "errDescription": "Add a description.",
+    "errCategory": "Choose a category.",
+    "errPrice": "The price must be above zero.",
+    "errOriginalPrice": "Enter the original price.",
+    "errOriginalBelowPrice": "The original price cannot be below the price.",
+    "errWarranty": "Warranty is 0 to 120 months.",
+    "createFailed": "Could not create the product",
+    "updateFailed": "Could not save the product",
+    "created": "Product “{name}” created",
+    "updated": "Product “{name}” saved",
+    "eventCreated": "Created product “{name}”",
+    "eventUpdated": "Updated product “{name}”",
+    "addTitle": "New product",
+    "editTitle": "Edit product",
+    "addDesc": "Fill in the new product details.",
+    "editDesc": "Change the product details.",
+    "sectionNames": "Names",
+    "name": "Name",
+    "nameUkPlaceholder": "Name in Ukrainian",
+    "nameEnPlaceholder": "Name in English",
+    "sectionDescriptions": "Descriptions",
+    "description": "Description",
+    "descriptionUkPlaceholder": "Description in Ukrainian",
+    "descriptionEnPlaceholder": "Description in English",
+    "sectionPricing": "Price and stock",
+    "category": "Category",
+    "selectCategory": "Choose a category",
+    "newCategory": "New",
+    "price": "Price, ₴",
+    "originalPrice": "Original price, ₴",
+    "stock": "Stock",
+    "sectionMetadata": "Details",
+    "warranty": "Warranty, months",
+    "features": "Features",
+    "specs": "Specs",
+    "sectionMedia": "Image",
+    "image": "Photo",
+    "changeImage": "Replace",
+    "uploadImage": "Upload",
+    "errImageType": "JPEG, PNG, WebP or GIF only",
+    "errImageSize": "Images up to 5 MB",
+    "saving": "Saving…",
+    "create": "Create product",
+    "save": "Save"
+  },
+  "activity": {
+    "feedTitle": "Activity feed",
+    "deletedCategory": "Deleted category “{name}”",
+    "createdGoodsReceipt": "Created a goods receipt from {supplier}",
+    "orderStatusChanged": "Order #{id}: status “{status}”",
+    "deletedProduct": "Deleted product “{name}”",
+    "adjustedStock": "Adjusted stock",
+    "deletedSupplier": "Deleted supplier #{id}",
+    "deletedWarehouse": "Deleted warehouse #{id}",
+    "bannedUser": "Banned user “{name}”"
+  },
+  "pages": {
+    "about": {
+      "title": "About us",
+      "sections": [
+        {
+          "body": "TechHub is a teaching online store for home appliances, built as a master's project. It shows the whole retail cycle: catalog, cart and payment, warehouse and purchasing, till sales, returns and warranty, analytics."
+        },
+        {
+          "body": "Nothing is actually sold here: prices, products and orders are demo data."
+        }
+      ]
+    },
+    "contacts": {
+      "title": "Contacts",
+      "sections": [
+        {
+          "body": "This is a teaching project, so there is no phone line or office."
+        },
+        {
+          "heading": "Questions about an order",
+          "body": "Your order status is in My orders. You can also file a return or a warranty claim there; the store replies on the claim."
+        }
+      ]
+    },
+    "delivery": {
+      "title": "Delivery and payment",
+      "sections": [
+        {
+          "heading": "Delivery",
+          "body": "Pickup from the showroom is free. Nova Poshta, courier or another carrier is paid to the carrier on receipt, at their rates; it is not part of the order total."
+        },
+        {
+          "heading": "Payment",
+          "body": "Online by card through Stripe at checkout, or at the till in the showroom. Promo codes are applied in the cart before paying."
+        },
+        {
+          "heading": "Timing",
+          "body": "Orders ship once paid. Delivery time depends on the carrier and the city."
+        }
+      ]
+    },
+    "warranty": {
+      "title": "Warranty and returns",
+      "sections": [
+        {
+          "heading": "Returns",
+          "body": "Unused goods in their original look and packaging can be returned within 14 days of receipt. Money goes back to the card you paid with; in-store purchases are refunded in cash."
+        },
+        {
+          "heading": "Warranty",
+          "body": "Each product page and order shows the warranty period (usually 12 months). Faulty goods are repaired, replaced or refunded."
+        },
+        {
+          "heading": "How to claim",
+          "body": "Open the order in My orders and choose Return / warranty next to the item. The claim status is shown there too."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "sections": [
+        {
+          "heading": "How do I order?",
+          "body": "Add products to the cart, go to checkout, enter your contacts and delivery method and pay by card. No account needed."
+        },
+        {
+          "heading": "How much is delivery?",
+          "body": "Pickup is free. Other methods are paid to the carrier on receipt."
+        },
+        {
+          "heading": "How can I pay?",
+          "body": "By card online (Stripe) or at the till in the showroom."
+        },
+        {
+          "heading": "Can I return a product?",
+          "body": "Yes, within 14 days of receipt, from My orders."
+        },
+        {
+          "heading": "What warranty do I get?",
+          "body": "It is shown on the product page; you can file a claim from My orders until it ends."
+        },
+        {
+          "heading": "Who writes reviews?",
+          "body": "Only buyers who received the product. The rating is the average of their scores."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of use",
+      "sections": [
+        {
+          "heading": "General",
+          "body": "By using the site you accept these terms. The site is a teaching project: orders create no real obligation to sell."
+        },
+        {
+          "heading": "Account",
+          "body": "You can order as a guest or with an account. You are responsible for keeping your password safe; turning on two-factor authentication is recommended."
+        },
+        {
+          "heading": "Prices and payment",
+          "body": "Prices are in hryvnias. The price at checkout applies; promo discounts are shown in the cart."
+        },
+        {
+          "heading": "Delivery",
+          "body": "Showroom pickup is free; other delivery is paid to the carrier on receipt."
+        },
+        {
+          "heading": "Returns and warranty",
+          "body": "Returns within 14 days of receipt, warranty claims until the product's warranty ends, both from My orders."
+        },
+        {
+          "heading": "Reviews",
+          "body": "Buyers who received a product can review it. The store may hide reviews that break the law or are not about the product."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy policy",
+      "sections": [
+        {
+          "heading": "What we collect",
+          "body": "Name, email, phone and delivery address when you sign up or check out; your history of orders, claims and reviews."
+        },
+        {
+          "heading": "Why",
+          "body": "To fulfil and deliver orders, handle returns and email you about order status. Marketing emails only if you agreed at sign-up."
+        },
+        {
+          "heading": "Who we share it with",
+          "body": "Stripe for card payments (we never receive card details), an email service to send messages, and the carrier gets the recipient details for delivery. Nobody else."
+        },
+        {
+          "heading": "What others see",
+          "body": "Reviews show your first name only, never your surname or email."
+        },
+        {
+          "heading": "Protection",
+          "body": "Passwords are stored only as hashes, and store staff see data according to their role."
+        }
+      ]
+    }
   }
 }

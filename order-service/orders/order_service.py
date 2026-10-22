@@ -8,8 +8,11 @@ import logging
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
-from orders.models import Order, OrderItem
+from orders import metrics
+from orders import promo as promo_svc
+from orders.models import Order, OrderItem, OrderStatusHistory
 from orders.eventbus import publish_event
 from orders.inventory_client import reserve_stock, deduct_stock_batch, release_stock
 from orders.event_builder import build_order_event
@@ -41,6 +44,13 @@ def create_order(serializer_data, items_data, channel, user_id):
             order_number = generate_order_number(attempt)
             with transaction.atomic():
                 total = calculate_total(items_data)
+                promo, discount = None, Decimal("0.00")
+                if serializer_data.get("promo_code"):
+                    promo, discount = promo_svc.evaluate(
+                        serializer_data["promo_code"], total,
+                        customer_email=serializer_data.get("customer_email", ""), created_by=user_id, lock=True,
+                    )
+                    promo_svc.record_use(promo)
                 order = Order.objects.create(
                     order_number=order_number,
                     channel=channel,
@@ -53,7 +63,9 @@ def create_order(serializer_data, items_data, channel, user_id):
                     customer_name=serializer_data.get("customer_name", ""),
                     customer_phone=serializer_data.get("customer_phone", ""),
                     customer_email=serializer_data.get("customer_email", ""),
-                    total_amount=total,
+                    total_amount=total - discount,
+                    promo_code=promo,
+                    discount_amount=discount,
                     notes=serializer_data.get("notes", ""),
                     created_by=user_id,
                 )
@@ -65,6 +77,7 @@ def create_order(serializer_data, items_data, channel, user_id):
                         quantity=item["quantity"],
                         price=item["price"],
                         cost_price=item.get("cost_price", Decimal("0.00")),
+                        warranty_months=item.get("warranty_months"),
                     )
                     for item in items_data
                 ]
@@ -73,6 +86,7 @@ def create_order(serializer_data, items_data, channel, user_id):
                 transaction.on_commit(
                     lambda o=order: publish_event("order.created", build_order_event(o))
                 )
+                transaction.on_commit(lambda c=channel: metrics.ORDERS_CREATED.labels(c).inc())
 
             logger.info(
                 "Order created | number=%s channel=%s items=%d",
@@ -85,6 +99,16 @@ def create_order(serializer_data, items_data, channel, user_id):
                 logger.error("Order number collision exhausted | channel=%s", channel)
                 raise
             continue
+
+
+def record_status_change(order, from_status, request=None):
+    """Append the order's current status to its history (call after the new status is saved)."""
+    changed_by = ""
+    if request is not None:
+        changed_by = request.META.get("HTTP_X_GATEWAY_USER_ID", "") or getattr(request.user, "username", "")
+    OrderStatusHistory.objects.create(
+        order=order, from_status=from_status, to_status=order.status, changed_by=changed_by,
+    )
 
 
 def update_order_status(order, new_status, request=None, release_reserved=True):
@@ -103,9 +127,13 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
 
     with transaction.atomic():
         order.status = new_status
+        if new_status == Order.DELIVERED:
+            order.delivered_at = timezone.now()
         order.save()
         transaction.on_commit(lambda: publish_event("order.status_changed", build_order_event(order)))
         if new_status == Order.CANCELLED:
+            promo_svc.release_use(order)
+            transaction.on_commit(lambda: metrics.ORDERS_CANCELLED.labels(order.channel).inc())
             transaction.on_commit(lambda: publish_event("order.cancelled", build_order_event(order)))
 
     # Release stock on cancellation
@@ -123,6 +151,8 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
             )
             return order, {"error": "Stock deduct failed, status reverted", "detail": "Inventory service error"}
 
+    # Recorded only once the change has stuck: a reverted shipment leaves no trace in the history
+    record_status_change(order, old_status, request)
     logger.info("Order status changed | number=%s %s->%s", order.order_number, old_status, new_status)
     return order, None
 
@@ -163,7 +193,11 @@ def deduct_order_stock(order, from_reserved, request=None):
     )
     if error:
         logger.error("Stock deduct failed | order=%s error=%s", order.order_number, error)
-    return error is None
+        return False
+    # A 409 replay carries no costs; the first successful deduct already stored them
+    for pid, cost in ((result or {}).get("unit_costs") or {}).items():
+        order.items.filter(product_id=int(pid)).update(cost_price=Decimal(cost))
+    return True
 
 
 def reserve_order_stock(order, request=None):

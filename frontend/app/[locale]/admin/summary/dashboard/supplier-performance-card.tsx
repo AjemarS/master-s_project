@@ -1,20 +1,13 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import Link from "next/link";
 import { Truck, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
-import { useGoodsReceipts } from "~/lib/hooks/use-api-data";
+import { useSupplierStats } from "~/lib/hooks/use-api-data";
 import { formatCurrency, formatRelativeTime } from "~/lib/utils/format";
-
-interface SupplierSummary {
-  id: number;
-  name: string;
-  totalItems: number;
-  totalValue: number;
-  lastDelivery: string;
-  deliveryCount: number;
-}
 
 function daysSinceDelivery(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
@@ -32,7 +25,8 @@ interface SupplierPerformanceCardProps {
 }
 
 export default function SupplierPerformanceCard({ tSum }: SupplierPerformanceCardProps) {
-  const { data, isLoading } = useGoodsReceipts();
+  const locale = useLocale();
+  const { data, isLoading } = useSupplierStats();
 
   if (isLoading) {
     return (
@@ -57,33 +51,14 @@ export default function SupplierPerformanceCard({ tSum }: SupplierPerformanceCar
     );
   }
 
-  const grns = data?.results || [];
-  const supplierMap = new Map<number, SupplierSummary>();
-
-  for (const grn of grns) {
-    const existing = supplierMap.get(grn.supplier);
-    if (existing) {
-      existing.totalItems += grn.items.reduce((s, i) => s + i.quantity, 0);
-      existing.totalValue += grn.total_amount;
-      existing.deliveryCount += 1;
-      if (new Date(grn.receipt_date) > new Date(existing.lastDelivery)) {
-        existing.lastDelivery = grn.receipt_date;
-      }
-    } else {
-      supplierMap.set(grn.supplier, {
-        id: grn.supplier,
-        name: grn.supplier_name,
-        totalItems: grn.items.reduce((s, i) => s + i.quantity, 0),
-        totalValue: grn.total_amount,
-        lastDelivery: grn.receipt_date,
-        deliveryCount: 1,
-      });
-    }
-  }
-
-  const suppliers = Array.from(supplierMap.values())
-    .sort((a, b) => b.totalValue - a.totalValue)
-    .slice(0, 5);
+  const suppliers = (data ?? []).slice(0, 5).map((s) => ({
+    id: s.supplier_id,
+    name: s.supplier_name,
+    totalItems: s.total_items,
+    totalValue: s.total_value,
+    lastDelivery: s.last_delivery,
+    deliveryCount: s.delivery_count,
+  }));
 
   if (suppliers.length === 0) {
     return (
@@ -125,7 +100,7 @@ export default function SupplierPerformanceCard({ tSum }: SupplierPerformanceCar
                     <div className="text-sm font-medium text-foreground truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatRelativeTime(s.lastDelivery)}
+                      {formatRelativeTime(s.lastDelivery, locale)}
                     </div>
                   </div>
                 </div>

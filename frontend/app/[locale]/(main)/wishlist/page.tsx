@@ -1,55 +1,36 @@
 "use client";
 
 import { Heart, ShoppingBag } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
+import { Link } from "~/i18n/navigation";
 import { productApi } from "~/lib/api/admin-api";
+import { useApiGet } from "~/lib/hooks/use-api";
+import { useCart } from "~/lib/hooks/use-cart";
 import { useWishlist } from "~/lib/hooks/use-wishlist";
-import { Product } from "~/lib/types";
+import { getImageUrl } from "~/lib/utils/image-url";
 import { Button } from "~/ui/primitives/button";
+import { ErrorAlert } from "~/ui/components/error-alert";
 import { FadeIn } from "~/ui/components/motion/fade-in";
 import { ProductCard } from "~/ui/components/product-card";
 
 export default function WishlistPage() {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
-  const { items: wishlistIds, itemCount } = useWishlist();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { items: wishlistIds, itemCount, isHydrated } = useWishlist();
+  const { addItem } = useCart();
 
-  useEffect(() => {
-    if (wishlistIds.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setProducts([]);
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    Promise.all(
-      wishlistIds.map((id) =>
-        productApi
-          .getById(id)
-          .then((res) => res.data)
-          .catch(() => null),
-      ),
-    ).then((results) => {
-      if (!cancelled) {
-        setProducts(results.filter((p): p is Product => p !== null));
-        setIsLoading(false);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [wishlistIds]);
+  // One request for the whole list instead of one per product
+  const ids = [...wishlistIds].sort((a, b) => a - b).join(",");
+  const { data, error, isLoading: loading } = useApiGet(
+    isHydrated && ids ? `/products?ids=${ids}` : null,
+    () => productApi.getAll({ ids, pageSize: 100 })
+  );
+  const products = wishlistIds.map((id) => data?.results.find((p) => p.id === id)).filter((p) => !!p);
+  const isLoading = !isHydrated || (!!ids && loading && !data);
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <FadeIn direction="up">
         <section className="py-16 md:py-24">
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -64,6 +45,8 @@ export default function WishlistPage() {
                 </span>
               )}
             </div>
+
+            <ErrorAlert message={error?.message ?? null} />
 
             {isLoading ? (
               <div className="py-12 text-center">
@@ -93,6 +76,9 @@ export default function WishlistPage() {
                   <ProductCard
                     key={product.id}
                     product={product}
+                    onAddToCart={() =>
+                      addItem({ id: String(product.id), name: product.name, price: product.price, slug: product.slug, image: getImageUrl(product.image_url), category: product.category_name }, 1)
+                    }
                   />
                 ))}
               </div>
@@ -100,6 +86,6 @@ export default function WishlistPage() {
           </div>
         </section>
       </FadeIn>
-    </main>
+    </div>
   );
 }

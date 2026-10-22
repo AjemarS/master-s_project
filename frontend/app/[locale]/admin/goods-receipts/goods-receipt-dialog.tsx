@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { apiErrorText } from "~/lib/utils/error-handler";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Textarea } from "~/ui/primitives/textarea";
 import { Separator } from "~/ui/primitives/separator";
 import { goodsReceiptService } from "./actions";
-import type { Supplier, Warehouse } from "~/lib/types";
+import type { PurchaseOrder, Supplier, Warehouse } from "~/lib/types";
 import { useActivityFeed } from "../components/activity-feed";
 
 interface GrnFormItem {
@@ -27,22 +28,40 @@ interface GrnFormItem {
   cost_price: string;
 }
 
+/** What is still due on the order, plus the trailing empty row the form keeps for the next product */
+function initialItems(purchaseOrder?: PurchaseOrder | null): GrnFormItem[] {
+  const due = (purchaseOrder?.items ?? []).filter((i) => (i.remaining_quantity ?? i.quantity) > 0);
+  return [
+    ...due.map((i, n) => ({
+      _key: n + 1,
+      product_id: String(i.product_id),
+      quantity: String(i.remaining_quantity ?? i.quantity),
+      cost_price: i.unit_cost,
+    })),
+    { _key: due.length + 1, product_id: "", quantity: "1", cost_price: "" },
+  ];
+}
+
 interface GoodsReceiptDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   suppliers: Supplier[];
   warehouses: Warehouse[];
   onSuccess: () => void;
+  /** Receive against this order: supplier and warehouse are fixed, items start at what is still due */
+  purchaseOrder?: PurchaseOrder | null;
 }
 
 export function GoodsReceiptDialog({
-  open, onOpenChange, suppliers, warehouses, onSuccess,
+  open, onOpenChange, suppliers, warehouses, onSuccess, purchaseOrder,
 }: GoodsReceiptDialogProps) {
   const t = useTranslations("goodsReceipts");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const refCounterRef = useRef(0);
-  const itemKeyCounterRef = useRef(1);
+  // Initial rows use keys 1..n (see initialItems); new rows continue after them
+  const itemKeyCounterRef = useRef((purchaseOrder?.items.length ?? 0) + 1);
   const fetchedKeysRef = useRef<Set<string>>(new Set());
 
   function emptyItem(): GrnFormItem {
@@ -53,12 +72,12 @@ export function GoodsReceiptDialog({
   const { pushEvent } = useActivityFeed();
 
   const today = new Date().toISOString().split("T")[0];
-  const [supplier, setSupplier] = useState("");
-  const [warehouse, setWarehouse] = useState("");
+  const [supplier, setSupplier] = useState(purchaseOrder ? String(purchaseOrder.supplier) : "");
+  const [warehouse, setWarehouse] = useState(purchaseOrder ? String(purchaseOrder.warehouse) : "");
   const [date, setDate] = useState(today);
   const [ref, setRef] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<GrnFormItem[]>(() => [{ _key: 1, product_id: "", quantity: "1", cost_price: "" }]);
+  const [items, setItems] = useState<GrnFormItem[]>(() => initialItems(purchaseOrder));
 
   const activeItemCount = items.filter((item) => item.product_id.trim() !== "").length;
 
@@ -170,10 +189,11 @@ export function GoodsReceiptDialog({
         reference_number: ref,
         notes,
         items: filteredItems,
+        ...(purchaseOrder ? { purchase_order: purchaseOrder.id } : {}),
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) throw new Error(apiErrorText(res.error));
       toast.success(t("createGrn"));
-      pushEvent({ type: "create", message: `Created goods receipt (supplier #${supplier})`, entityType: "goods_receipt" });
+      pushEvent({ type: "create", message: tAct("createdGoodsReceipt", { supplier: suppliers.find((s) => String(s.id) === supplier)?.name ?? `#${supplier}` }), entityType: "goods_receipt" });
       resetAndClose();
       onSuccess();
     } catch (err) {
@@ -217,7 +237,7 @@ export function GoodsReceiptDialog({
                   <Building2 className="h-3.5 w-3.5" />
                   {t("supplier")} *
                 </Label>
-                <Select value={supplier} onValueChange={setSupplier}>
+                <Select value={supplier} onValueChange={setSupplier} disabled={!!purchaseOrder}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={t("selectSupplier")} />
                   </SelectTrigger>
@@ -235,7 +255,7 @@ export function GoodsReceiptDialog({
                   <WarehouseIcon className="h-3.5 w-3.5" />
                   {t("warehouse")} *
                 </Label>
-                <Select value={warehouse} onValueChange={setWarehouse}>
+                <Select value={warehouse} onValueChange={setWarehouse} disabled={!!purchaseOrder}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={t("selectWarehouse")} />
                   </SelectTrigger>

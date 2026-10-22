@@ -1,6 +1,7 @@
 "use client";
 
 import { Package, Minus, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Card, CardContent } from "~/ui/primitives/card";
 
@@ -21,6 +22,7 @@ export function CartItems({
   onQuantityChange,
   formatCurrency,
 }: CartItemsProps) {
+  const ta = useTranslations("a11y");
   return (
     <Card>
       <CardContent className="space-y-4">
@@ -60,8 +62,8 @@ export function CartItems({
                   type="button"
                   onClick={() => onQuantityChange(item.id, item.quantity - 1)}
                   disabled={item.quantity <= 1}
-                  className="inline-flex items-center justify-center size-9 rounded-md border border-input bg-background text-xs hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  aria-label="Decrease quantity"
+                  className="inline-flex items-center justify-center size-11 rounded-md border border-input bg-background text-xs hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label={ta("decreaseQuantity")}
                 >
                   <Minus className="size-4" />
                 </button>
@@ -71,8 +73,8 @@ export function CartItems({
                 <button
                   type="button"
                   onClick={() => onQuantityChange(item.id, item.quantity + 1)}
-                  className="inline-flex items-center justify-center size-9 rounded-md border border-input bg-background text-xs hover:bg-accent transition-colors"
-                  aria-label="Increase quantity"
+                  className="inline-flex items-center justify-center size-11 rounded-md border border-input bg-background text-xs hover:bg-accent transition-colors"
+                  aria-label={ta("increaseQuantity")}
                 >
                   <Plus className="size-4" />
                 </button>

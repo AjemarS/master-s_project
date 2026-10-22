@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from unittest import mock
 from urllib.error import URLError
@@ -6,15 +7,35 @@ from urllib.error import URLError
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
-from .models import Order, OrderItem
+from . import order_service as svc
+from .models import Order, OrderItem, OrderStatusHistory, PromoCode, ReturnRequest
 
 User = get_user_model()
 
 # Inventory is a separate service: unit tests stub its HTTP client instead of depending on a live stack
 INVENTORY_OK = ({"ok": True}, None)
+
+CATALOG_PRICE = Decimal("199.99")
+
+
+def _fake_catalog(product_ids):
+    return {pid: {"price": str(CATALOG_PRICE), "name": f"Catalog product {pid}", "warranty_months": 24} for pid in product_ids}
+
+
+# The catalog is product-service: every order created over the API gets its price from this stub
+_catalog_patch = mock.patch("orders.serializers.get_catalog_items", side_effect=_fake_catalog)
+
+
+def setUpModule():
+    _catalog_patch.start()
+
+
+def tearDownModule():
+    _catalog_patch.stop()
 
 
 def _create_admin_user():
@@ -148,7 +169,7 @@ class OrderAPITest(APITestCase):
         self.assertEqual(data["channel"], "online")
         self.assertEqual(data["status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
-        self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+        self.assertEqual(Decimal(data["total_amount"]), CATALOG_PRICE * 2)  # client sent 99.99: ignored
 
     @mock.patch("orders.order_service.reserve_stock", return_value=INVENTORY_OK)
     @mock.patch("orders.serializers.check_availability", return_value=(True, None))
@@ -177,7 +198,7 @@ class OrderAPITest(APITestCase):
         self.assertEqual(data["status"], "unpaid")
         self.assertEqual(data["payment_status"], "unpaid")
         self.assertEqual(len(data["items"]), 1)
-        self.assertAlmostEqual(float(data["total_amount"]), 199.98)
+        self.assertEqual(Decimal(data["total_amount"]), CATALOG_PRICE * 2)  # client sent 99.99: ignored
         reserve.assert_called_once()
         self.assertEqual(reserve.call_args.kwargs["quantity"], 2)
 
@@ -250,6 +271,8 @@ class POSAPITest(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["channel"], Order.OFFLINE)
+        self.assertEqual(response.data["status"], Order.COMPLETED)
+        self.assertEqual(response.data["payment_status"], Order.PAYMENT_PAID)
         deduct.assert_called_once()
 
     def test_pos_order_without_warehouse_fails(self):
@@ -319,6 +342,151 @@ class ReportsAPITest(APITestCase):
         self.client.force_authenticate(user=user)
         response = self.client.get("/api/reports/revenue/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class ReportNumbersTest(APITestCase):
+    """Every report counts the same orders and the same revenue."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.client.force_authenticate(user=_create_admin_user())
+        self.today = timezone.localdate()
+
+    def _order(self, number, status, channel=Order.ONLINE, days_ago=0, lines=((2, "100.00", "60.00"),)):
+        order = _create_order(
+            order_number=number, status=status, channel=channel,
+            total_amount=Decimal("999.00"),  # includes shipping: must not leak into revenue
+        )
+        for qty, price, cost in lines:
+            OrderItem.objects.create(order=order, product_id=1, quantity=qty, price=Decimal(price), cost_price=Decimal(cost))
+        created = timezone.make_aware(datetime.combine(self.today - timedelta(days=days_ago), time(12)))
+        Order.objects.filter(pk=order.pk).update(created_at=created)
+        return order
+
+    def test_sales_revenue_and_daily_agree(self):
+        self._order("A", Order.PAID)
+        self._order("B", Order.COMPLETED, channel=Order.OFFLINE, lines=((1, "50.00", "20.00"),))
+        self._order("C", Order.UNPAID)
+        self._order("D", Order.CANCELLED)
+
+        sales = self.client.get("/api/reports/sales/").data
+        revenue = self.client.get("/api/reports/revenue/").data
+        daily = self.client.get("/api/reports/daily-sales/").data["daily"]
+
+        self.assertEqual(sales["total_orders"], 2)
+        self.assertEqual(sales["total_revenue"], 250.0)
+        self.assertEqual(sales["total_margin"], 110.0)
+        self.assertEqual(sales["margin_percent"], 44.0)
+        self.assertEqual(revenue["total_revenue"], sales["total_revenue"])
+        self.assertEqual(revenue["order_count"], sales["total_orders"])
+        self.assertEqual(sum(d["revenue"] for d in daily), sales["total_revenue"])
+        self.assertEqual({c["channel"]: c["revenue"] for c in sales["by_channel"]}, {"online": 200.0, "offline": 50.0})
+
+    def test_date_only_to_includes_whole_day(self):
+        self._order("A", Order.PAID)
+        data = self.client.get(f"/api/reports/sales/?to={self.today.isoformat()}").data
+        self.assertEqual(data["total_orders"], 1)
+
+    def test_from_excludes_older_orders(self):
+        self._order("OLD", Order.PAID, days_ago=10)
+        self._order("NEW", Order.PAID)
+        frm = (self.today - timedelta(days=1)).isoformat()
+        self.assertEqual(self.client.get(f"/api/reports/sales/?from={frm}").data["total_orders"], 1)
+
+    def test_invalid_date_is_rejected(self):
+        self.assertEqual(self.client.get("/api/reports/sales/?from=yesterday").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_daily_is_zero_filled(self):
+        self._order("A", Order.PAID, days_ago=2)
+        frm = (self.today - timedelta(days=3)).isoformat()
+        daily = self.client.get(f"/api/reports/daily-sales/?from={frm}&to={self.today.isoformat()}").data["daily"]
+        self.assertEqual([d["orders"] for d in daily], [0, 1, 0, 0])
+
+    def test_previous_period_and_kpis(self):
+        self._order("NOW", Order.PAID)                                       # revenue 200
+        self._order("NOW-X", Order.CANCELLED)
+        self._order("PREV", Order.PAID, days_ago=8, lines=((1, "50.00", "20.00"),))
+        self._order("OLDER", Order.PAID, days_ago=20)
+        frm, to = (self.today - timedelta(days=6)).isoformat(), self.today.isoformat()
+        data = self.client.get(f"/api/reports/sales/?from={frm}&to={to}").data
+        self.assertEqual(data["average_order_value"], 200.0)
+        self.assertEqual(data["cancelled_orders"], 1)
+        self.assertEqual(data["cancellation_rate"], 50.0)
+        self.assertEqual(data["previous"]["total_revenue"], 50.0)            # days 7..13 ago only
+        self.assertIsNone(self.client.get("/api/reports/sales/").data["previous"])
+
+    def test_top_products_sorted_and_shared(self):
+        order = self._order("A", Order.PAID, lines=())
+        OrderItem.objects.create(order=order, product_id=1, product_name="Fridge", quantity=1, price=Decimal("300.00"), cost_price=Decimal("280.00"))
+        OrderItem.objects.create(order=order, product_id=2, product_name="Kettle", quantity=5, price=Decimal("20.00"), cost_price=Decimal("5.00"))
+        by_revenue = self.client.get("/api/reports/top-products/").data["products"]
+        self.assertEqual([p["product_name"] for p in by_revenue], ["Fridge", "Kettle"])
+        self.assertEqual(by_revenue[0]["revenue_share"], 75.0)
+        by_margin = self.client.get("/api/reports/top-products/?sort=margin&limit=1").data["products"]
+        self.assertEqual([(p["product_name"], p["margin"]) for p in by_margin], [("Kettle", 75.0)])
+        self.assertEqual(self.client.get("/api/reports/top-products/?sort=price").status_code, 400)
+
+    def test_abc_classes_follow_cumulative_revenue(self):
+        order = self._order("A", Order.PAID, lines=())
+        for pid, price in [(1, "700.00"), (2, "150.00"), (3, "100.00"), (4, "50.00")]:
+            OrderItem.objects.create(order=order, product_id=pid, product_name=f"P{pid}", quantity=1, price=Decimal(price), cost_price=Decimal("1.00"))
+        data = self.client.get("/api/reports/abc/").data
+        # cumulative share before each product: 0, 70, 85, 95
+        self.assertEqual([p["abc_class"] for p in data["products"]], ["A", "A", "B", "C"])
+        self.assertEqual(data["products"][-1]["cumulative_share"], 100.0)
+        self.assertEqual(data["classes"]["A"], {"products": 2, "revenue": 850.0, "revenue_share": 85.0})
+        self.assertEqual(data["classes"]["C"]["products"], 1)
+
+    def _history(self, order, steps, start_hours_ago):
+        """steps: [(to_status, hours after creation)]; rewrites timestamps to fixed offsets."""
+        base = timezone.now() - timedelta(hours=start_hours_ago)
+        Order.objects.filter(pk=order.pk).update(created_at=base)
+        prev = Order.UNPAID
+        for to, hours in steps:
+            row = OrderStatusHistory.objects.create(order=order, from_status=prev, to_status=to)
+            OrderStatusHistory.objects.filter(pk=row.pk).update(changed_at=base + timedelta(hours=hours))
+            prev = to
+
+    def test_fulfillment_funnel_durations_and_cancel_stage(self):
+        shipped = self._order("S", Order.DELIVERED)
+        self._history(shipped, [(Order.PAID, 2), (Order.DELIVERING, 26), (Order.DELIVERED, 74)], 100)
+        paid = self._order("P", Order.PAID)
+        self._history(paid, [(Order.PAID, 4)], 10)
+        dropped = self._order("X", Order.CANCELLED)
+        self._history(dropped, [(Order.PAID, 1), (Order.CANCELLED, 3)], 10)
+        self._order("U", Order.UNPAID)
+        self._order("POS", Order.COMPLETED, channel=Order.OFFLINE)
+
+        data = self.client.get("/api/reports/fulfillment/").data
+        self.assertEqual(data["orders"], 4)
+        self.assertEqual([f["count"] for f in data["funnel"]], [4, 3, 1, 1, 0])
+        self.assertEqual(data["payment_conversion"], 75.0)
+        self.assertEqual(data["cancelled"]["by_stage"]["paid"], 1)
+        to_paid = data["durations"][0]
+        self.assertEqual((to_paid["count"], to_paid["median_hours"]), (3, 2.0))
+        self.assertEqual(data["durations"][1]["avg_hours"], 24.0)
+
+    def test_status_change_is_recorded(self):
+        order = _create_order(status=Order.UNPAID)
+        svc.update_order_status(order, Order.PAID)
+        self.assertEqual(
+            list(order.status_history.values_list("from_status", "to_status")), [(Order.UNPAID, Order.PAID)]
+        )
+
+    def test_monthly_grouping_zero_fills_months(self):
+        self._order("A", Order.PAID)
+        first_of_month = self.today.replace(day=1)
+        frm = (first_of_month - timedelta(days=40)).isoformat()
+        data = self.client.get(f"/api/reports/daily-sales/?group=month&from={frm}&to={self.today.isoformat()}").data
+        self.assertEqual(data["group"], "month")
+        self.assertEqual(len(data["daily"]), 3)
+        self.assertTrue(all(d["date"].endswith("-01") for d in data["daily"]))
+        self.assertEqual([d["orders"] for d in data["daily"]], [0, 0, 1])
+        self.assertEqual(data["daily"][-1]["revenue"], 200.0)
+
+    @mock.patch("orders.reports.get_stock_valuation", return_value=(None, "connection refused"))
+    def test_inventory_value_reports_unreachable_inventory(self, _):
+        self.assertEqual(self.client.get("/api/reports/inventory-value/").status_code, 503)
 
 
 class _FakeUrlopenResponse:
@@ -638,3 +806,295 @@ class EventOutboxTest(TestCase):
         with mock.patch.object(publisher, "send", side_effect=ConnectionError("still down")):
             self.assertEqual(outbox.relay_pending(), 1)
         self.assertEqual(OutboxEvent.objects.get().attempts, 1)
+
+
+class CatalogPricingTest(APITestCase):
+    """The client never decides what it pays (it used to send the price Stripe charged)."""
+
+    def setUp(self):
+        self.client.force_authenticate(user=_create_admin_user())
+
+    @mock.patch("orders.order_service.deduct_stock_batch", return_value=({"unit_costs": {"1": "120.50"}}, None))
+    def test_pos_uses_catalog_price_and_stores_cost_on_deduct(self, _deduct):
+        response = self.client.post("/api/orders/pos/", {
+            "warehouse_id": 1,
+            "items": [{"product_id": 1, "quantity": 2, "price": "0.01", "cost_price": "999.00"}],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        item = OrderItem.objects.get()
+        self.assertEqual(item.price, CATALOG_PRICE)
+        self.assertEqual(item.product_name, "Catalog product 1")
+        self.assertEqual(item.cost_price, Decimal("120.50"))
+        self.assertEqual(item.warranty_months, 24)
+        self.assertEqual(Order.objects.get().total_amount, CATALOG_PRICE * 2)
+
+    @mock.patch("orders.serializers.get_catalog_items", return_value={})
+    def test_unknown_product_is_rejected(self, _):
+        response = self.client.post("/api/orders/", {"items": [{"product_id": 404, "quantity": 1}]}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Order.objects.exists())
+
+    def test_catalog_outage_refuses_the_order(self):
+        from .product_client import CatalogUnavailable
+        with mock.patch("orders.serializers.get_catalog_items", side_effect=CatalogUnavailable("down")):
+            response = self.client.post("/api/orders/", {"items": [{"product_id": 1, "quantity": 1}]}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertFalse(Order.objects.exists())
+
+    def test_negative_shipping_cost_is_rejected(self):
+        response = self.client.post("/api/orders/", {
+            "shipping_cost": "-500.00", "items": [{"product_id": 1, "quantity": 1}],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ReturnsAPITest(APITestCase):
+    """Returns (14 days) and warranty claims: eligibility, ownership and what each status change does."""
+
+    URL = "/api/orders/returns/"
+
+    def setUp(self):
+        self.buyer = User.objects.create_user("gw_1", "buyer@test.com", "pw")
+        self.admin = _create_admin_user()
+        self.order = _create_order(status=Order.DELIVERED, warehouse_id=3, delivered_at=timezone.now() - timedelta(days=2))
+        self.item = _create_order_item(self.order, quantity=2, price=Decimal("500.00"))
+        self.client.force_authenticate(user=self.buyer)
+
+    def _claim(self, kind="return", quantity=1, item=None):
+        return self.client.post(self.URL, {
+            "item_id": (item or self.item).pk, "kind": kind, "quantity": quantity, "reason": "Does not fit",
+        }, format="json")
+
+    def _set(self, ret_id, **body):
+        self.client.force_authenticate(user=self.admin)
+        return self.client.post(f"{self.URL}{ret_id}/status/", body, format="json")
+
+    def test_buyer_files_and_sees_own_claim(self):
+        response = self._claim()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], "submitted")
+        self.assertEqual([r["id"] for r in self.client.get(self.URL).data["results"]], [response.data["id"]])
+
+    def test_order_detail_route_still_works(self):
+        self.client.force_authenticate(user=self.admin)
+        self.assertEqual(self.client.get(f"/api/orders/{self.order.pk}/").status_code, status.HTTP_200_OK)
+
+    def test_someone_elses_order_is_not_found(self):
+        self.client.force_authenticate(user=User.objects.create_user("gw_2", "x@test.com", "pw"))
+        self.assertEqual(self._claim().status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.get(self.URL).data["results"], [])
+
+    def test_not_yet_delivered_order_cannot_be_claimed(self):
+        Order.objects.filter(pk=self.order.pk).update(status=Order.DELIVERING)
+        self.assertEqual(self._claim().status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_return_window_is_14_days_but_warranty_goes_on(self):
+        Order.objects.filter(pk=self.order.pk).update(delivered_at=timezone.now() - timedelta(days=20))
+        self.assertEqual(self._claim("return").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._claim("warranty").status_code, status.HTTP_201_CREATED)
+
+    def test_warranty_uses_the_months_snapshotted_at_sale(self):
+        OrderItem.objects.filter(pk=self.item.pk).update(warranty_months=1)
+        Order.objects.filter(pk=self.order.pk).update(delivered_at=timezone.now() - timedelta(days=40))
+        self.assertEqual(self._claim("warranty").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cannot_claim_more_units_than_bought(self):
+        self.assertEqual(self._claim(quantity=2).status_code, status.HTTP_201_CREATED)
+        self.assertEqual(self._claim(quantity=1).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_buyer_cannot_change_status(self):
+        ret_id = self._claim().data["id"]
+        response = self.client.post(f"{self.URL}{ret_id}/status/", {"status": "approved"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @mock.patch("orders.returns.stripe.Refund.create", return_value=mock.Mock(id="re_1"))
+    @mock.patch("orders.returns.return_stock", return_value=INVENTORY_OK)
+    def test_return_flow_restocks_and_refunds_through_stripe(self, restock, refund):
+        Order.objects.filter(pk=self.order.pk).update(stripe_payment_intent_id="pi_1")
+        ret_id = self._claim().data["id"]
+        self.assertEqual(self._set(ret_id, status="approved").status_code, status.HTTP_200_OK)
+        self.assertTrue(self._set(ret_id, status="received").data["restocked"])
+        restock.assert_called_once()
+        self.assertEqual(restock.call_args.kwargs["warehouse_id"], 3)
+        data = self._set(ret_id, status="resolved", resolution="refund").data
+        self.assertEqual(Decimal(data["refund_amount"]), Decimal("500.00"))
+        refund.assert_called_once_with(payment_intent="pi_1", amount=50000, idempotency_key=f"rma-{ret_id}")
+
+    @mock.patch("orders.returns.stripe.Refund.create")
+    def test_failed_refund_leaves_the_claim_unresolved(self, refund):
+        import stripe
+        refund.side_effect = stripe.error.StripeError("card gone")
+        Order.objects.filter(pk=self.order.pk).update(stripe_payment_intent_id="pi_1")
+        ret = ReturnRequest.objects.create(order=self.order, item=self.item, quantity=1, kind="warranty",
+                                           reason="x", status=ReturnRequest.RECEIVED)
+        self.assertEqual(self._set(ret.pk, status="resolved", resolution="refund").status_code, 502)
+        ret.refresh_from_db()
+        self.assertEqual(ret.status, ReturnRequest.RECEIVED)
+
+    def test_warranty_unit_is_not_restocked_by_default_and_repair_frees_the_units(self):
+        ret_id = self._claim("warranty", quantity=2).data["id"]
+        self._set(ret_id, status="approved")
+        self.assertFalse(self._set(ret_id, status="received").data["restocked"])
+        self.assertEqual(self._set(ret_id, status="resolved", resolution="repair").status_code, status.HTTP_200_OK)
+        self.client.force_authenticate(user=self.buyer)
+        self.assertEqual(self._claim("warranty", quantity=2).status_code, status.HTTP_201_CREATED)
+
+    def test_return_cannot_be_resolved_by_repair_and_rejection_needs_a_comment(self):
+        ret_id = self._claim().data["id"]
+        self.assertEqual(self._set(ret_id, status="rejected").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._set(ret_id, status="rejected", comment="Used item").status_code, status.HTTP_200_OK)
+        self.client.force_authenticate(user=self.buyer)
+        self.assertEqual(self._claim().status_code, status.HTTP_201_CREATED)  # rejected units are claimable again
+        ret = ReturnRequest.objects.filter(status=ReturnRequest.SUBMITTED).get()
+        ReturnRequest.objects.filter(pk=ret.pk).update(status=ReturnRequest.RECEIVED)
+        self.assertEqual(self._set(ret.pk, status="resolved", resolution="repair").status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class PurchasedCheckTest(APITestCase):
+    def test_only_handed_over_orders_of_this_user_count(self):
+        buyer = User.objects.create_user("gw_1", "b@test.com", "pw")
+        _create_order_item(_create_order(status=Order.DELIVERED), product_id=5)
+        _create_order_item(_create_order(order_number="ORD-2", status=Order.PAID), product_id=6)
+        _create_order_item(_create_order(order_number="ORD-3", status=Order.COMPLETED, created_by="gw_2"), product_id=7)
+        self.client.force_authenticate(user=buyer)
+        got = {pid: self.client.get(f"/api/orders/purchased/?product_id={pid}").data["purchased"] for pid in (5, 6, 7)}
+        self.assertEqual(got, {5: True, 6: False, 7: False})
+        self.assertEqual(self.client.get("/api/orders/purchased/?product_id=x").status_code, status.HTTP_400_BAD_REQUEST)
+
+
+
+class PromoCodeTest(APITestCase):
+    """Codes are checked and applied on the server, counted under a lock and given back on cancel."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # promo-check throttle
+        self.code = PromoCode.objects.create(code="SPRING10", kind=PromoCode.PERCENT, value=Decimal("10"))
+
+    def _order(self, code="spring10", email="a@test.com", qty=1):
+        # Catalog stub: 199.99 per unit
+        return self.client.post("/api/orders/", {
+            "customer_email": email, "promo_code": code, "items": [{"product_id": 1, "quantity": qty}],
+        }, format="json")
+
+    def test_percent_code_is_applied_and_counted(self):
+        response = self._order()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        order = Order.objects.get()
+        self.assertEqual((order.discount_amount, order.total_amount), (Decimal("20.00"), Decimal("179.99")))
+        self.code.refresh_from_db()
+        self.assertEqual(self.code.used_count, 1)
+
+    def test_fixed_code_never_makes_the_order_negative(self):
+        PromoCode.objects.create(code="BIG", kind=PromoCode.FIXED, value=Decimal("5000"))
+        self._order("BIG")
+        self.assertEqual(Order.objects.get().total_amount, Decimal("0.00"))
+
+    def test_unknown_expired_used_up_and_minimum_are_rejected(self):
+        PromoCode.objects.create(code="OLD", kind=PromoCode.FIXED, value=1, ends_at=timezone.now() - timedelta(days=1))
+        PromoCode.objects.create(code="GONE", kind=PromoCode.FIXED, value=1, max_uses=1, used_count=1)
+        PromoCode.objects.create(code="MIN", kind=PromoCode.FIXED, value=1, min_order_amount=Decimal("1000"))
+        PromoCode.objects.create(code="OFF", kind=PromoCode.FIXED, value=1, is_active=False)
+        for code in ("NOPE", "OLD", "GONE", "MIN", "OFF"):
+            self.assertEqual(self._order(code).status_code, status.HTTP_400_BAD_REQUEST, code)
+        self.assertFalse(Order.objects.exists())
+
+    def test_once_per_customer_and_cancel_gives_the_use_back(self):
+        self.code.once_per_customer = True
+        self.code.max_uses = 1
+        self.code.save()
+        self.assertEqual(self._order().status_code, status.HTTP_201_CREATED)
+        self.assertEqual(self._order(email="A@test.com").status_code, status.HTTP_400_BAD_REQUEST)
+        svc.update_order_status(Order.objects.get(), Order.CANCELLED, release_reserved=False)
+        self.code.refresh_from_db()
+        self.assertEqual(self.code.used_count, 0)
+        self.assertEqual(self._order().status_code, status.HTTP_201_CREATED)
+
+    def test_check_endpoint_previews_the_discount(self):
+        data = self.client.get("/api/orders/promo-check/?code=spring10&subtotal=1000").data
+        self.assertEqual((data["discount"], data["total"]), ("100.00", "900.00"))
+        self.assertEqual(self.client.get("/api/orders/promo-check/?code=nope&subtotal=10").status_code, 400)
+
+    def test_check_endpoint_is_throttled(self):
+        codes = [self.client.get("/api/orders/promo-check/?code=X&subtotal=1").status_code for _ in range(12)]
+        self.assertIn(status.HTTP_429_TOO_MANY_REQUESTS, codes)
+
+    def test_only_admins_manage_codes(self):
+        self.assertIn(self.client.get("/api/orders/promo-codes/").status_code, (401, 403))
+        self.client.force_authenticate(user=_create_admin_user())
+        response = self.client.post("/api/orders/promo-codes/", {"code": " summer-5 ", "kind": "percent", "value": "105"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.post("/api/orders/promo-codes/", {"code": " summer-5 ", "kind": "percent", "value": "5"}, format="json")
+        self.assertEqual(response.data["code"], "SUMMER-5")
+
+    def test_reports_net_out_the_discount_and_refunds_are_proportional(self):
+        from .returns import refund_amount
+        self._order(qty=2)  # 399.98 - 40.00
+        order = Order.objects.get()
+        Order.objects.filter(pk=order.pk).update(status=Order.PAID)
+        self.client.force_authenticate(user=_create_admin_user())
+        data = self.client.get("/api/reports/sales/").data
+        self.assertEqual((data["total_revenue"], data["total_discount"]), (359.98, 40.0))
+        self.assertEqual(refund_amount(order.items.get(), 1), Decimal("179.99"))
+
+
+class MetricsEndpointTest(APITestCase):
+    def test_metrics_expose_http_and_business_counters(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post("/api/orders/", {"items": [{"product_id": 1, "quantity": 1}]}, format="json")
+        body = self.client.get("/metrics").content.decode()
+        self.assertIn('techhub_orders_created_total{channel="online"}', body)
+        # Router URLs are regexes, so that is the route label
+        self.assertIn('http_requests_total{method="POST",route="api/orders/$",status="201"}', body)
+
+
+class PayPermissionTest(APITestCase):
+    """Only the buyer can start a Stripe checkout for an order (it used to be admin-only, so nobody could pay)."""
+
+    def _create(self):
+        with mock.patch("orders.views.check_availability", return_value=(True, None)):
+            return self.client.post("/api/orders/", {"customer_email": "g@test.com", "items": [{"product_id": 1, "quantity": 1}]}, format="json").data
+
+    @mock.patch("orders.views.stripe.checkout.Session.create", return_value=mock.Mock(id="cs_1", url="https://stripe.test/cs_1"))
+    def test_guest_pays_with_the_token_from_create(self, _session):
+        order = self._create()
+        response = self.client.post(f"/api/orders/{order['id']}/pay/", {"token": order["pay_token"]}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["checkout_url"], "https://stripe.test/cs_1")
+
+    def test_wrong_or_missing_token_is_not_found(self):
+        order = self._create()
+        other = self._create()
+        for body in ({}, {"token": "forged"}, {"token": other["pay_token"]}):
+            self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", body, format="json").status_code, 404)
+
+    @mock.patch("orders.views.stripe.checkout.Session.create", return_value=mock.Mock(id="cs_2", url="https://stripe.test/cs_2"))
+    def test_signed_in_owner_pays_without_a_token_but_others_cannot(self, _session):
+        owner = User.objects.create_user("gw_9", "o@test.com", "pw")
+        self.client.force_authenticate(user=owner)
+        order = self._create()
+        self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", {}, format="json").status_code, 200)
+        self.client.force_authenticate(user=User.objects.create_user("gw_10", "x@test.com", "pw"))
+        self.assertEqual(self.client.post(f"/api/orders/{order['id']}/pay/", {}, format="json").status_code, 404)
+
+
+
+class CompleteOldPosSalesMigrationTest(TestCase):
+    def test_marks_only_unpaid_offline_orders_completed(self):
+        from importlib import import_module
+
+        from django.apps import apps
+
+        old_pos = _create_order(channel=Order.OFFLINE)
+        online = _create_order(order_number="ORD-000002")
+        cancelled_pos = _create_order(order_number="ORD-000003", channel=Order.OFFLINE, status=Order.CANCELLED)
+
+        import_module("orders.migrations.0009_complete_old_pos_sales").complete_old_pos_sales(apps, None)
+
+        old_pos.refresh_from_db()
+        self.assertEqual((old_pos.status, old_pos.payment_status), (Order.COMPLETED, Order.PAYMENT_PAID))
+        self.assertEqual(old_pos.paid_at, old_pos.created_at)
+        online.refresh_from_db()
+        cancelled_pos.refresh_from_db()
+        self.assertEqual(online.status, Order.UNPAID)
+        self.assertEqual(cancelled_pos.status, Order.CANCELLED)

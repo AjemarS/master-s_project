@@ -13,7 +13,7 @@
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/health` | none | Health check (consumer + SSE status) |
+| GET | `/health` (service root, not under `/api/notifications/`) | none | Health check (consumer + SSE status); the gateway's `/health` aggregate reads it |
 | GET | `/` | ownUserId/admin | List paginated notifications |
 | GET | `/unread/:userId` | ownUserId/admin | Unread count |
 | PATCH | `/:id/read` | gatewayId | Mark notification read |

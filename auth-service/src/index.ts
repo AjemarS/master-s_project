@@ -1,4 +1,5 @@
 import express, { NextFunction, Request, Response } from "express";
+import { metricsHandler, metricsMiddleware } from "./metrics";
 import { toNodeHandler } from "better-auth/node";
 import crypto from "crypto";
 import { auth, pool } from "./auth";
@@ -46,6 +47,8 @@ validateEnv();
 
 export function createApp() {
   const app = express();
+  app.use(metricsMiddleware);
+  app.get("/metrics", metricsHandler);
 
   const corsOrigins = (() => {
     const fe = process.env.FRONTEND_URL;

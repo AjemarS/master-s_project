@@ -37,5 +37,8 @@ module = [
     "drf_spectacular.*",
     "shared_auth.*",
     "shared_eventbus.*",
+    "shared_metrics",
+    "shared_metrics.*",
+    "requests",
 ]
 ignore_missing_imports = true

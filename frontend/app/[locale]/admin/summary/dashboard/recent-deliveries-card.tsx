@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import Link from "next/link";
 import { ClipboardList, Building2, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -12,6 +14,7 @@ interface RecentDeliveriesCardProps {
 }
 
 export default function RecentDeliveriesCard({ tSum }: RecentDeliveriesCardProps) {
+  const locale = useLocale();
   const { data, isLoading } = useGoodsReceipts();
 
   if (isLoading) {
@@ -92,7 +95,7 @@ export default function RecentDeliveriesCard({ tSum }: RecentDeliveriesCardProps
                 <div className="text-right shrink-0 ml-3">
                   <div className="text-sm font-semibold text-foreground">{formatCurrency(grn.total_amount)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatRelativeTime(grn.receipt_date)}
+                    {formatRelativeTime(grn.receipt_date, locale)}
                   </div>
                 </div>
               </Link>

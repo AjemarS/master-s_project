@@ -18,6 +18,7 @@ import type { StockMovement } from "~/lib/types";
 export function StockMovementsClient() {
   const tSM = useTranslations("stockMovements");
   const tCommon = useTranslations("common");
+  const tc = useTranslations("common");
   const locale = useLocale();
 
   const formatDate = (dateStr: string): string => {
@@ -65,7 +66,8 @@ export function StockMovementsClient() {
   const warehouses = useMemo(() => warehousesData?.results || [], [warehousesData?.results]);
   const totalCount = movementsData?.count || 0;
 
-  const lastUpdated = useMemo(() => new Date(), []);
+  // Moves on with every fetch instead of freezing at first render
+  const lastUpdated = useMemo(() => (movementsData ? new Date() : undefined), [movementsData]);
 
   const dateRangeError = !!(filterDateFrom && filterDateTo && filterDateFrom > filterDateTo);
 
@@ -82,7 +84,7 @@ export function StockMovementsClient() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={tSM("title")}
@@ -99,9 +101,9 @@ export function StockMovementsClient() {
 
         <div className="mb-4 flex items-center justify-between gap-2">
           <LastUpdated timestamp={lastUpdated} loading={movementsLoading} />
-          <Button variant="outline" size="sm" onClick={() => movementsMutate()} disabled={movementsLoading} className="h-7 text-xs">
+          <Button variant="outline" size="sm" onClick={() => movementsMutate()} disabled={movementsLoading} className="h-9">
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            Refresh
+            {tc("refresh")}
           </Button>
         </div>
 

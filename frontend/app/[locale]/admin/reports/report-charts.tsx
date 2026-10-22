@@ -26,68 +26,101 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import type { SalesReport } from "~/lib/types";
+import { Button } from "~/ui/primitives/button";
+import { Download } from "lucide-react";
+import { downloadCsv } from "~/lib/utils/csv";
+import type { SalesGroup, SalesReport } from "~/lib/types";
+
+const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
+const GROUPS: SalesGroup[] = ["day", "week", "month"];
 
 interface ReportChartsProps {
-  dailySalesData: { date: string; revenue: number; orders: number }[];
+  series: { date: string; revenue: number; orders: number }[];
+  group: SalesGroup;
+  onGroupChange: (group: SalesGroup) => void;
+  loading: boolean;
   sales: SalesReport | undefined;
   locale: string;
-  COLORS: string[];
 }
 
-export function ReportCharts({ dailySalesData, sales, locale, COLORS }: ReportChartsProps) {
+export function ReportCharts({ series: dailySalesData, group, onGroupChange, loading, sales, locale }: ReportChartsProps) {
   const t = useTranslations("reports");
   const tc = useTranslations("common");
+  const dateLocale = locale === "en" ? "en-US" : "uk-UA";
+  // Bucket dates are plain YYYY-MM-DD: parse as local midnight, not UTC
+  const tick = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString(
+      dateLocale,
+      group === "month" ? { month: "short", year: "numeric" } : { day: "numeric", month: "short" }
+    );
 
   return (
     <>
-      {/* Revenue over time (bar chart) */}
-      {dailySalesData.length > 0 && (
-        <Card className="dark:bg-card dark:border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground">{t("revenue30days")}</CardTitle>
-            <CardDescription className="text-muted-foreground">{t("dailyRevenue")}</CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Card className="dark:bg-card dark:border-border">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
+          <div className="space-y-1.5">
+            <CardTitle className="text-foreground">{t("revenueDynamics")}</CardTitle>
+            <CardDescription className="text-muted-foreground">{t(`revenueBy_${group}`)}</CardDescription>
+          </div>
+          <div className="flex gap-1" role="group" aria-label={t("groupBy")}>
+            {GROUPS.map((g) => (
+              <Button
+                key={g}
+                size="sm"
+                variant={g === group ? "secondary" : "ghost"}
+                aria-pressed={g === group}
+                onClick={() => onGroupChange(g)}
+              >
+                {t(`group_${g}`)}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!dailySalesData.length}
+              onClick={() =>
+                downloadCsv(
+                  `sales-by-${group}`,
+                  [t("period"), t("totalRevenue"), t("totalOrders")],
+                  dailySalesData.map((d) => [d.date, d.revenue, d.orders])
+                )
+              }
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {t("exportCsv")}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className={loading ? "opacity-60 transition-opacity" : undefined} aria-busy={loading}>
+          {dailySalesData.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-12 text-center">{t("noData")}</p>
+          ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={dailySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(d: string) =>
-                    new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })
-                  }
-                  tick={{ fontSize: 11 }}
-                />
+                <XAxis dataKey="date" tickFormatter={tick} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => `${Number(v || 0).toLocaleString(locale)} ₴`} />
+                <Tooltip labelFormatter={(d) => tick(String(d))} formatter={(v) => [formatCurrency(Number(v || 0)), t("totalRevenue")]} />
                 <Bar dataKey="revenue" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Orders trend (line chart) */}
       {dailySalesData.length > 0 && (
         <Card className="dark:bg-card dark:border-border">
           <CardHeader>
-            <CardTitle className="text-foreground">{t("dailyOrders")}</CardTitle>
-            <CardDescription className="text-muted-foreground">{t("dailyOrders")}</CardDescription>
+            <CardTitle className="text-foreground">{t("ordersDynamics")}</CardTitle>
+            <CardDescription className="text-muted-foreground">{t(`ordersBy_${group}`)}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={dailySalesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(d: string) =>
-                    new Date(d).toLocaleDateString(locale, { day: "numeric", month: "short" })
-                  }
-                  tick={{ fontSize: 11 }}
-                />
+                <XAxis dataKey="date" tickFormatter={tick} tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelFormatter={(d) => tick(String(d))} formatter={(v) => [v, t("totalOrders")]} />
                 <Line
                   type="monotone"
                   dataKey="orders"

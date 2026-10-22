@@ -21,7 +21,7 @@ test.describe("Auth Pages", () => {
       await expect(password).toHaveAttribute("type", "password");
 
       await expect(
-        page.getByRole("button", { name: /sign in/i })
+        page.locator("form").getByRole("button", { name: /^увійти$/i })
       ).toBeVisible();
     });
 
@@ -49,7 +49,7 @@ test.describe("Auth Pages", () => {
 
     test("form shows validation with empty submission", async ({ page }) => {
       // Submit stays disabled until both email and password are filled
-      const submit = page.getByRole("button", { name: /sign in/i });
+      const submit = page.locator("form").getByRole("button", { name: /^увійти$/i });
       await expect(submit).toBeDisabled();
       await page.locator("#email").fill("user@example.com");
       await expect(submit).toBeDisabled();

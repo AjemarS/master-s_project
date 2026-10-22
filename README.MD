@@ -8,10 +8,10 @@ A microservices-based e-commerce platform for household appliances retail. Built
 
 ## Architecture Overview
 
-TechHub runs 8 microservices behind an Nginx gateway, orchestrated via Docker Compose:
+TechHub runs 7 backend services and a Next.js frontend behind an Nginx gateway, plus an event consumer, orchestrated via Docker Compose:
 
 ```
-User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
+User → Gateway (Nginx + njs) → services → 5 PostgreSQL databases
                               → RabbitMQ (event bus)
                               → Redis (caching, rate limiting)
 ```
@@ -23,7 +23,7 @@ User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
 | **Product Service** | Django + DRF | 8000 | Catalog, categories, cart, bilingual fields (UA/EN) |
 | **Inventory Service** | Django + DRF | 8001 | Warehouses, stock, movements, suppliers, GRN |
 | **Order Service** | Django + DRF | 8002 | Orders, POS, reports, Stripe payments, Saga pattern |
-| **Notification Service** | Express | 8003 | In-app notifications, email (Resend), SSE |
+| **Notification Service** | Express | 8003 | In-app notifications, email (SMTP or Resend), SSE |
 | **Audit Service** | Express | 8005 | Centralized audit logging (HTTP + events) |
 | **Frontend** | Next.js 16 | 3000 | Storefront, admin panel, POS (bilingual UA/EN) |
 
@@ -34,11 +34,11 @@ User → Gateway (Nginx + njs) → 8 microservices → 5 PostgreSQL databases
 ## Tech Stack
 
 - **Gateway:** Nginx + njs (NGINX JavaScript module)
-- **Backend:** Python 3.13 / Django 5.2 / DRF 3.16, Node.js 24 LTS / Express 4 / TypeScript
+- **Backend:** Python 3.13 / Django 5.2 / DRF 3.16–3.17, Node.js 24 LTS / Express 4 / TypeScript
 - **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, shadcn/ui, Framer Motion, next-intl v4.13
-- **Auth:** Better Auth v1.4.3 (sessions, 2FA, OAuth)
+- **Auth:** Better Auth 1.6 (sessions, 2FA, OAuth)
 - **Databases:** PostgreSQL 15 (×5), Redis 7
-- **Event Bus:** RabbitMQ 3.13 (topic exchange)
+- **Event Bus:** RabbitMQ 4.1 (topic exchange)
 - **Authentication:** Gateway-injected `X-Gateway-User-*` headers, trusted by downstream Django services via `GatewayAuthentication`
 
 ---
@@ -60,7 +60,7 @@ cd techhub
 docker compose up
 ```
 
-This builds and starts all 16+ containers (services, databases, message broker, consumers). First build takes several minutes.
+This builds and starts 18 containers (services, databases, message broker, consumer, Prometheus, Grafana). First build takes several minutes.
 
 Open **http://localhost** in your browser.
 
@@ -81,8 +81,8 @@ docker compose exec inventory-service python manage.py test
 # Run tests in an Express service
 docker compose exec auth-service npm run test
 
-# Frontend E2E tests
-docker compose exec frontend npx playwright test
+# Frontend E2E tests (from the host: the frontend image has no browsers)
+cd frontend && PLAYWRIGHT_BASE_URL=http://localhost npx playwright test --project=chromium
 
 # Rebuild a single service
 docker compose build --no-cache product-service
@@ -94,7 +94,6 @@ docker compose build --no-cache product-service
 
 ```
 techhub/
-├── gateway/                  # Nginx + njs config
 ├── auth-service/             # Express + Better Auth
 │   └── CONTEXT.md
 ├── product-service/          # Django + DRF (catalog, cart)
@@ -111,12 +110,13 @@ techhub/
 │   └── CONTEXT.md
 ├── nginx/                    # Gateway config
 │   └── CONTEXT.md
-├── shared-lib/               # Python shared library (auth, event bus)
+├── shared-lib/               # Python shared library (auth, event bus, metrics)
+├── monitoring/               # Prometheus + Grafana config and dashboard
+├── deploy/                   # VPS deploy script and guide
 ├── docker-compose.yaml       # Development environment
 ├── docker-compose.prod.yaml  # Production profile
 ├── CONCEPT.md                # Detailed architecture documentation
-├── PRODUCTION.md             # Deployment guide (OCI)
-├── AGENTS.md                 # AI assistant context (OpenCode)
+├── AGENTS.md                 # AI assistant context
 └── README.MD                 # This file
 ```
 
@@ -130,7 +130,7 @@ techhub/
 4. Gateway injects `X-Gateway-User-*` headers (stripping originals for security)
 5. Downstream Django services trust these headers via `GatewayAuthentication`
 
-**Roles:** anonymous (read-only + cart), user (authenticated reads), cashier (POS + orders), warehouse_worker (GRN + stock), admin (full access).
+**Roles:** anonymous (catalog, cart, placing and paying for an order), user (own orders, returns, reviews), cashier (POS sales), warehouse_worker (stock, goods receipts, purchase orders), admin (everything). Full matrix: CONCEPT.md §2.3.
 
 ---
 
@@ -139,7 +139,7 @@ techhub/
 TechHub uses a topic exchange `techhub.events` for asynchronous communication:
 
 - **order.created** → consumed by notification-service (email receipt); stock is reserved synchronously over HTTP
-- **order.cancelled** → stock is released synchronously over HTTP
+- **order.cancelled** → consumed by notification-service (cancellation email); stock is released synchronously over HTTP
 - **order.status_changed** → consumed by notification-service (status update email)
 - **inventory.stock.changed** → consumed by product-consumer (update denormalized stock)
 - **inventory.goods_received** → consumed by product-consumer
@@ -151,7 +151,7 @@ TechHub uses a topic exchange `techhub.events` for asynchronous communication:
 ## Further Reading
 
 - [CONCEPT.md](./CONCEPT.md) — Detailed architecture, data flow, design decisions
-- [PRODUCTION.md](./PRODUCTION.md) — OCI deployment guide (SSL, secrets, CI/CD, monitoring)
+- [deploy/README.md](./deploy/README.md) — staging/prod on one VPS: host setup, CI/CD, releases, monitoring
 - [AGENTS.md](./AGENTS.md) — AI assistant context for development
 - Per-service CONTEXT.md files (linked above) — Developer deep-dives per service
 

@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/primitives/card";
-import { Button } from "~/ui/primitives/button";
 import { Input } from "~/ui/primitives/input";
 import { Badge } from "~/ui/primitives/badge";
 import { Search, Plus, Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
@@ -53,8 +52,10 @@ export function POSProductGrid({
         </CardHeader>
         <CardContent>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
             <Input
+              type="search"
+              aria-label={t("search")}
               placeholder={t("search")}
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -65,7 +66,7 @@ export function POSProductGrid({
       </Card>
 
       {showStockError && (
-        <div className="flex items-center gap-2 p-4 mb-4 bg-destructive/10 border-destructive/30 rounded-lg text-destructive text-sm">
+        <div role="alert" className="flex items-center gap-2 p-4 mb-4 bg-destructive/10 border-destructive/30 rounded-lg text-destructive text-sm">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{t("stockUnavailable")}</span>
         </div>
@@ -90,12 +91,15 @@ export function POSProductGrid({
             return (
               <Card
                 key={product.id}
-                className={`dark:bg-card dark:border-border hover:shadow-md transition-shadow${isAddDisabled ? " opacity-60" : " cursor-pointer"}`}
-                onClick={() => {
-                  if (!isAddDisabled) onAddToReceipt(product);
-                }}
+                className={`dark:bg-card dark:border-border hover:shadow-md transition-shadow py-0${isAddDisabled ? " opacity-60" : ""}`}
               >
-                <CardContent className="p-4 flex items-center justify-between">
+                {/* One real button per product: works with Enter/Space, and its text (name, price, stock) is its label */}
+                <button
+                  type="button"
+                  disabled={isAddDisabled}
+                  onClick={() => onAddToReceipt(product)}
+                  className="w-full p-4 flex items-center justify-between text-left rounded-[inherit] cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
                   <div>
                     <div className="font-medium text-foreground">{product.name}</div>
                     <div className="text-lg font-bold text-primary dark:text-primary">
@@ -117,18 +121,10 @@ export function POSProductGrid({
                       </Badge>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={isAddDisabled}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!isAddDisabled) onAddToReceipt(product);
-                    }}
-                  >
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-md border" aria-hidden>
                     <Plus className="h-4 w-4" />
-                  </Button>
-                </CardContent>
+                  </span>
+                </button>
               </Card>
             );
           })}

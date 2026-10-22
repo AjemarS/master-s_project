@@ -1,6 +1,7 @@
 import express from "express";
 import logger from "./logger";
 import router from "./routes";
+import { metricsHandler, metricsMiddleware } from "./metrics";
 import { startConsumer, stopConsumer, handleEvent } from "./consumer";
 import * as events from "./events";
 import * as sse from "./sse";
@@ -11,6 +12,8 @@ import { closeAll } from "./db";
 const PORT = process.env.PORT || 8003;
 
 const app = express();
+app.use(metricsMiddleware);
+app.get("/metrics", metricsHandler);
 app.use(express.json());
 app.use(router);
 

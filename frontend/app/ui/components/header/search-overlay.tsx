@@ -18,6 +18,7 @@ interface SearchBarProps {
 export function SearchBar({ className }: SearchBarProps) {
   const router = useRouter();
   const t = useTranslations("common");
+  const ta = useTranslations("a11y");
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -123,6 +124,7 @@ export function SearchBar({ className }: SearchBarProps) {
         {query && (
           <button
             onClick={() => { setQuery(""); inputRef.current?.focus(); }}
+            aria-label={ta("clearSearch")}
             className="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
             type="button"
           >

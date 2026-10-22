@@ -8,6 +8,8 @@ import {
   ShoppingCart, BarChart3,
   ExternalLink, Pin, PinOff,
   ChevronDown,
+  RotateCcw,
+  Tag,
 } from "lucide-react";
 import { cn } from "~/lib/cn";
 import { Button } from "~/ui/primitives/button";
@@ -50,10 +52,13 @@ const navigationGroups: NavGroup[] = [
     children: [
       { key: "warehouses", href: "/admin/warehouses" },
       { key: "stockMovements", href: "/admin/stock-movements" },
+      { key: "purchaseOrders", href: "/admin/purchase-orders" },
       { key: "goodsReceipts", href: "/admin/goods-receipts" },
       { key: "suppliers", href: "/admin/suppliers" },
     ],
   },
+  { key: "returns", href: "/admin/returns", icon: RotateCcw, roles: ["admin"] },
+  { key: "promoCodes", href: "/admin/promo-codes", icon: Tag, roles: ["admin"] },
   { key: "reports", href: "/admin/reports", icon: BarChart3, roles: ["admin"] },
   { key: "users", href: "/admin/users", icon: Users, roles: ["admin"] },
 ];
@@ -103,7 +108,7 @@ export function AdminSidebar() {
   return (
     <aside
       className={cn(
-        "group relative flex min-h-screen flex-col border-r bg-card transition-all duration-300 ease-in-out",
+        "group relative flex min-h-dvh flex-col border-r bg-card transition-all duration-300 ease-in-out",
         pinned ? "w-64" : "w-14 hover:w-64",
       )}
     >

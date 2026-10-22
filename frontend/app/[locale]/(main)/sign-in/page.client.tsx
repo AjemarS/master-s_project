@@ -180,7 +180,7 @@ export function SignInPageClient() {
   return (
     <div
       className={`
-        grid h-screen 
+        grid h-dvh 
         md:grid-cols-2
       `}
     >
@@ -236,6 +236,12 @@ export function SignInPageClient() {
             </div>
           )}
 
+          {error && (
+            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+              {error}
+            </div>
+          )}
+
           <Tabs defaultValue="password" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="password">{t("signInButton")}</TabsTrigger>
@@ -262,6 +268,7 @@ export function SignInPageClient() {
                         placeholder={t("emailPlaceholder")}
                         required
                         type="email"
+                        autoComplete="email"
                         value={email}
                       />
                     </div>
@@ -286,12 +293,10 @@ export function SignInPageClient() {
                         placeholder={t("passwordPlaceholder")}
                         required
                         type="password"
+                        autoComplete="current-password"
                         value={password}
                       />
                     </div>
-                    {error && (
-                      <div className="text-sm font-medium text-destructive">{error}</div>
-                    )}
                     {isEmailUnverified && (
                       <Button
                         variant="link"
@@ -310,7 +315,6 @@ export function SignInPageClient() {
                       className="w-full"
                       disabled={loading || !email || !password}
                       type="submit"
-                      aria-label="Sign in"
                     >
                       {loading ? t("signingIn") : t("signInButton")}
                     </Button>
@@ -340,6 +344,7 @@ export function SignInPageClient() {
                           <Input
                             id="otp-email"
                             type="email"
+                            autoComplete="email"
                             value={otpEmail}
                             onChange={(e) => setOtpEmail(e.target.value)}
                             placeholder={t("emailPlaceholder")}

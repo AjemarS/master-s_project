@@ -21,6 +21,9 @@ const SEGMENT_LABEL_MAP: Record<string, string> = {
   "warehouses": "nav.warehouses",
   "suppliers": "nav.suppliers",
   "goods-receipts": "nav.goodsReceipts",
+  "purchase-orders": "nav.purchaseOrders",
+  "returns": "nav.returns",
+  "promo-codes": "nav.promoCodes",
   "stock-movements": "nav.stockMovements",
   "reports": "nav.reports",
   "users": "nav.users",
@@ -34,6 +37,7 @@ const SEGMENT_LABEL_MAP: Record<string, string> = {
   "reset-password": "common.resetPassword",
   "sign-out": "common.signOut",
   "favorites": "nav.favorites",
+  "compare": "compare.title",
 };
 
 function formatSegment(segment: string): string {
@@ -75,7 +79,7 @@ export function Breadcrumbs() {
   if (items.length <= 1) return null;
 
   return (
-    <nav aria-label="Breadcrumb" className="py-3 text-sm">
+    <nav aria-label={t("a11y.breadcrumb")} className="py-3 text-sm">
       <ol className="flex items-center gap-1">
         {items.map((item, i) => (
           <li           key={item.href || item.label} className="flex items-center gap-1">

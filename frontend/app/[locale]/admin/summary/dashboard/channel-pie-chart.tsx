@@ -1,5 +1,7 @@
 "use client";
 
+import { formatCurrency } from "~/lib/utils/format";
+
 import { BarChart3 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import {
@@ -41,6 +43,13 @@ export default function ChannelPieChart({
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* recharts draws an unlabeled SVG: the figures are spelled out for screen readers */}
+        <div
+          role="img"
+          aria-label={`${tSum("channelPie")}: ${data
+            .map((ch) => `${ch.channel === "online" ? onlineLabel : offlineLabel} ${formatCurrency(ch.revenue)}`)
+            .join(", ")}`}
+        >
         <ResponsiveContainer width="100%" height={200}>
           <RechartPie>
             <Pie
@@ -64,6 +73,7 @@ export default function ChannelPieChart({
             <Tooltip />
           </RechartPie>
         </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

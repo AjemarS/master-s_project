@@ -3,7 +3,7 @@ import useSWR, { useSWRConfig } from "swr";
 import type { SWRConfiguration } from "swr";
 import useSWRMutation from "swr/mutation";
 import { useApiGet, useApiMutation } from "./use-api";
-import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
+import type { Product, Category, Warehouse, Stock, StockMovement, Supplier, SupplierStats, GoodsReceiptNote, Order, OrderDetail } from "~/lib/types";
 import { authClient } from "~/lib/auth-client";
 import { productApi, categoryApi, warehouseApi, stockApi, supplierApi, goodsReceiptApi, orderApi, stockMovementApi, stockTransferApi, stockAdjustApi } from "~/lib/api/admin-api";
 import { apiCall, ORDERS_API_URL } from "~/lib/api/client";
@@ -102,6 +102,10 @@ export function useGoodsReceipts(config?: SWRConfiguration<{ results: GoodsRecei
   return useApiGet<{ results: GoodsReceiptNote[]; count: number }>("/goods-receipts", () => goodsReceiptApi.getAll(), config);
 }
 
+export function useSupplierStats() {
+  return useApiGet<SupplierStats[]>("/goods-receipts/supplier-stats", () => goodsReceiptApi.supplierStats());
+}
+
 export function useCreateSupplier() {
   return useApiMutation<Supplier, Partial<Supplier>>("suppliers-create", (d) => supplierApi.create(d));
 }
@@ -120,16 +124,6 @@ export function useCreateGoodsReceipt() {
   return useApiMutation<GoodsReceiptNote, Partial<GoodsReceiptNote>>(
     "goods-receipts-create", (d) => goodsReceiptApi.create(d)
   );
-}
-
-export function useUpdateGoodsReceipt() {
-  return useApiMutation<GoodsReceiptNote, { id: number; data: Partial<GoodsReceiptNote> }>(
-    "goods-receipts-update", ({ id, data }) => goodsReceiptApi.update(id, data)
-  );
-}
-
-export function useDeleteGoodsReceipt() {
-  return useApiMutation<void, number>("goods-receipts-delete", (id) => goodsReceiptApi.delete(id));
 }
 
 export function useTransferStock() {

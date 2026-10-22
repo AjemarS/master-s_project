@@ -43,6 +43,7 @@ export function POSReceiptPanel({
   submitting,
 }: POSReceiptPanelProps) {
   const t = useTranslations("pos");
+  const ta = useTranslations("a11y");
 
   return (
     <div className="space-y-4">
@@ -81,6 +82,7 @@ export function POSReceiptPanel({
             </Label>
             <Input
               id="pos-customer-name"
+              autoComplete="off"
               placeholder={t("customerName")}
               value={customerName}
               onChange={(e) => onCustomerNameChange(e.target.value)}
@@ -93,6 +95,9 @@ export function POSReceiptPanel({
             </Label>
             <Input
               id="pos-customer-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
               placeholder={t("customerPhone")}
               value={customerPhone}
               onChange={(e) => onCustomerPhoneChange(e.target.value)}
@@ -119,27 +124,30 @@ export function POSReceiptPanel({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6"
+                        className="h-9 w-9"
                         onClick={() => onUpdateQuantity(item.product_id, -1)}
+                        aria-label={ta("decreaseQuantity")}
                       >
-                        <Minus className="h-3 w-3" />
+                        <Minus className="h-4 w-4" aria-hidden />
                       </Button>
                       <span className="w-6 text-center text-sm font-medium text-foreground">{item.quantity}</span>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6"
+                        className="h-9 w-9"
                         onClick={() => onUpdateQuantity(item.product_id, 1)}
+                        aria-label={ta("increaseQuantity")}
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="h-4 w-4" aria-hidden />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-6 w-6 text-destructive"
+                        className="h-9 w-9 text-destructive"
                         onClick={() => onRemoveItem(item.product_id)}
+                        aria-label={ta("removeItem")}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" aria-hidden />
                       </Button>
                     </div>
                   </div>
@@ -156,11 +164,18 @@ export function POSReceiptPanel({
               className="w-full mt-4"
               size="lg"
               disabled={receipt.length === 0 || !selectedWarehouse || submitting}
+              aria-describedby={!selectedWarehouse || receipt.length === 0 ? "pos-submit-hint" : undefined}
               onClick={onSubmit}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {t("submitSale")}
             </Button>
+            {/* Say why the button is off instead of leaving the cashier guessing */}
+            {(!selectedWarehouse || receipt.length === 0) && (
+              <p id="pos-submit-hint" className="mt-2 text-center text-xs text-muted-foreground">
+                {!selectedWarehouse ? t("hintSelectWarehouse") : t("hintAddItems")}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

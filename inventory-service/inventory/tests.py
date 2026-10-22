@@ -1,5 +1,6 @@
 import random
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -13,6 +14,7 @@ from .models import (
     ActivityEvent,
     GoodsReceiptItem,
     GoodsReceiptNote,
+    PurchaseOrder,
     Stock,
     StockMovement,
     Supplier,
@@ -530,3 +532,162 @@ class DeductBatchTest(APITestCase):
         self.assertEqual(self._deduct(items).status_code, status.HTTP_200_OK)
         self.assertEqual(self._deduct(items).status_code, status.HTTP_409_CONFLICT)
         self.assertEqual(self._levels(self.a), (3, 0))
+
+    def test_return_to_stock_adds_units_once(self):
+        body = {"product_id": 1, "warehouse_id": self.warehouse.pk, "quantity": 2,
+                "reference_type": "return", "reference_id": "9", "idempotency_key": "return-9"}
+        self.assertEqual(self.client.post("/api/stock/return_to_stock/", body, format="json").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.post("/api/stock/return_to_stock/", body, format="json").status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(self._levels(self.a), (7, 0))
+        movement = StockMovement.objects.get(type=StockMovement.RETURN)
+        self.assertEqual((movement.to_warehouse_id, movement.from_warehouse_id), (self.warehouse.pk, None))
+
+    def test_deduct_reports_unit_cost_of_goods_sold(self):
+        Stock.objects.filter(pk=self.a.pk).update(average_cost=Decimal("123.45"))
+        response = self._deduct([{"product_id": 1, "quantity": 2}])
+        self.assertEqual(response.data["unit_costs"], {"1": "123.45"})
+        self.assertNotIn("average_cost", response.data["items"][0])  # stock rows stay public-safe
+
+
+class AnalyticsEndpointsTest(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.warehouse = _create_warehouse()
+        Stock.objects.create(product_id=1, warehouse=self.warehouse, quantity=4, average_cost=Decimal("100.00"))
+        Stock.objects.create(product_id=1, warehouse=_create_warehouse("Showroom", "showroom"), quantity=1, average_cost=Decimal("120.00"))
+        Stock.objects.create(product_id=2, warehouse=self.warehouse, quantity=3)  # no GRN yet: cost 0
+        Stock.objects.create(product_id=3, warehouse=self.warehouse, quantity=0, average_cost=Decimal("50.00"))
+
+    def test_valuation_uses_average_cost_and_skips_empty_stock(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        data = self.client.get("/api/stock/valuation/").data
+        self.assertEqual(data["total_value"], 520.0)
+        self.assertEqual(data["item_count"], 2)
+        self.assertEqual(data["uncosted_quantity"], 3)
+        self.assertEqual(data["by_product"][0], {"product_id": 1, "total_quantity": 5, "total_value": 520.0})
+
+    def test_valuation_is_admin_only(self):
+        self.client.force_authenticate(user=_create_regular_user())
+        self.assertEqual(self.client.get("/api/stock/valuation/").status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_supplier_stats_aggregates_all_receipts(self):
+        big, small = _create_supplier("Big"), _create_supplier("Small")
+        for supplier, day, qty, cost in [(big, "2026-06-01", 10, "100"), (big, "2026-06-05", 2, "100"), (small, "2026-06-03", 1, "50")]:
+            grn = GoodsReceiptNote.objects.create(supplier=supplier, warehouse=self.warehouse, receipt_date=day)
+            GoodsReceiptItem.objects.create(goods_receipt=grn, product_id=1, quantity=qty, cost_price=Decimal(cost))
+        self.client.force_authenticate(user=_create_admin_user())
+        rows = self.client.get("/api/goods-receipts/supplier-stats/").data
+        self.assertEqual([r["supplier_name"] for r in rows], ["Big", "Small"])
+        self.assertEqual(rows[0]["total_items"], 12)
+        self.assertEqual(rows[0]["total_value"], 1200.0)
+        self.assertEqual(rows[0]["delivery_count"], 2)
+        self.assertEqual(rows[0]["last_delivery"], "2026-06-05")
+
+    def test_stock_analytics_cover_turnover_and_dead_stock(self):
+        # setUp: product 1 has 5 on hand (value 520), product 2 has 3 uncosted, product 3 has 0
+        StockMovement.objects.create(product_id=1, from_warehouse=self.warehouse, quantity=9, type=StockMovement.DEDUCT)
+        old = StockMovement.objects.create(product_id=2, from_warehouse=self.warehouse, quantity=4, type=StockMovement.DEDUCT)
+        StockMovement.objects.filter(pk=old.pk).update(created_at=old.created_at - timedelta(days=200))
+        self.client.force_authenticate(user=_create_admin_user())
+
+        data = self.client.get("/api/stock/analytics/?days=90").data
+        rows = {r["product_id"]: r for r in data["products"]}
+        self.assertEqual(rows[1]["units_sold"], 9)
+        self.assertEqual(rows[1]["days_of_cover"], 50.0)          # 5 / (9 / 90)
+        self.assertEqual(rows[1]["turnover"], 1.8)
+        self.assertFalse(rows[1]["dead"])
+        self.assertTrue(rows[2]["dead"])                           # sold only 200 days ago
+        self.assertIsNotNone(rows[2]["last_sale_at"])
+        self.assertFalse(rows[3]["dead"])                          # nothing on hand
+        self.assertEqual(data["summary"]["dead_products"], 1)
+        self.assertEqual(data["summary"]["units_sold"], 9)
+
+    def test_stock_analytics_rejects_bad_window(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        self.assertEqual(self.client.get("/api/stock/analytics/?days=1").status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class PurchasingTest(APITestCase):
+    """Reorder points -> suggestions -> purchase order -> goods receipt settles the order."""
+
+    def setUp(self):
+        self.client.force_authenticate(user=_create_admin_user())
+        self.warehouse = _create_warehouse()
+        self.supplier = _create_supplier()
+        self.stock = Stock.objects.create(product_id=1, warehouse=self.warehouse, quantity=3, reserved=1,
+                                          reorder_point=5, reorder_quantity=10)
+        Stock.objects.create(product_id=2, warehouse=self.warehouse, quantity=50, reorder_point=5, reorder_quantity=10)
+
+    def _po(self, quantity=8, then=None):
+        response = self.client.post("/api/purchase-orders/", {
+            "supplier": self.supplier.pk, "warehouse": self.warehouse.pk,
+            "items": [{"product_id": 1, "quantity": quantity, "unit_cost": "100.00"}],
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        if then:
+            self.client.post(f"/api/purchase-orders/{response.data['id']}/status/", {"status": then}, format="json")
+        return response.data["id"]
+
+    def _grn(self, po_id, quantity):
+        return self.client.post("/api/goods-receipts/", {
+            "supplier": self.supplier.pk, "warehouse": self.warehouse.pk, "purchase_order": po_id,
+            "receipt_date": "2026-10-01", "items": [{"product_id": 1, "quantity": quantity, "cost_price": "100.00"}],
+        }, format="json")
+
+    def test_suggestion_tops_up_to_point_plus_batch_minus_what_is_ordered(self):
+        rows = self.client.get("/api/stock/reorder-suggestions/").data
+        self.assertEqual([(r["product_id"], r["available"], r["suggested_quantity"]) for r in rows], [(1, 2, 13)])
+        self._po(quantity=8, then="sent")
+        row = self.client.get("/api/stock/reorder-suggestions/").data[0]
+        self.assertEqual((row["on_order"], row["suggested_quantity"]), (8, 5))
+        self._po(quantity=5)  # a draft covers the rest
+        self.assertEqual(self.client.get("/api/stock/reorder-suggestions/").data, [])
+
+    def test_suggestion_names_the_last_supplier(self):
+        grn = GoodsReceiptNote.objects.create(supplier=self.supplier, warehouse=self.warehouse, receipt_date="2026-09-01")
+        GoodsReceiptItem.objects.create(goods_receipt=grn, product_id=1, quantity=1, cost_price=Decimal("90.00"))
+        row = self.client.get("/api/stock/reorder-suggestions/").data[0]
+        self.assertEqual((row["last_supplier_id"], row["last_cost_price"]), (self.supplier.pk, "90.00"))
+
+    def test_partial_then_full_receipt_settles_the_order(self):
+        po_id = self._po(quantity=8, then="sent")
+        self.assertEqual(self._grn(po_id, 5).status_code, status.HTTP_201_CREATED)
+        self.assertEqual(PurchaseOrder.objects.get(pk=po_id).status, PurchaseOrder.PARTIAL)
+        self.assertEqual(self._grn(po_id, 3).status_code, status.HTTP_201_CREATED)
+        self.assertEqual(PurchaseOrder.objects.get(pk=po_id).status, PurchaseOrder.RECEIVED)
+        self.stock.refresh_from_db()
+        self.assertEqual(self.stock.quantity, 11)
+
+    def test_over_delivery_is_rejected_and_leaves_no_stock(self):
+        po_id = self._po(quantity=2, then="sent")
+        response = self._grn(po_id, 3)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.stock.refresh_from_db()
+        self.assertEqual(self.stock.quantity, 3)
+        self.assertFalse(GoodsReceiptNote.objects.exists())
+
+    def test_draft_cannot_be_received_but_can_be_edited_and_only_admin_sends(self):
+        po_id = self._po()
+        self.assertEqual(self._grn(po_id, 1).status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.patch(f"/api/purchase-orders/{po_id}/", {
+            "items": [{"product_id": 1, "quantity": 4, "unit_cost": "95.00"}]}, format="json")
+        self.assertEqual(response.data["total_amount"], "380.00")
+        worker = User.objects.create_user("worker", "w@test.com", "pw")
+        worker.gateway_role = "warehouse_worker"
+        self.client.force_authenticate(user=worker)
+        self.assertEqual(
+            self.client.post(f"/api/purchase-orders/{po_id}/status/", {"status": "sent"}, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_sent_order_is_no_longer_editable(self):
+        po_id = self._po(then="sent")
+        response = self.client.patch(f"/api/purchase-orders/{po_id}/", {"notes": "x"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reorder_settings_are_hidden_from_the_public(self):
+        self.assertEqual(self.client.patch(f"/api/stock/{self.stock.pk}/reorder/",
+                                           {"reorder_point": 7, "reorder_quantity": 20}, format="json").data["reorder_point"], 7)
+        self.client.force_authenticate(user=None)
+        row = self.client.get(f"/api/stock/?product_id=1").data[0]
+        self.assertNotIn("reorder_point", row)

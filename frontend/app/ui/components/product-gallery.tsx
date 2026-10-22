@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
@@ -27,6 +28,7 @@ export function ProductGallery({
   productName,
   discountPercentage,
 }: ProductGalleryProps) {
+  const ta = useTranslations("a11y");
   const [currentIndex, setCurrentIndex] = useState(0);
   // Single image for now — array pattern ready for future multi-image support
   const images = imageUrl ? [imageUrl] : [];
@@ -79,7 +81,7 @@ export function ProductGallery({
           "absolute left-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100",
           !hasMultipleImages && "pointer-events-none opacity-0",
         )}
-        aria-label="Previous image"
+        aria-label={ta("previousImage")}
       >
         <div className="rounded-full bg-background/80 p-1 backdrop-blur-sm hover:bg-background/90">
           <ChevronLeft className="h-4 w-4" />
@@ -95,7 +97,7 @@ export function ProductGallery({
           "absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100",
           !hasMultipleImages && "pointer-events-none opacity-0",
         )}
-        aria-label="Next image"
+        aria-label={ta("nextImage")}
       >
         <div className="rounded-full bg-background/80 p-1 backdrop-blur-sm hover:bg-background/90">
           <ChevronRight className="h-4 w-4" />
@@ -155,7 +157,7 @@ export function ProductGallery({
           <button
             type="button"
             className="absolute top-4 right-4 rounded-full bg-background/80 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/90"
-            aria-label="Close lightbox"
+            aria-label={ta("closeLightbox")}
           >
             <X className="h-4 w-4" />
           </button>

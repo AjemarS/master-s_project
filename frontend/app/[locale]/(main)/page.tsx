@@ -5,7 +5,6 @@ import { Link } from "~/i18n/navigation";
 
 import { FadeIn } from "~/ui/components/motion/fade-in";
 import { StaggerContainer, StaggerItem } from "~/ui/components/motion/stagger";
-import { TestimonialsSection } from "~/ui/components/testimonials/testimonials-with-marquee";
 import { Button } from "~/ui/primitives/button";
 import { CtaButtons } from "./cta-buttons";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/ui/primitives/card";
@@ -13,42 +12,43 @@ import { CategoryImage } from "~/ui/components/category-image";
 import { NewArrivalsCartWrapper } from "~/ui/components/new-arrivals-cart-wrapper";
 import { WaveDivider } from "~/ui/components/wave-divider";
 
-import { getTestimonials } from "~/data/testimonials";
 import { Category, Product } from "../../lib/types";
 
-async function getCategories(): Promise<Category[]> {
+// null = the catalog could not be reached (shown to the visitor), [] = it is simply empty
+async function getCategories(): Promise<Category[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(`${apiUrl}/categories/`, { next: { revalidate: 60 } });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = await response.json();
     return data.results || data;
   } catch {
-    return [];
+    return null;
   }
 }
 
-async function getLatestProducts(): Promise<Product[]> {
+async function getLatestProducts(): Promise<Product[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(
       `${apiUrl}/products/?ordering=-created_at&page_size=8`,
       { next: { revalidate: 60 } }
     );
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = await response.json();
     return data.results || data;
   } catch {
-    return [];
+    return null;
   }
 }
 
 export default async function HomePage() {
-  const categories = await getCategories();
-  const latestProducts = await getLatestProducts();
+  const [loadedCategories, loadedProducts] = await Promise.all([getCategories(), getLatestProducts()]);
+  const catalogDown = loadedCategories === null || loadedProducts === null;
+  const categories = loadedCategories ?? [];
+  const latestProducts = loadedProducts ?? [];
   const t = await getTranslations("home");
-  const tTestimonials = await getTranslations("testimonials");
-  const testimonials = getTestimonials(tTestimonials);
+  const tErr = await getTranslations("errors");
 
   const features = [
     {
@@ -74,7 +74,7 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-warm">
+    <div className="flex min-h-dvh flex-col bg-gradient-warm">
       {/* Hero */}
       <FadeIn direction="none" duration={0.6}>
       <section className="relative overflow-hidden py-24 md:py-32">
@@ -89,10 +89,11 @@ export default async function HomePage() {
             {/* LEFT: Image that bleeds (hidden on mobile) */}
             <div className="relative hidden overflow-visible lg:block">
               <FadeIn delay={0.1} direction="left" distance={60}>
-                <div className="relative -ml-[20%] w-[130%] aspect-[5/4] overflow-hidden rounded-2xl border shadow-xl shadow-primary/10">
+                {/* Bleeds off the left edge only: -30% + 130% keeps the right edge on the column (it used to cover the heading) */}
+                <div className="relative -ml-[30%] w-[130%] aspect-[5/4] overflow-hidden rounded-2xl border shadow-xl shadow-primary/10">
                   <div className="absolute inset-0 z-10 bg-linear-to-tr from-primary/20 via-transparent to-transparent" />
                   <Image
-                    alt={t("heroTitle")}
+                    alt="" // decorative: the heading next to it already says what the page is
                     className="object-cover"
                     fill
                     priority
@@ -160,6 +161,11 @@ export default async function HomePage() {
               {t("categoriesSubtitle")}
             </p>
           </div>
+          {catalogDown && (
+            <p role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-center text-sm text-destructive">
+              {tErr("catalogDown")}
+            </p>
+          )}
           <StaggerContainer className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
             {categories.map((category) => (
               <StaggerItem key={category.id}>
@@ -242,22 +248,6 @@ export default async function HomePage() {
               </StaggerItem>
             ))}
           </StaggerContainer>
-        </div>
-      </section>
-      </FadeIn>
-
-      <WaveDivider />
-
-      {/* Testimonials */}
-      <FadeIn direction="up">
-      <section className="bg-muted/50 py-12 md:py-16">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <TestimonialsSection
-            className="py-0"
-            description={t("testimonialsSubtitle")}
-            testimonials={testimonials}
-            title={t("testimonialsTitle")}
-          />
         </div>
       </section>
       </FadeIn>

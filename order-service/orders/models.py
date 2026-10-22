@@ -3,6 +3,39 @@ from decimal import Decimal
 from django.db import models
 
 
+class PromoCode(models.Model):
+    """A discount code typed at checkout or at the till."""
+
+    PERCENT = "percent"
+    FIXED = "fixed"
+    KIND_CHOICES = [
+        (PERCENT, "Відсоток"),
+        (FIXED, "Фіксована сума"),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name="Код")  # stored upper-case
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, verbose_name="Тип")
+    value = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Значення")
+    min_order_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Мінімальна сума замовлення"
+    )
+    starts_at = models.DateTimeField(null=True, blank=True, verbose_name="Діє з")
+    ends_at = models.DateTimeField(null=True, blank=True, verbose_name="Діє до")
+    max_uses = models.PositiveIntegerField(null=True, blank=True, verbose_name="Ліміт використань")
+    once_per_customer = models.BooleanField(default=False, verbose_name="Один раз на покупця")
+    used_count = models.PositiveIntegerField(default=0, verbose_name="Використано")
+    is_active = models.BooleanField(default=True, verbose_name="Активний")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+
+    class Meta:
+        verbose_name = "Промокод"
+        verbose_name_plural = "Промокоди"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.code
+
+
 class Order(models.Model):
     ONLINE = "online"
     OFFLINE = "offline"
@@ -89,6 +122,13 @@ class Order(models.Model):
     total_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Загальна сума"
     )
+    promo_code = models.ForeignKey(
+        PromoCode, on_delete=models.PROTECT, null=True, blank=True, related_name="orders", verbose_name="Промокод"
+    )
+    # Taken off the goods subtotal; total_amount is already net of it
+    discount_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Знижка"
+    )
     payment_status = models.CharField(
         max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_UNPAID, verbose_name="Статус оплати"
     )
@@ -99,6 +139,8 @@ class Order(models.Model):
         max_length=255, blank=True, default="", verbose_name="Stripe Payment Intent ID"
     )
     paid_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата оплати")
+    # Start of the return and warranty periods: delivery for online orders, the sale for POS
+    delivered_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата передачі покупцю")
     notes = models.TextField(blank=True, verbose_name="Примітки")
     created_by = models.CharField(
         max_length=255, blank=True, verbose_name="Створено користувачем"
@@ -115,6 +157,9 @@ class Order(models.Model):
             models.Index(fields=["channel"]),
             models.Index(fields=["customer_email"]),
             models.Index(fields=["order_number"]),
+            # Declared in migration 0005 but missing here; reports filter by date and warehouse
+            models.Index(fields=["created_at"], name="orders_orde_created_0e92de_idx"),
+            models.Index(fields=["warehouse_id"], name="orders_orde_warehou_378921_idx"),
         ]
 
     def __str__(self):
@@ -140,6 +185,8 @@ class OrderItem(models.Model):
     cost_price = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00"), verbose_name="Собівартість"
     )
+    # Snapshot from the catalog at sale; null for items sold before warranties were tracked
+    warranty_months = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Гарантія, міс.")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
 
     class Meta:
@@ -148,3 +195,90 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name or self.product_id} x{self.quantity}"
+
+
+class OrderStatusHistory(models.Model):
+    """One row per status change: the basis for funnel and time-in-status analytics."""
+
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="status_history", verbose_name="Замовлення"
+    )
+    from_status = models.CharField(max_length=20, choices=Order.STATUS_CHOICES, verbose_name="Зі статусу")
+    to_status = models.CharField(max_length=20, choices=Order.STATUS_CHOICES, verbose_name="У статус")
+    changed_by = models.CharField(max_length=255, blank=True, verbose_name="Змінено користувачем")
+    changed_at = models.DateTimeField(auto_now_add=True, verbose_name="Змінено")
+
+    class Meta:
+        verbose_name = "Зміна статусу"
+        verbose_name_plural = "Історія статусів"
+        ordering = ["changed_at"]
+        indexes = [models.Index(fields=["to_status"])]
+
+    def __str__(self):
+        return f"{self.order_id}: {self.from_status} -> {self.to_status}"
+
+
+class ReturnRequest(models.Model):
+    """A customer's return (cooling-off period) or warranty claim for units of one order line."""
+
+    RETURN = "return"
+    WARRANTY = "warranty"
+    KIND_CHOICES = [
+        (RETURN, "Повернення"),
+        (WARRANTY, "Гарантійне звернення"),
+    ]
+
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    RECEIVED = "received"
+    RESOLVED = "resolved"
+    REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (SUBMITTED, "Подано"),
+        (APPROVED, "Схвалено"),
+        (RECEIVED, "Товар отримано"),
+        (RESOLVED, "Вирішено"),
+        (REJECTED, "Відхилено"),
+    ]
+    STATUS_TRANSITIONS = {
+        SUBMITTED: [APPROVED, REJECTED],
+        APPROVED: [RECEIVED, REJECTED],
+        RECEIVED: [RESOLVED, REJECTED],
+        RESOLVED: [],
+        REJECTED: [],
+    }
+
+    REFUND = "refund"
+    REPLACE = "replace"
+    REPAIR = "repair"
+    RESOLUTION_CHOICES = [
+        (REFUND, "Повернення коштів"),
+        (REPLACE, "Заміна"),
+        (REPAIR, "Ремонт"),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="returns", verbose_name="Замовлення")
+    item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name="returns", verbose_name="Позиція")
+    quantity = models.PositiveIntegerField(verbose_name="Кількість")
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, verbose_name="Тип")
+    reason = models.TextField(verbose_name="Причина")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SUBMITTED, verbose_name="Статус")
+    resolution = models.CharField(max_length=20, choices=RESOLUTION_CHOICES, blank=True, verbose_name="Рішення")
+    refund_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), verbose_name="Сума повернення"
+    )
+    stripe_refund_id = models.CharField(max_length=255, blank=True, verbose_name="Stripe Refund ID")
+    restocked = models.BooleanField(default=False, verbose_name="Повернуто на склад")
+    admin_comment = models.TextField(blank=True, verbose_name="Коментар магазину")
+    created_by = models.CharField(max_length=255, blank=True, verbose_name="Створено користувачем")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+
+    class Meta:
+        verbose_name = "Звернення (повернення / гарантія)"
+        verbose_name_plural = "Звернення (повернення / гарантія)"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status"])]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} #{self.pk} ({self.order.order_number})"

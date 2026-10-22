@@ -1,10 +1,12 @@
 import logging
+from datetime import timedelta
 from uuid import uuid4
 
 from django.conf import settings
 from django.db import connection
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Max, Sum
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, permissions, status, views, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -14,7 +16,8 @@ from rest_framework.response import Response
 
 from .eventbus import publish_event, _check_and_publish_low_stock
 from .filters import StockFilter, StockMovementFilter
-from .models import ActivityEvent, GoodsReceiptItem, GoodsReceiptNote, Stock, StockMovement, Supplier, Warehouse
+from .models import ActivityEvent, GoodsReceiptItem, GoodsReceiptNote, PurchaseOrder, Stock, StockMovement, Supplier, Warehouse
+from .purchasing import receive_against_order, reorder_suggestions
 from shared_auth.permissions import IsAdminOrWarehouseWorker
 from .serializers import (
     ActivityEventSerializer,
@@ -24,6 +27,9 @@ from .serializers import (
     GoodsReceiptNoteCreateSerializer,
     GoodsReceiptNoteSerializer,
     ProductInfoInputSerializer,
+    PurchaseOrderSerializer,
+    PurchaseOrderStatusSerializer,
+    ReorderSettingsSerializer,
     ReserveStockSerializer,
     StockMovementSerializer,
     StockSerializer,
@@ -34,7 +40,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-def _stock_action(request, serializer_cls, movement_type, check_and_update, post_action=None):
+def _stock_action(request, serializer_cls, movement_type, check_and_update, post_action=None, inbound=False):
     serializer = serializer_cls(data=request.data)
     serializer.is_valid(raise_exception=True)
 
@@ -66,7 +72,8 @@ def _stock_action(request, serializer_cls, movement_type, check_and_update, post
 
         StockMovement.objects.create(
             product_id=product_id,
-            from_warehouse_id=warehouse_id,
+            # Goods coming in (a customer return) land in the warehouse rather than leave it
+            **({"to_warehouse_id": warehouse_id} if inbound else {"from_warehouse_id": warehouse_id}),
             quantity=quantity,
             type=movement_type,
             reference_type=reference_type,
@@ -168,11 +175,28 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticatedOrReadOnly()]
-        if self.action in ("reserve", "deduct", "deduct_batch", "release"):
+        if self.action in ("reserve", "deduct", "deduct_batch", "release", "return_to_stock"):
             return [IsAuthenticated()]
-        if self.action in ("transfer", "adjust", "movements"):
+        if self.action in ("transfer", "adjust", "movements", "reorder", "reorder_suggestions"):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
+
+    @action(detail=True, methods=["patch"])
+    def reorder(self, request, pk=None):
+        """Set when (reorder_point) and how much (reorder_quantity) to reorder this stock line."""
+        stock = self.get_object()
+        data = ReorderSettingsSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        Stock.objects.filter(pk=stock.pk).update(**data.validated_data)
+        stock.refresh_from_db()
+        return Response(StockSerializer(stock, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"], url_path="reorder-suggestions")
+    def reorder_suggestions(self, request):
+        warehouse_id = request.query_params.get("warehouse_id")
+        if warehouse_id and not warehouse_id.isdigit():
+            raise ValidationError({"warehouse_id": "Expected an integer"})
+        return Response(reorder_suggestions(int(warehouse_id) if warehouse_id else None))
 
     @action(detail=False, methods=["post"])
     def reserve(self, request):
@@ -194,6 +218,21 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             logger.info("Stock released | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
 
         return _stock_action(request, ReserveStockSerializer, StockMovement.RELEASE, check_and_update)
+
+    @action(detail=False, methods=["post"])
+    def return_to_stock(self, request):
+        """A returned unit goes back on the shelf (service call from order-service returns)."""
+        def check_and_update(stock, product_id, warehouse_id, quantity):
+            Stock.objects.filter(product_id=product_id, warehouse_id=warehouse_id).update(quantity=F("quantity") + quantity)
+            logger.info("Stock returned | product=%s warehouse=%s quantity=%d", product_id, warehouse_id, quantity)
+
+        def publish(product_id, warehouse_id, quantity, stock):
+            transaction.on_commit(lambda: publish_event("inventory.stock.changed", {
+                "event_id": str(uuid4()), "product_id": product_id, "warehouse_id": warehouse_id,
+                "quantity": stock.quantity, "change": quantity,
+            }))
+
+        return _stock_action(request, ReserveStockSerializer, StockMovement.RETURN, check_and_update, publish, inbound=True)
 
     @action(detail=False, methods=["post"])
     def deduct(self, request):
@@ -258,7 +297,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         for stock in stocks.values():
             stock.refresh_from_db()
-        return Response({"items": StockSerializer(stocks.values(), many=True).data})
+        return Response({
+            "items": StockSerializer(stocks.values(), many=True).data,
+            # Cost of goods sold for the caller's order lines; deduct is service-only, so cost stays private
+            "unit_costs": {str(pid): str(stocks[pid].average_cost) for pid in wanted},
+        })
 
     @action(detail=False, methods=["post"])
     def transfer(self, request):
@@ -384,6 +427,107 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
 
         return Response(StockSerializer(stock).data)
 
+    @action(detail=False, methods=["get"])
+    def valuation(self, request):
+        """On-hand stock valued at weighted-average cost (admin only, falls to IsAdminUser)."""
+        on_hand = Stock.objects.filter(quantity__gt=0)
+        value = ExpressionWrapper(F("quantity") * F("average_cost"), output_field=DecimalField())
+        by_product = on_hand.values("product_id").annotate(
+            total_quantity=Sum("quantity"), total_value=Sum(value),
+        ).order_by("-total_value")
+        rows = [
+            {
+                "product_id": r["product_id"],
+                "total_quantity": r["total_quantity"],
+                "total_value": float(r["total_value"] or 0),
+            }
+            for r in by_product
+        ]
+        return Response({
+            "total_value": round(sum(r["total_value"] for r in rows), 2),
+            "item_count": len(rows),
+            # Stock that arrived without a GRN has no cost yet, so it adds nothing to total_value
+            "uncosted_quantity": on_hand.filter(average_cost=0).aggregate(n=Sum("quantity"))["n"] or 0,
+            "by_product": rows,
+        })
+
+    @action(detail=False, methods=["get"])
+    def analytics(self, request):
+        """
+        Per-product stock health over the last ?days= (default 90): sell-through, days of cover,
+        turnover and dead stock. Admin only (falls to IsAdminUser).
+        """
+        try:
+            days = int(request.query_params.get("days", 90))
+        except ValueError:
+            raise ValidationError({"days": "Expected an integer"})
+        if not 7 <= days <= 730:
+            raise ValidationError({"days": "Expected 7..730"})
+        since = timezone.now() - timedelta(days=days)
+
+        value = ExpressionWrapper(F("quantity") * F("average_cost"), output_field=DecimalField())
+        stock = {
+            r["product_id"]: r
+            for r in Stock.objects.values("product_id").annotate(
+                on_hand=Sum("quantity"), reserved=Sum("reserved"), value=Sum(value),
+            )
+        }
+        sold_types = [StockMovement.DEDUCT, StockMovement.SALE]
+        out = StockMovement.objects.filter(type__in=sold_types)
+        sold = dict(
+            out.filter(created_at__gte=since).values("product_id")
+            .annotate(n=Sum("quantity")).values_list("product_id", "n")
+        )
+        written_off = dict(
+            StockMovement.objects.filter(type=StockMovement.WRITE_OFF, created_at__gte=since)
+            .values("product_id").annotate(n=Sum("quantity")).values_list("product_id", "n")
+        )
+        last_sale = dict(out.values("product_id").annotate(at=Max("created_at")).values_list("product_id", "at"))
+
+        rows = []
+        for pid in set(stock) | set(sold):
+            s = stock.get(pid, {})
+            on_hand = s.get("on_hand") or 0
+            units = sold.get(pid, 0)
+            per_day = units / days
+            stock_value = float(s.get("value") or 0)
+            rows.append({
+                "product_id": pid,
+                "on_hand": on_hand,
+                "reserved": s.get("reserved") or 0,
+                "stock_value": round(stock_value, 2),
+                "units_sold": units,
+                "units_written_off": written_off.get(pid, 0),
+                "avg_daily_sales": round(per_day, 3),
+                # How long the current stock lasts at the window's sales pace; null = no sales to judge by
+                "days_of_cover": round(on_hand / per_day, 1) if per_day else None,
+                # shortcut: divides by current stock, not the average over the window; upgrade with daily snapshots
+                "turnover": round(units / on_hand, 2) if on_hand else None,
+                "last_sale_at": last_sale[pid].isoformat() if pid in last_sale else None,
+                "dead": on_hand > 0 and units == 0,
+            })
+        rows.sort(key=lambda r: r["stock_value"], reverse=True)
+
+        dead = [r for r in rows if r["dead"]]
+        total_value = sum(r["stock_value"] for r in rows)
+        total_on_hand = sum(r["on_hand"] for r in rows)
+        total_sold = sum(r["units_sold"] for r in rows)
+        return Response({
+            "days": days,
+            "summary": {
+                "stock_value": round(total_value, 2),
+                "units_on_hand": total_on_hand,
+                "units_sold": total_sold,
+                "turnover": round(total_sold / total_on_hand, 2) if total_on_hand else None,
+                "dead_products": len(dead),
+                "dead_stock_value": round(sum(r["stock_value"] for r in dead), 2),
+                "dead_stock_share": round(sum(r["stock_value"] for r in dead) / total_value * 100, 2) if total_value else 0,
+                # Will sell out within two weeks at the current pace
+                "low_cover_products": sum(1 for r in rows if r["days_of_cover"] is not None and r["days_of_cover"] < 14),
+            },
+            "products": rows,
+        })
+
     @action(detail=True, methods=["get"])
     def movements(self, request, pk=None):
         stock = self.get_object()
@@ -429,6 +573,28 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             return [IsAdminOrWarehouseWorker()]
         return [IsAdminUser()]
 
+    @action(detail=False, methods=["get"], url_path="supplier-stats")
+    def supplier_stats(self, request):
+        """Per-supplier delivery totals over all GRNs (admin only, falls to IsAdminUser)."""
+        line_value = ExpressionWrapper(F("quantity") * F("cost_price"), output_field=DecimalField())
+        rows = (
+            GoodsReceiptItem.objects.values(
+                supplier_id=F("goods_receipt__supplier_id"),
+                supplier_name=F("goods_receipt__supplier__name"),
+            )
+            .annotate(
+                total_items=Sum("quantity"),
+                total_value=Sum(line_value),
+                delivery_count=Count("goods_receipt", distinct=True),
+                last_delivery=Max("goods_receipt__receipt_date"),
+            )
+            .order_by("-total_value")
+        )
+        return Response([
+            {**r, "total_value": float(r["total_value"] or 0), "last_delivery": r["last_delivery"].isoformat()}
+            for r in rows
+        ])
+
     @action(detail=False, methods=["get"])
     def product_info(self, request):
         """Return last cost_price and current stock for a product+warehouse combo."""
@@ -460,11 +626,13 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
             "current_stock": current_stock,
         })
 
+    @transaction.atomic
     def perform_create(self, serializer):
+        # One transaction: a delivery that does not match its purchase order leaves no stock behind
         instance = serializer.save()
 
         for item in instance.items.all():
-            stock, _ = Stock.objects.get_or_create(
+            stock, _ = Stock.objects.select_for_update().get_or_create(
                 product_id=item.product_id,
                 warehouse=instance.warehouse,
                 defaults={"quantity": 0},
@@ -530,6 +698,9 @@ class GoodsReceiptNoteViewSet(viewsets.ModelViewSet):
                     },
                 )
             )
+        if instance.purchase_order_id:
+            po = receive_against_order(instance, instance.purchase_order)
+            logger.info("GRN %s received against PO %s -> %s", instance.pk, po.pk, po.status)
         logger.info("GRN created | id=%s supplier=%s", instance.pk, instance.supplier.name)
 
 class ActivityEventViewSet(viewsets.ModelViewSet):
@@ -569,3 +740,49 @@ def health_check(request):
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    """Purchase orders: drafted by staff, sent or cancelled by an admin, received through goods receipts."""
+
+    queryset = PurchaseOrder.objects.select_related("supplier", "warehouse").prefetch_related("items")
+    serializer_class = PurchaseOrderSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["status", "supplier", "warehouse"]
+    ordering_fields = ["created_at", "expected_date"]
+    ordering = ["-created_at"]
+
+    def get_permissions(self):
+        if self.action == "set_status":
+            return [IsAdminUser()]
+        return [IsAdminOrWarehouseWorker()]
+
+    def perform_create(self, serializer):
+        po = serializer.save(created_by=getattr(self.request.user, "username", ""))
+        logger.info("PO created | id=%s supplier=%s items=%d", po.pk, po.supplier_id, po.items.count())
+
+    def perform_update(self, serializer):
+        if serializer.instance.status != PurchaseOrder.DRAFT:
+            raise ValidationError({"status": "Only a draft can be edited."})
+        serializer.save()
+
+    @action(detail=True, methods=["post"], url_path="status")
+    def set_status(self, request, pk=None):
+        po = self.get_object()
+        data = PurchaseOrderStatusSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        new = data.validated_data["status"]
+        allowed = {
+            PurchaseOrder.SENT: (PurchaseOrder.DRAFT,),
+            # Cancelling a partly delivered order closes what is still missing
+            PurchaseOrder.CANCELLED: (PurchaseOrder.DRAFT, PurchaseOrder.SENT, PurchaseOrder.PARTIAL),
+        }[new]
+        if po.status not in allowed:
+            return Response({"error": f"Cannot move order from {po.status} to {new}"}, status=status.HTTP_400_BAD_REQUEST)
+        po.status = new
+        if new == PurchaseOrder.SENT:
+            po.sent_at = timezone.now()
+        po.save(update_fields=["status", "sent_at", "updated_at"])
+        logger.info("PO %s -> %s", po.pk, new)
+        return Response(PurchaseOrderSerializer(po).data)

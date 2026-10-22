@@ -20,13 +20,13 @@ test.describe("Home Page", () => {
 
   test("renders the why choose us section", async ({ page }) => {
     await expect(
-      page.locator("[data-slot='card-title']").getByText(/безкоштовна доставка/i)
+      page.locator("[data-slot='card-title']").getByText(/доставка по україні/i)
     ).toBeVisible();
     await expect(
       page.locator("[data-slot='card-title']").getByText(/безпечна оплата/i)
     ).toBeVisible();
     await expect(
-      page.locator("[data-slot='card-title']").getByText(/цілодобова підтримка/i)
+      page.locator("[data-slot='card-title']").getByText(/звернення онлайн/i)
     ).toBeVisible();
     await expect(
       page.locator("[data-slot='card-title']").getByText(/гарантія якості/i)

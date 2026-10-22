@@ -24,7 +24,8 @@ python manage.py test
 
 #### Models
 - **Category** — hierarchical categories with `parent` FK (self-referential). Bilingual: `name_uk`/`name_en`, `description_uk`/`description_en`. Active toggle.
-- **Product** — catalog item with bilingual fields, pricing in UAH, `energy_class`, `warranty_months`, images, `stock` (denormalized from inventory-service via event consumer). Locale-aware serialization via `Accept-Language` header.
+- **Review** — one per (product, user); `author_name` is a first name only (never an email). `Product.rating`/`review_count` are recomputed from published reviews on every change and are read-only in the API (migration 0022 reset the hand-typed seed ratings to 0).
+- **Product** — catalog item with bilingual fields, pricing in UAH, `warranty_months` (default 12, snapshotted by order-service per sale), images, `stock` (denormalized from inventory-service via event consumer). Locale-aware serialization via `Accept-Language` header.
 - **Cart** — session-based (UUID `session_id` or `user_id` FK). No auth required for creation.
 - **CartItem** — product + quantity per cart. Merge endpoint (`POST /api/cart/merge/`) for anonymous→user cart transfer after login.
 
@@ -37,7 +38,10 @@ python manage.py test
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/products/` | Any | Product list (filtering, pagination, locale-aware) |
+| GET | `/api/products/` | Any | Product list (filtering incl. `?ids=1,2,3`, `?ordering=-rating`, pagination, locale-aware) |
+| GET | `/api/products/{id}/reviews/` | Any | Published reviews (paginated) + `summary` {average, count, distribution}; signed in: `mine`, `can_review` |
+| POST | `/api/products/{id}/reviews/` | Buyer | Create or replace own review `{rating 1-5, text}`; 403 unless order-service `purchased`, 503 if it is down |
+| PATCH | `/api/reviews/{id}/` | Admin | `{is_published}`: hide or restore |
 | GET | `/api/products/{id}/` | Any | Product detail (locale-aware) |
 | POST | `/api/products/` | Admin | Create product |
 | PUT | `/api/products/{id}/` | Admin | Update product |

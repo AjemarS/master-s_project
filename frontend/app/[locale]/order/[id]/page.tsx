@@ -7,7 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/ui/
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
 import { formatCurrency } from "~/lib/utils/format";
-import { ArrowLeft, Package, ShoppingBag, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, Package, ShoppingBag, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { orderApi } from "~/lib/api/admin-api";
+import { useCurrentUser } from "~/lib/auth-client";
+import { apiErrorText } from "~/lib/utils/error-handler";
 import { useOrder } from "~/lib/hooks/use-api-data";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -33,7 +38,7 @@ export default function OrderPage() {
 function OrderNotFoundCard() {
   const tDet = useTranslations("orderDetail");
   return (
-    <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+    <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
       <Card className="w-full max-w-md text-center">
         <CardHeader>
           <Package className="h-16 w-16 mx-auto mb-2 text-muted-foreground" />
@@ -54,10 +59,24 @@ function OrderDetailPage({ orderId }: { orderId: number }) {
   const tDet = useTranslations("orderDetail");
   const tOrd = useTranslations("orders");
   const { data: order, error, isLoading } = useOrder(orderId);
+  const { user } = useCurrentUser();
+  const [paying, setPaying] = useState(false);
+  // An abandoned Stripe checkout can be resumed: the server refuses orders that are already paid
+  const canPay = !!order && order.channel === "online" && order.status === "unpaid" && order.payment_status === "unpaid";
+  const pay = async () => {
+    setPaying(true);
+    const res = await orderApi.pay(orderId);
+    if (res.data?.checkout_url) {
+      window.location.href = res.data.checkout_url;
+      return;
+    }
+    setPaying(false);
+    toast.error(res.error ? apiErrorText(res.error) : tDet("payFailed"));
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center">
+      <div className="min-h-dvh bg-muted/50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -68,13 +87,14 @@ function OrderDetailPage({ orderId }: { orderId: number }) {
   }
 
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-2xl mx-auto">
-        <Link href="/">
-          <Button variant="ghost" className="mb-4 flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" /> {tDet("back")}
-          </Button>
-        </Link>
+        {/* Guests have no order list to go back to */}
+        <Button asChild variant="ghost" className="mb-4 flex w-fit items-center gap-2">
+          <Link href={user ? "/my/orders" : "/"}>
+            <ArrowLeft className="h-4 w-4" aria-hidden /> {tDet("back")}
+          </Link>
+        </Button>
 
         <Card>
           <CardHeader>
@@ -160,6 +180,12 @@ function OrderDetailPage({ orderId }: { orderId: number }) {
             </div>
 
             <div className="flex gap-3">
+              {canPay && (
+                <Button className="flex-1" onClick={pay} disabled={paying}>
+                  {paying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden /> : <CreditCard className="h-4 w-4 mr-2" aria-hidden />}
+                  {tDet("payNow")}
+                </Button>
+              )}
               <Button asChild variant="outline" className="flex-1">
                 <Link href="/">
                   <ShoppingBag className="h-4 w-4 mr-2" /> {tDet("continueShopping")}

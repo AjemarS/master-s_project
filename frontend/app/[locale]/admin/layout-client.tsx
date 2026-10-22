@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ActivityFeedProvider, ActivityFeedPanel, useActivityFeed } from "./components/activity-feed";
 import { Button } from "~/ui/primitives/button";
 import { Zap } from "lucide-react";
@@ -8,6 +9,7 @@ import { Zap } from "lucide-react";
 /** Inner component that reads the feed context (rendered inside the provider) */
 function ActivityFeedToggle({ onClick }: { onClick: () => void }) {
   const { unreadCount } = useActivityFeed();
+  const tAct = useTranslations("activity");
 
   return (
     <Button
@@ -15,9 +17,10 @@ function ActivityFeedToggle({ onClick }: { onClick: () => void }) {
       size="icon"
       className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg"
       onClick={onClick}
-      title="Activity Feed"
+      title={tAct("feedTitle")}
+      aria-label={tAct("feedTitle")}
     >
-      <Zap className="h-5 w-5" />
+      <Zap className="h-5 w-5" aria-hidden />
       {unreadCount > 0 && (
         <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-500 text-[10px] text-white flex items-center justify-center font-bold">
           {unreadCount > 9 ? "9+" : unreadCount}

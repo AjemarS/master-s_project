@@ -38,7 +38,16 @@ class ProductViewSet(viewsets.ModelViewSet):
     ]
     filterset_class = ProductFilter
     search_fields = ["name", "description"]
-    ordering_fields = ["name", "price", "stock", "created_at", "updated_at", "in_stock"]
+    ordering_fields = [
+        "name",
+        "price",
+        "stock",
+        "created_at",
+        "updated_at",
+        "in_stock",
+        "rating",
+        "review_count",
+    ]
     ordering = ["-in_stock", "-created_at"]
 
     def filter_queryset(self, queryset):

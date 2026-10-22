@@ -33,7 +33,7 @@ Update with `npx playwright test tests/visual --update-snapshots` after reviewin
 
 None of these tests cover the checkout, product filters or sign-up consent changed in this round.
 
-## UX fixes in this round (BAD_UX.md), before → after
+## UX fixes in this round (IDs from the UX review, since resolved and removed), before → after
 
 | ID | Before | After |
 |---|---|---|

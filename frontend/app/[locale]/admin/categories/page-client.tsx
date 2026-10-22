@@ -17,6 +17,7 @@ import { useActivityFeed } from "../components/activity-feed";
 export function CategoriesClient() {
   const t = useTranslations("categories");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const { data, error, isLoading, mutate } = useCategories();
   const categories = data?.results || [];
@@ -57,7 +58,7 @@ export function CategoriesClient() {
         toast.error(tc("error"), { description: res.error.message });
       } else {
         toast.success(tc("delete"));
-        pushEvent({ type: "delete", message: `Deleted category "${deleteDialog.name}"`, entityType: "category" });
+        pushEvent({ type: "delete", message: tAct("deletedCategory", { name: deleteDialog.name }), entityType: "category" });
         setDeleteDialog({ open: false, id: null, name: "" });
         mutate();
       }
@@ -71,7 +72,7 @@ export function CategoriesClient() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}

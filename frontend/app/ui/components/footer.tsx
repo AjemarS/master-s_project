@@ -1,29 +1,34 @@
 import { getTranslations } from "next-intl/server";
-import { Facebook, Instagram, Twitter } from "lucide-react";
-import Link from "next/link";
+import { getLocale } from "next-intl/server";
+
+import { Link } from "~/i18n/navigation";
+import type { Category } from "~/lib/types";
 
 import { cn } from "~/lib/cn";
-import { Button } from "~/ui/primitives/button";
-import { NewsletterForm } from "~/ui/components/newsletter-form";
+
+/** The real catalog's first categories; an unreachable catalog just leaves "All products" */
+async function getFooterCategories(locale: string): Promise<Category[]> {
+  try {
+    const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
+    const res = await fetch(`${apiUrl}/categories/`, {
+      headers: { "Accept-Language": locale === "en" ? "en" : "uk" },
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.results ?? data).slice(0, 4);
+  } catch {
+    return [];
+  }
+}
 
 export async function Footer({ className }: { className?: string }) {
   const t = await getTranslations("footer");
+  const categories = await getFooterCategories(await getLocale());
   const currentYear = new Date().getFullYear();
 
   return (
     <footer className={cn("border-t bg-background", className)}>
-      {/* Newsletter section */}
-        <div className="mt-28 border-b pb-28">
-          <div className="flex flex-col items-center text-center">
-            <h3 className="text-2xl font-semibold">{t("newsletter")}</h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md">
-              {t("newsletterDesc")}
-            </p>
-            <div className="mt-4 w-full max-w-md">
-              <NewsletterForm />
-            </div>
-          </div>
-        </div>
         {/* Footer links section */}
       <div className="container mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
@@ -36,32 +41,16 @@ export async function Footer({ className }: { className?: string }) {
             <p className="text-sm text-muted-foreground">
               {t("tagline")}
             </p>
-            <div className="flex space-x-4">
-              <Button asChild className="h-8 w-8 rounded-full" size="icon" variant="ghost">
-                <Link href="https://facebook.com/techhub" target="_blank" rel="noopener noreferrer">
-                  <Facebook className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild className="h-8 w-8 rounded-full" size="icon" variant="ghost">
-                <Link href="https://twitter.com/techhub" target="_blank" rel="noopener noreferrer">
-                  <Twitter className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild className="h-8 w-8 rounded-full" size="icon" variant="ghost">
-                <Link href="https://instagram.com/techhub" target="_blank" rel="noopener noreferrer">
-                  <Instagram className="h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
           </div>
           <div>
             <h3 className="mb-4 text-sm font-semibold">{t("categories")}</h3>
             <ul className="space-y-2 text-sm">
               <li><Link className="text-muted-foreground hover:text-foreground" href="/products">{t("allProducts")}</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/products">{t("refrigerators")}</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/products">{t("washingMachines")}</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/products">{t("ovens")}</Link></li>
-              <li><Link className="text-muted-foreground hover:text-foreground" href="/products">{t("smallAppliances")}</Link></li>
+              {categories.map((c) => (
+                <li key={c.id}>
+                  <Link className="text-muted-foreground hover:text-foreground" href={`/products?category=${c.id}`}>{c.name}</Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>

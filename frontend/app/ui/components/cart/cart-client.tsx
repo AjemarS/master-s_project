@@ -50,6 +50,7 @@ export function CartClient({ className }: CartProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const isMounted = useMounted();
   const t = useTranslations("cart");
+  const ta = useTranslations("a11y");
 
   const isDesktop = React.useSyncExternalStore(
     (onStoreChange) => {
@@ -73,7 +74,7 @@ export function CartClient({ className }: CartProps) {
   };
 
   const handleClearCart = () => {
-    clearCart();
+    if (window.confirm(t("clearConfirm"))) clearCart();
   };
 
   const CartTrigger = (
@@ -181,7 +182,7 @@ export function CartClient({ className }: CartProps) {
                             type="button"
                           >
                             <X className="h-4 w-4" />
-                            <span className="sr-only">Remove item</span>
+                            <span className="sr-only">{ta("removeItem")}</span>
                           </button>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -192,7 +193,7 @@ export function CartClient({ className }: CartProps) {
                         <div className="flex items-center rounded-md border">
                           <button
                             className={`
-                              flex h-7 w-7 items-center justify-center
+                              flex h-10 w-10 items-center justify-center
                               rounded-l-md border-r text-muted-foreground
                               transition-colors
                               hover:bg-muted hover:text-foreground
@@ -204,11 +205,11 @@ export function CartClient({ className }: CartProps) {
                             type="button"
                           >
                             <Minus className="h-3 w-3" />
-                            <span className="sr-only">Decrease quantity</span>
+                            <span className="sr-only">{ta("decreaseQuantity")}</span>
                           </button>
                           <span
                             className={`
-                              flex h-7 w-7 items-center justify-center text-xs
+                              flex h-10 w-10 items-center justify-center text-xs
                               font-medium
                             `}
                           >
@@ -216,7 +217,7 @@ export function CartClient({ className }: CartProps) {
                           </span>
                           <button
                             className={`
-                              flex h-7 w-7 items-center justify-center
+                              flex h-10 w-10 items-center justify-center
                               rounded-r-md border-l text-muted-foreground
                               transition-colors
                               hover:bg-muted hover:text-foreground
@@ -227,7 +228,7 @@ export function CartClient({ className }: CartProps) {
                             type="button"
                           >
                             <Plus className="h-3 w-3" />
-                            <span className="sr-only">Increase quantity</span>
+                            <span className="sr-only">{ta("increaseQuantity")}</span>
                           </button>
                         </div>
                         <div className="text-sm font-medium">

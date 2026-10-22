@@ -2,8 +2,8 @@ import { Skeleton } from "~/ui/primitives/skeleton";
 
 export default function ProductDetailLoading() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <main className="flex-1 py-10">
+    <div className="flex min-h-dvh flex-col">
+      <div className="flex-1 py-10">
         <div className="container px-4 md:px-6">
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Image skeleton */}
@@ -29,7 +29,7 @@ export default function ProductDetailLoading() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

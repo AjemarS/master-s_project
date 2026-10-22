@@ -6,6 +6,7 @@ import logging
 
 import stripe
 from django.conf import settings
+from django.core import signing
 from django.db import transaction
 from django.utils import timezone as tz
 from django_filters.rest_framework import DjangoFilterBackend
@@ -14,7 +15,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
-from orders.models import Order
+from orders.models import Order, OrderItem
+from orders import metrics
 from orders import order_service as svc
 from orders.inventory_client import check_availability, release_stock
 from orders.serializers import (
@@ -29,6 +31,20 @@ from shared_auth.permissions import IsAdminOrCashier
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 logger = logging.getLogger(__name__)
+
+
+PAY_TOKEN_SALT = "orders.pay"
+PAY_TOKEN_MAX_AGE = 7 * 24 * 3600
+
+
+def _may_pay(order, request):
+    user = request.user
+    if user.is_authenticated and (user.is_staff or order.created_by == user.username):
+        return True
+    try:
+        return signing.loads(request.data.get("token", ""), salt=PAY_TOKEN_SALT, max_age=PAY_TOKEN_MAX_AGE) == order.id
+    except signing.BadSignature:
+        return False
 
 
 def _is_order_owner(order, request):
@@ -47,6 +63,7 @@ def _handle_webhook_expired(order, session):
 
 def _handle_webhook_payment_failed(order, session):
     error_msg = session.get("last_payment_error", {}).get("message", "Unknown error")
+    metrics.PAYMENTS.labels("failed").inc()
     logger.error("Payment failed | order=%s error=%s", order.order_number, error_msg)
     return Response({"status": "ok"})
 
@@ -59,8 +76,9 @@ def _handle_webhook_completed(order, session, request):
         order.payment_status = Order.PAYMENT_PAID
         order.stripe_payment_intent_id = session.get("payment_intent", "")
         order.paid_at = tz.now()
-        order.status = Order.PAID
+        old_status, order.status = order.status, Order.PAID
         order.save()
+        svc.record_status_change(order, old_status)
 
     if order.warehouse_id:
         success, succeeded = svc.reserve_order_stock(order)
@@ -88,6 +106,7 @@ def _handle_webhook_completed(order, session, request):
             logger.error("Order cancelled after payment — reserve failure | number=%s", order.order_number)
             return Response({"status": "reserve_failed"})
 
+    metrics.PAYMENTS.labels("paid").inc()
     logger.info("Payment confirmed | order=%s", order.order_number)
     return Response({"status": "ok"})
 
@@ -121,11 +140,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         return OrderDetailSerializer
 
     def get_permissions(self):
-        if self.action == "stripe_webhook":
+        if self.action in ("stripe_webhook", "pay"):
+            # pay checks the buyer itself (_may_pay): guests prove it with the token from create
             return [AllowAny()]
         if self.action == "health":
             return [AllowAny()]
-        if self.action in ("list", "my", "retrieve"):
+        if self.action in ("list", "my", "retrieve", "purchased"):
             return [IsAuthenticated()]
         if self.action == "create":
             return [AllowAny()]
@@ -221,7 +241,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.order_number, len(succeeded),
             )
 
-        return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
+        # A guest has no account to own the order: the signed token is what lets them pay for it
+        return Response(
+            {**OrderDetailSerializer(order).data, "pay_token": signing.dumps(order.id, salt=PAY_TOKEN_SALT)},
+            status=status.HTTP_201_CREATED,
+        )
 
     # ── Custom Actions ────────────────────────────────────────────────
 
@@ -243,8 +267,11 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def pay(self, request, pk=None):
-        """Create Stripe checkout session for payment."""
+        """Create Stripe checkout session for payment: the buyer (account or pay_token) or staff."""
         order = self.get_object()
+        if not _may_pay(order, request):
+            # 404, not 403: do not confirm that someone else's order id exists
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if order.payment_status != Order.PAYMENT_UNPAID:
             return Response(
@@ -253,7 +280,17 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         try:
+            # Lines stay at catalog price so the receipt lists them; the promo is a one-off coupon on top
+            discounts = []
+            if order.discount_amount > 0:
+                coupon = stripe.Coupon.create(
+                    amount_off=int(order.discount_amount * 100), currency="uah", duration="once",
+                    name=order.promo_code.code if order.promo_code else "Discount",
+                    idempotency_key=f"coupon-{order.id}",
+                )
+                discounts = [{"coupon": coupon.id}]
             session = stripe.checkout.Session.create(
+                discounts=discounts,
                 line_items=[
                     {
                         "price_data": {
@@ -327,6 +364,20 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = OrderListSerializer(orders, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"])
+    def purchased(self, request):
+        """Whether the current user received this product (?product_id=): product-service gates reviews on it."""
+        try:
+            product_id = int(request.query_params.get("product_id", ""))
+        except ValueError:
+            return Response({"error": "product_id must be an integer"}, status=status.HTTP_400_BAD_REQUEST)
+        bought = OrderItem.objects.filter(
+            product_id=product_id,
+            order__created_by=request.user.username,
+            order__status__in=(Order.DELIVERED, Order.COMPLETED),
+        ).exists()
+        return Response({"purchased": bought})
+
     @action(detail=False, methods=["post"])
     def pos(self, request):
         """Create POS (offline) sale with immediate stock deduct."""
@@ -350,6 +401,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                 {"error": "Stock deduct failed", "status": Order.CANCELLED, "order": OrderDetailSerializer(order).data},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+        # The cashier takes payment at the till and the buyer leaves with the goods: nothing left to track
+        order.status = Order.COMPLETED
+        order.payment_status = Order.PAYMENT_PAID
+        order.paid_at = order.delivered_at = tz.now()
+        order.save(update_fields=["status", "payment_status", "paid_at", "delivered_at", "updated_at"])
+        svc.record_status_change(order, Order.UNPAID, request)
 
         return Response(OrderDetailSerializer(order).data, status=status.HTTP_201_CREATED)
 

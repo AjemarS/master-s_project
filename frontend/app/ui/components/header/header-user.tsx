@@ -30,6 +30,7 @@ export function HeaderUserDropdown({
 }: HeaderUserDropdownProps) {
   const tCommon = useTranslations("common");
   const tNav = useTranslations("nav");
+  const ta = useTranslations("a11y");
   const isAdmin = role === "admin";
   const isCashier = role === "cashier";
   const isWarehouseWorker = role === "warehouse_worker";
@@ -39,7 +40,7 @@ export function HeaderUserDropdown({
       <DropdownMenuTrigger asChild>
         <Button className="relative overflow-hidden rounded-full" size="icon" variant="ghost">
           <Avatar className="h-9 w-9">
-            <AvatarImage alt={userName || "User"} src={userImage || undefined} />
+            <AvatarImage alt={userName || ta("user")} src={userImage || undefined} />
             <AvatarFallback>
               {userName ? (
                 userName
@@ -57,7 +58,7 @@ export function HeaderUserDropdown({
       <DropdownMenuContent align="end" className="w-56">
         <div className="flex items-center justify-start gap-2 p-2">
           <Avatar className="h-8 w-8 bg-accent-electric/10">
-            <AvatarImage alt={userName || "User"} src={userImage || undefined} />
+            <AvatarImage alt={userName || ta("user")} src={userImage || undefined} />
             <AvatarFallback>
               {userName ? (
                 userName

@@ -205,6 +205,7 @@ export default function StatCard({
         {sparklineData && sparklineData.length > 0 && (
           <div className="mt-2 h-8">
             <svg
+              aria-hidden // trend decoration: the value above is the information
               width="100%"
               height="100%"
               viewBox="0 0 100 32"

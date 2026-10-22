@@ -19,6 +19,8 @@ import {
   AccordionContent,
 } from "~/ui/primitives/accordion";
 import { useCart } from "~/lib/hooks/use-cart";
+import { PromoCode, type AppliedPromo } from "./components/promo-code";
+import { apiErrorText } from "~/lib/utils/error-handler";
 import { formatCurrency } from "~/lib/utils/format";
 import { orderApi } from "~/lib/api/admin-api";
 import { authClient, useCurrentUser, type User as AuthUser } from "~/lib/auth-client";
@@ -47,7 +49,6 @@ const SECTION_ORDER = [
   "city", "info", "delivery", "receiver", "confirmation", "comment",
 ] as const;
 
-const DELIVERY_COST = 100;
 
 interface WarehouseOption {
   name: string;
@@ -58,7 +59,10 @@ interface WarehouseOption {
 interface PriceSummaryProps {
   items: CartItem[];
   subtotal: number;
-  deliveryCost: number;
+  /** false = pickup (free); true = paid to the carrier on receipt, not part of this total */
+  deliveryByCarrier: boolean;
+  promo: AppliedPromo | null;
+  onPromoChange: (promo: AppliedPromo | null) => void;
   total: number;
   locale: string;
   disabled: boolean;
@@ -70,7 +74,9 @@ interface PriceSummaryProps {
 function PriceSummary({
   items: summaryItems,
   subtotal: summarySubtotal,
-  deliveryCost: summaryDeliveryCost,
+  deliveryByCarrier,
+  promo,
+  onPromoChange,
   total: summaryTotal,
   locale: summaryLocale,
   disabled: summaryDisabled,
@@ -105,13 +111,17 @@ function PriceSummary({
           </div>
           <div className="flex justify-between text-muted-foreground">
             <span>{summaryTChk("deliveryCost")}</span>
-            <span>
-              {summaryDeliveryCost === 0
-                ? summaryTChk("freeDelivery")
-                : formatCurrency(summaryDeliveryCost, summaryLocale)}
-            </span>
+            <span>{deliveryByCarrier ? summaryTChk("deliveryByCarrier") : summaryTChk("freeDelivery")}</span>
           </div>
+          {promo && promo.discount > 0 && (
+            <div className="flex justify-between text-green-700 dark:text-green-400">
+              <span>{summaryTChk("promoDiscount", { code: promo.code })}</span>
+              <span>−{formatCurrency(promo.discount, summaryLocale)}</span>
+            </div>
+          )}
         </div>
+
+        <PromoCode subtotal={summarySubtotal} applied={promo} onChange={onPromoChange} />
 
         <div className="border-t pt-3 flex justify-between font-bold text-base">
           <span>{summaryTChk("total")}</span>
@@ -168,7 +178,7 @@ function CheckoutGate() {
 
   if (resolvedUser === undefined) {
     return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+      <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -212,8 +222,10 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
   const [selectedShowroomId, setSelectedShowroomId] = useState<number | null>(null);
 
 
-  const deliveryCost = deliveryType === "pickup" ? 0 : DELIVERY_COST;
-  const total = subtotal + deliveryCost;
+  // The carrier is paid on receipt: what we charge (and Stripe bills) is the goods only
+  const deliveryByCarrier = deliveryType !== "pickup";
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+  const total = subtotal - (promo?.discount ?? 0);
 
   // ── Derived delivery state ─────────────────────────────────────────────
 
@@ -345,6 +357,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
         shipping_city: city.trim(),
         shipping_address: shippingAddress,
         notes: notesParts.join(" | "),
+        promo_code: promo?.code,
         items: items.map((i) => ({
           product_id: Number(i.id),
           product_name: i.name,
@@ -354,7 +367,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
       });
 
       if (order.error) {
-        toast.error(tChk("createError"), { description: order.error.message });
+        toast.error(tChk("createError"), { description: apiErrorText(order.error) });
         setSubmitting(false);
         return;
       }
@@ -368,7 +381,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
       clearCart();
       setCreatedOrderId(newOrderId);
 
-      const pay = await orderApi.pay(newOrderId);
+      const pay = await orderApi.pay(newOrderId, order.data.pay_token);
       if (pay.error) {
         router.push(`/checkout?order_id=${newOrderId}`);
         return;
@@ -380,7 +393,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
         return;
       }
       if (user) await saveDetails();
-      // Straight to payment: no modal between "pay" and Stripe (BAD_UX C1)
+      // Straight to payment: a modal here would interrupt a buyer who already chose to pay
       window.location.assign(pay.data.checkout_url);
     } catch (err) {
       toast.error(tCommon("error"), {
@@ -452,7 +465,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
 
   if (orderId) {
     return (
-      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-8">
+      <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <ShoppingBag className="h-12 w-12 mx-auto mb-2 text-primary" />
@@ -477,7 +490,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       <CheckoutHeader tChk={tChk} />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -503,6 +516,9 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 sections={SECTION_ORDER}
                 expandedSections={expandedSection ? [expandedSection] : []}
                 statuses={sectionStatuses}
+                labelOf={(sec) => tChk({ city: "cityLabel", info: "personalInfo", delivery: "delivery", receiver: "receiver", confirmation: "callToConfirm", comment: "comment" }[sec])}
+                statusLabel={(st) => tChk(`step_${st}`)}
+                ariaLabel={tChk("stepsLabel")}
               />
 
               {/* Accordion sections */}
@@ -719,7 +735,9 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 <PriceSummary
                   items={items}
                   subtotal={subtotal}
-                  deliveryCost={deliveryCost}
+                  deliveryByCarrier={deliveryByCarrier}
+                  promo={promo}
+                  onPromoChange={setPromo}
                   total={total}
                   locale={locale}
                   disabled={disabled}
@@ -739,7 +757,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-dvh">Loading...</div>}>
       <CheckoutGate />
     </Suspense>
   );

@@ -18,7 +18,8 @@ export interface CartItem {
 }
 
 export interface CartContextType {
-  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => Promise<void>;
+  /** Resolves to whether the server accepted the item, so callers can tell the buyer */
+  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => Promise<boolean>;
   clearCart: () => Promise<void>;
   itemCount: number;
   items: CartItem[];
@@ -88,9 +89,10 @@ export function CartProvider({ children }: React.PropsWithChildren) {
 
   const addItem = React.useCallback(async (newItem: Omit<CartItem, "quantity">, qty = 1) => {
     const id = parseInt(newItem.id, 10);
-    if (isNaN(id)) return;
-    await cartApi.addItem(id, qty);
+    if (isNaN(id)) return false;
+    const res = await cartApi.addItem(id, qty);
     refreshCart();
+    return !res.error;
   }, [refreshCart]);
 
   const removeItem = React.useCallback(async (idStr: string) => {

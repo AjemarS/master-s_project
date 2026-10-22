@@ -7,8 +7,10 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from shared_metrics import metrics_view
 
 urlpatterns = [
+    path("metrics", metrics_view, name="metrics"),
     path("admin/", admin.site.urls),
     path("api/", include("products.urls")),
     path("api/", include("products.cart_urls")),

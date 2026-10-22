@@ -283,6 +283,21 @@ services:
           cpus: "0.125"
           memory: "64M"
 
+
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "384M"
+
+  grafana:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "256M"
+
 volumes:
   product_media:
 

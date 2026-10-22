@@ -25,6 +25,7 @@ import { WarehouseStockDialog } from "./warehouse-stock-dialog";
 export function WarehousesClient() {
   const t = useTranslations("warehouses");
   const tc = useTranslations("common");
+  const tAct = useTranslations("activity");
 
   const { data: whData, error: whError, isLoading: whLoading, mutate: whMutate } = useWarehouses();
   const { data: stData, error: stError, isLoading: stLoading, mutate: stMutate } = useStock({ pageSize: 250 });
@@ -78,7 +79,7 @@ export function WarehousesClient() {
     try {
       await deleteWarehouse(deleteConfirmId);
       toast.success(t("warehouseDeleted"));
-      pushEvent({ type: "delete", message: `Deleted warehouse #${deleteConfirmId}`, entityType: "warehouse" });
+      pushEvent({ type: "delete", message: tAct("deletedWarehouse", { id: deleteConfirmId }), entityType: "warehouse" });
       setDeleteConfirmId(null);
       revalidate();
     } catch (err) {
@@ -87,7 +88,7 @@ export function WarehousesClient() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader
           title={t("title")}
@@ -164,6 +165,7 @@ export function WarehousesClient() {
         warehouse={stockDialogWh}
         stock={stock}
         productNames={productNames}
+        onChanged={() => stMutate()}
       />
 
       {/* Delete Confirmation */}

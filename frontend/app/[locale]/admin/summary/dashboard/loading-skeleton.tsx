@@ -9,7 +9,7 @@ interface DashboardLoadingSkeletonProps {
 
 export default function DashboardLoadingSkeleton({ tSum }: DashboardLoadingSkeletonProps) {
   return (
-    <div className="min-h-screen bg-muted/50 p-8">
+    <div className="min-h-dvh bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">

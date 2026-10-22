@@ -21,16 +21,9 @@ async function fetchFromApi(path: string) {
 
 export default async function ReportsPage() {
   const fallback: Record<string, unknown> = {};
-  const [sales, revenue, inventoryValue, dailySales] = await Promise.all([
-    fetchFromApi("/reports/sales"),
-    fetchFromApi("/reports/revenue"),
-    fetchFromApi("/reports/inventory-value"),
-    fetchFromApi("/reports/daily-sales"),
-  ]);
-  if (sales) fallback["/reports/sales"] = sales;
-  if (revenue) fallback["/reports/revenue"] = revenue;
+  // Only the range-independent report is prefetched: the others are keyed by the client's date filter
+  const inventoryValue = await fetchFromApi("/reports/inventory-value/");
   if (inventoryValue) fallback["/reports/inventory-value"] = inventoryValue;
-  if (dailySales) fallback["/reports/daily-sales"] = dailySales;
 
   return (
     <SWRConfig value={{ fallback }}>

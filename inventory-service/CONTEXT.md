@@ -27,7 +27,11 @@ python manage.py test --noinput
 - **Stock** — stock level per product per warehouse. Unique constraint: `(product_id, warehouse_id)`. Atomic operations via `select_for_update`.
 - **StockMovement** — audit log. Types: `receipt`, `transfer`, `sale`, `adjustment`, `write_off`, `reserve`, `release`, `deduct`. Tracks product, warehouse, quantity change, reference, user, timestamp.
 - **Supplier** — vendor info: name, contact person, phone, email, address.
-- **GoodsReceiptNote** — GRN header: supplier, date, notes, author.
+- **GoodsReceiptNote** — GRN header: supplier, date, notes, author, optional `purchase_order`. Created in one
+  transaction: with a purchase order the items must be on it and within the remaining quantity, otherwise
+  nothing (stock included) is written; the order becomes `partially_received` or `received`.
+- **PurchaseOrder / PurchaseOrderItem** — `draft → sent → partially_received → received`, or `cancelled`;
+  items carry `quantity`, expected `unit_cost`, `received_quantity` (`purchasing.py`).
 - **GoodsReceiptItem** — GRN line: product, quantity, cost_price. On create: auto-increments `Stock.qty` and recalculates weighted-average cost.
 
 #### Viewsets
@@ -60,6 +64,14 @@ python manage.py test --noinput
 | POST | `/api/inventory/suppliers/` | Admin | Create supplier |
 | GET | `/api/inventory/goods-receipts/` | Admin / Warehouse Worker | GRN list (purchase prices) |
 | GET | `/api/inventory/goods-receipts/product_info/` | Admin / Warehouse Worker | Last cost price and stock of a product |
+| GET | `/api/inventory/goods-receipts/supplier-stats/` | Admin | Per-supplier totals over all GRNs (items, value, deliveries, last delivery) |
+| GET | `/api/inventory/stock/analytics/` | Admin | Per-product sales pace (`deduct`/`sale` movements), days of cover, turnover, dead stock over `?days=` (7..730, default 90) |
+| PATCH | `/api/inventory/stock/{id}/reorder/` | Admin / Warehouse Worker | `{reorder_point, reorder_quantity}` (0 = off); both are hidden from non-staff stock reads |
+| GET | `/api/inventory/stock/reorder-suggestions/` | Admin / Warehouse Worker | Lines with available ≤ reorder point; suggested = point + batch − available − on order − drafted; last supplier and cost (`?warehouse_id=`) |
+| GET/POST/PATCH | `/api/inventory/purchase-orders/` | Admin / Warehouse Worker | Purchase orders (`?status=&supplier=&warehouse=`); PATCH only while `draft`, items replaced as a whole |
+| POST | `/api/inventory/purchase-orders/{id}/status/` | Admin | `sent` (from draft) or `cancelled` (from draft / sent / partially received) |
+| POST | `/api/inventory/stock/return_to_stock/` | Service (order-service) | Returned units back on stock, movement type `return`, idempotent |
+| GET | `/api/inventory/stock/valuation/` | Admin | On-hand stock at `average_cost`, per product (used by order-service inventory-value report) |
 | POST | `/api/inventory/goods-receipts/` | Admin / Warehouse Worker | Create GRN (adds stock) |
 | GET | `/api/inventory/health/` | Any | Health check with DB probe |
 | GET | `/api/docs/` | Any | Swagger UI |

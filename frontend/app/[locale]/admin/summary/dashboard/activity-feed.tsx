@@ -1,12 +1,14 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import { useMemo } from "react";
 import { ShoppingCart, ArrowRightLeft, ClipboardList, AlertCircle, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
 import Link from "next/link";
 import { useOrders, useStockMovements, useGoodsReceipts } from "~/lib/hooks/use-api-data";
-import { formatCurrency } from "~/lib/utils/format";
+import { formatCurrency, formatRelativeTime } from "~/lib/utils/format";
 
 /* ── Types ─────────────────────────────────────────── */
 
@@ -35,26 +37,11 @@ const eventConfig = {
 
 /* ── Relative time helper ──────────────────────────── */
 
-function formatRelativeTime(dateStr: string): string {
-  const now = Date.now();
-  const diffMs = now - new Date(dateStr).getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffSeconds < 60) return "щойно";
-  if (diffMinutes < 60) return `${diffMinutes} хв. тому`;
-  if (diffHours < 24) return `${diffHours} год. тому`;
-  if (diffDays < 7) return `${diffDays} дн. тому`;
-  return new Date(dateStr).toLocaleDateString("uk-UA", {
-    day: "numeric",
-    month: "short",
-  });
-}
 
 /* ── Component ─────────────────────────────────────── */
 
 export default function ActivityFeed({ tSum, tc }: ActivityFeedProps) {
+  const locale = useLocale();
   const { data: ordersData, isLoading: ordersLoading, error: ordersError } = useOrders(undefined, { refreshInterval: 15000 });
   const { data: movementsData, isLoading: movementsLoading, error: movementsError } = useStockMovements(undefined, { refreshInterval: 15000 });
   const { data: grnsData, isLoading: grnsLoading, error: grnsError } = useGoodsReceipts({ refreshInterval: 15000 });
@@ -194,7 +181,7 @@ export default function ActivityFeed({ tSum, tc }: ActivityFeedProps) {
                       <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatRelativeTime(item.timestamp)}
+                      {formatRelativeTime(item.timestamp, locale)}
                     </span>
                   </div>
                 </div>

@@ -16,6 +16,8 @@ import { ProductCard } from "~/ui/components/product-card";
 import { ProductGallery } from "~/ui/components/product-gallery";
 import { productApi } from "~/lib/api/admin-api";
 import { useBreadcrumbSegments } from "~/ui/components/breadcrumbs";
+import { ProductReviews } from "./product-reviews";
+import { CompareButton } from "~/ui/components/compare-button";
 
 const slugify = (str: string) =>
   str
@@ -75,7 +77,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
     if (!product) return;
 
     setIsAdding(true);
-    addItem(
+    const ok = await addItem(
       {
         category: product.category.name,
         id: String(product.id),
@@ -86,15 +88,18 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
       },
       quantity
     );
+    setIsAdding(false);
+    if (!ok) {
+      toast.error(t("addToCartFailed"));
+      return;
+    }
     setQuantity(1);
     toast.success(t("addedToCart", { name: product.name }));
-    await new Promise((r) => setTimeout(r, 400));
-    setIsAdding(false);
   }, [addItem, product, quantity, t]);
 
   return (
     <div className="flex flex-col">
-      <main className="flex-1 py-10">
+      <div className="flex-1 py-10">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <ProductGallery
@@ -107,8 +112,9 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
             <div className="flex flex-col">
               <div className="mb-6">
                 <h1 className="text-3xl font-bold">{product.name}</h1>
-                <div className="mt-2 flex items-center gap-2">
-                  <div aria-label={`Rating ${product.rating} out of 5`} className="flex items-center">
+                {product.review_count ? (
+                <a href="#reviews" className="mt-2 flex items-center gap-2 w-fit hover:underline underline-offset-4">
+                  <div role="img" aria-label={t("ratingLabel", { rating: product.rating.toFixed(1), count: product.review_count })} className="flex items-center">
                     {range(5).map((i) => (
                       <Star
                         className={`h-5 w-5 ${
@@ -123,9 +129,14 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                     ))}
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    ({product.rating.toFixed(1)})
+                    {product.rating.toFixed(1)} · {t("reviewsCount", { count: product.review_count })}
                   </span>
-                </div>
+                </a>
+                ) : (
+                  <a href="#reviews" className="mt-2 inline-block text-sm text-muted-foreground hover:underline underline-offset-4">
+                    {t("noReviewsYet")}
+                  </a>
+                )}
               </div>
 
               <div className="mb-6">
@@ -151,7 +162,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
               <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="flex items-center">
                   <Button
-                    aria-label="Decrease quantity"
+                    aria-label={tCommon("a11y.decreaseQuantity")}
                     disabled={quantity <= 1}
                     onClick={() => handleQuantityChange(quantity - 1)}
                     size="icon"
@@ -161,7 +172,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   </Button>
                   <span className="w-12 text-center select-none">{quantity}</span>
                   <Button
-                    aria-label="Increase quantity"
+                    aria-label={tCommon("a11y.increaseQuantity")}
                     onClick={() => handleQuantityChange(quantity + 1)}
                     size="icon"
                     variant="outline"
@@ -181,12 +192,12 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                   variant="outline"
                   size="icon"
                   className="h-12 w-12 shrink-0"
-                  onClick={() => toggleItem(product.id)}
-                  aria-label={
-                    isInWishlist(product.id)
-                      ? "Видалити з обраного"
-                      : "Додати до обраного"
-                  }
+                  onClick={() => {
+                    toast.success(isInWishlist(product.id) ? t("removedFromWishlist") : t("addedToWishlist"));
+                    toggleItem(product.id);
+                  }}
+                  aria-pressed={isInWishlist(product.id)}
+                  aria-label={isInWishlist(product.id) ? t("removeFromWishlist") : t("addToWishlist")}
                 >
                   <Heart
                     className={`h-5 w-5 ${
@@ -196,6 +207,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                     }`}
                   />
                 </Button>
+                <CompareButton productId={product.id} />
               </div>
             </div>
           </div>
@@ -229,6 +241,8 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
             </section>
           </div>
 
+          <ProductReviews productId={product.id} />
+
           {similar.length > 0 && (
             <section className="mt-16">
               <h2 className="mb-6 text-2xl font-bold">{t("similarProducts")}</h2>
@@ -242,16 +256,16 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
                       original_price: Number(p.original_price),
                       rating: Number(p.rating),
                     }}
-                    onAddToCart={(id) => {
-                      addItem({ id: String(id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1);
-                    }}
+                    onAddToCart={(id) =>
+                      addItem({ id: String(id), name: p.name, price: p.price, slug: p.slug, image: getImageUrl(p.image_url), category: p.category_name }, 1)
+                    }
                   />
                 ))}
               </div>
             </section>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

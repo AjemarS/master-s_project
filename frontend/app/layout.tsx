@@ -8,6 +8,8 @@ import { CartProvider } from "~/lib/hooks/use-cart";
 import { BreadcrumbProvider } from "~/ui/components/breadcrumbs/breadcrumbs-context";
 import { ThemeProvider } from "~/ui/components/theme-provider";
 import { Toaster } from "~/ui/primitives/sonner";
+import { MotionProvider } from "~/ui/components/motion/motion-provider";
+import { getLocale } from "next-intl/server";
 
 const geistSans = localFont({
   src: "./fonts/Geist-Variable.woff2",
@@ -33,13 +35,15 @@ export default async function RootLayout({
 }>) {
   // CSP nonce from proxy.ts; reading headers also makes pages dynamic, which nonces require
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // The URL segment is "ua", but the language tag for Ukrainian is "uk"
+  const locale = await getLocale();
   return (
-    <html suppressHydrationWarning>
+    <html lang={locale === "en" ? "en" : "uk"} suppressHydrationWarning>
       <body
         className={`
           ${geistSans.variable}
           ${geistMono.variable}
-          font-sans min-h-screen antialiased
+          font-sans min-h-dvh antialiased
           selection:bg-primary/80
         `}
       >
@@ -50,12 +54,14 @@ export default async function RootLayout({
           enableSystem
           nonce={nonce}
         >
-          <CartProvider>
-            <BreadcrumbProvider>
-              {children}
-            </BreadcrumbProvider>
-            <Toaster />
-          </CartProvider>
+          <MotionProvider>
+            <CartProvider>
+              <BreadcrumbProvider>
+                {children}
+              </BreadcrumbProvider>
+              <Toaster />
+            </CartProvider>
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

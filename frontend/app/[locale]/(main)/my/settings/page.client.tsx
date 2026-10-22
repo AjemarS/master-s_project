@@ -200,7 +200,7 @@ export function SettingsClient() {
       const currentLocale = window.location.pathname.match(/^\/([a-z]{2})/)?.[1] || "ua";
       if (currentLocale !== language) {
         const currentPath = window.location.pathname.replace(/^\/[a-z]{2}/, "");
-        window.location.href = `/${language}${currentPath}`;
+        window.location.href = `/${language}${currentPath}${window.location.search}`;
       } else {
         toast.success(t("changesSaved"));
         setSavingProfile(false);
@@ -332,6 +332,7 @@ export function SettingsClient() {
       toast.error(tProfile("passwordRequired"));
       return;
     }
+    if (!window.confirm(tProfile("disable2faConfirm"))) return;
     setDisabling2FA(true);
     try {
       await twoFactor.disable({ password: twoFactorPassword });
@@ -348,6 +349,7 @@ export function SettingsClient() {
 
   // ── Sessions ───────────────────────────────────────────────────
   const handleRevokeSessions = async () => {
+    if (!window.confirm(t("revokeSessionsConfirm"))) return;
     setRevokingSessions(true);
     try {
       await authClient.revokeOtherSessions();
@@ -450,6 +452,9 @@ export function SettingsClient() {
                 <Label htmlFor="settings-firstname">{t("firstNameLabel")}</Label>
                 <Input
                   id="settings-firstname"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingProfile && firstName && lastName) handleSaveProfile(); }}
+                required
+                autoComplete="given-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder={t("firstNamePlaceholder")}
@@ -459,6 +464,9 @@ export function SettingsClient() {
                 <Label htmlFor="settings-lastname">{t("lastNameLabel")}</Label>
                 <Input
                   id="settings-lastname"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingProfile && firstName && lastName) handleSaveProfile(); }}
+                required
+                autoComplete="family-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder={t("lastNamePlaceholder")}
@@ -473,6 +481,8 @@ export function SettingsClient() {
               <Label htmlFor="settings-phone">{t("phoneLabel")}</Label>
               <Input
                 id="settings-phone"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingProfile && firstName && lastName) handleSaveProfile(); }}
+                autoComplete="tel"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -580,6 +590,8 @@ export function SettingsClient() {
                         <Label htmlFor="addr-line1">{t("streetAddress")}</Label>
                         <Input
                           id="addr-line1"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
+                autoComplete="address-line1"
                           value={addressLine1}
                           onChange={(e) => setAddressLine1(e.target.value)}
                           placeholder={t("streetAddressPlaceholder")}
@@ -589,6 +601,8 @@ export function SettingsClient() {
                         <Label htmlFor="addr-line2">{t("aptUnit")}</Label>
                         <Input
                           id="addr-line2"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
+                autoComplete="address-line2"
                           value={addressLine2}
                           onChange={(e) => setAddressLine2(e.target.value)}
                           placeholder={t("aptUnitPlaceholder")}
@@ -599,6 +613,8 @@ export function SettingsClient() {
                           <Label htmlFor="addr-city">{t("city")}</Label>
                           <Input
                             id="addr-city"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
+                autoComplete="address-level2"
                             value={addressCity}
                             onChange={(e) => setAddressCity(e.target.value)}
                             placeholder={t("cityPlaceholder")}
@@ -608,6 +624,8 @@ export function SettingsClient() {
                           <Label htmlFor="addr-state">{t("state")}</Label>
                           <Input
                             id="addr-state"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
+                autoComplete="address-level1"
                             value={addressState}
                             onChange={(e) => setAddressState(e.target.value)}
                             placeholder={t("statePlaceholder")}
@@ -619,6 +637,8 @@ export function SettingsClient() {
                           <Label htmlFor="addr-postal">{t("postalCode")}</Label>
                           <Input
                             id="addr-postal"
+                onKeyDown={(e) => { if (e.key === "Enter" && !savingAddress && addressLine1 && addressCity && addressCountry) handleSaveAddress(); }}
+                autoComplete="postal-code"
                             value={addressPostalCode}
                             onChange={(e) => setAddressPostalCode(e.target.value)}
                             placeholder={t("postalCodePlaceholder")}
@@ -664,7 +684,7 @@ export function SettingsClient() {
                       <Button variant="outline" onClick={() => setAddressDialogOpen(false)}>
                         {tCommon("cancel")}
                       </Button>
-                      <Button disabled={savingAddress || !addressLine1 || !addressCity || !addressCountry} onClick={handleSaveAddress}>
+                      <Button type="button" disabled={savingAddress || !addressLine1 || !addressCity || !addressCountry} onClick={handleSaveAddress}>
                         {savingAddress ? (
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
                         ) : null}
@@ -713,13 +733,18 @@ export function SettingsClient() {
           <CardHeader>
             <CardTitle>{t("updatePassword")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => { e.preventDefault(); if (!savingPassword && currentPassword && newPassword.length >= 8 && confirmPassword) handleUpdatePassword(); }}
+            >
             <div className="grid gap-2">
               <Label htmlFor="sec-current-password">
                 {t("currentPassword")}
               </Label>
               <Input
                 id="sec-current-password"
+                autoComplete="current-password"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => {
@@ -734,6 +759,7 @@ export function SettingsClient() {
               <Label htmlFor="sec-new-password">{t("newPassword")}</Label>
               <Input
                 id="sec-new-password"
+                autoComplete="new-password"
                 type="password"
                 value={newPassword}
                 onChange={(e) => {
@@ -755,6 +781,7 @@ export function SettingsClient() {
               </Label>
               <Input
                 id="sec-confirm-password"
+                autoComplete="new-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => {
@@ -764,19 +791,19 @@ export function SettingsClient() {
                 placeholder={t("confirmPasswordPlaceholder")}
               />
               {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-                <p className="text-xs text-destructive">
+                <p role="alert" className="text-xs text-destructive">
                   {t("passwordMismatch")}
                 </p>
               )}
             </div>
 
             {passwordError && (
-              <p className="text-sm text-destructive">{passwordError}</p>
+              <p role="alert" className="text-sm text-destructive">{passwordError}</p>
             )}
 
             <Button
+              type="submit"
               disabled={savingPassword || !currentPassword || newPassword.length < 8 || !confirmPassword}
-              onClick={handleUpdatePassword}
               className="w-full sm:w-auto"
             >
               {savingPassword ? (
@@ -788,6 +815,7 @@ export function SettingsClient() {
                 t("updatePassword")
               )}
             </Button>
+            </form>
           </CardContent>
         </Card>
 
@@ -823,6 +851,7 @@ export function SettingsClient() {
                   </Label>
                   <Input
                     id="sec-2fa-password"
+                autoComplete="current-password"
                     type="password"
                     value={twoFactorPassword}
                     onChange={(e) => setTwoFactorPassword(e.target.value)}
@@ -874,6 +903,7 @@ export function SettingsClient() {
                       <Label htmlFor="enable-2fa-password">{tProfile("passwordLabel")}</Label>
                       <Input
                         id="enable-2fa-password"
+                autoComplete="current-password"
                         type="password"
                         value={enablePassword}
                         onChange={(e) => { setEnablePassword(e.target.value); setEnableError(null); }}
@@ -881,7 +911,7 @@ export function SettingsClient() {
                       />
                     </div>
                     {enableError && (
-                      <p className="text-sm text-destructive">{enableError}</p>
+                      <p role="alert" className="text-sm text-destructive">{enableError}</p>
                     )}
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setEnable2FADialogOpen(false)}>
@@ -916,7 +946,8 @@ export function SettingsClient() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 shrink-0"
+                            className="h-9 w-9 shrink-0"
+                            aria-label={t("copy")}
                             onClick={() => {
                               navigator.clipboard.writeText(totpSecret);
                               toast.success(t("copied"));
@@ -933,16 +964,18 @@ export function SettingsClient() {
                       <Label htmlFor="verify-totp">{tProfile("enterCode")}</Label>
                       <Input
                         id="verify-totp"
+                autoComplete="one-time-code"
                         value={verifyCode}
                         onChange={(e) => { setVerifyCode(e.target.value); setEnableError(null); }}
                         placeholder="000000"
+                        inputMode="numeric"
                         maxLength={6}
                         className="text-center text-lg tracking-widest"
                       />
                     </div>
 
                     {enableError && (
-                      <p className="text-sm text-destructive">{enableError}</p>
+                      <p role="alert" className="text-sm text-destructive">{enableError}</p>
                     )}
 
                     <DialogFooter>

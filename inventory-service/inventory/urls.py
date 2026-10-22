@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ActivityEventViewSet,
     GoodsReceiptNoteViewSet,
+    PurchaseOrderViewSet,
     StockMovementViewSet,
     StockViewSet,
     SupplierViewSet,
@@ -17,6 +18,7 @@ router.register(r"stock/movements", StockMovementViewSet, basename="stock-moveme
 router.register(r"stock", StockViewSet, basename="stock")
 router.register(r"suppliers", SupplierViewSet, basename="supplier")
 router.register(r"goods-receipts", GoodsReceiptNoteViewSet, basename="goods-receipt")
+router.register(r"purchase-orders", PurchaseOrderViewSet, basename="purchase-order")
 router.register(r"activity/events", ActivityEventViewSet, basename="activity-event")
 
 urlpatterns = [

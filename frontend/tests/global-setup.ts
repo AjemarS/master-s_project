@@ -16,18 +16,15 @@ async function globalSetup() {
   const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
 
   try {
-    // Set locale to English so sign-in page renders in English
-    await page.context().addCookies([
-      { name: "NEXT_LOCALE", value: "en", domain: new URL(baseUrl).hostname, path: "/" },
-    ]);
-    await page.goto(`${baseUrl}/sign-in`, { waitUntil: "networkidle" });
+    // Locale detection is off, so the English page has to be asked for by path
+    await page.goto(`${baseUrl}/en/sign-in`, { waitUntil: "networkidle" });
     await page.fill("#email", email);
     await page.fill("#password", password);
 
     // Start waiting for URL before clicking to avoid race
     await Promise.all([
-      page.waitForURL(/\/dashboard/, { timeout: 15000 }),
-      page.getByRole("button", { name: /sign in/i }).click(),
+      page.waitForURL(/\/my\/overview/, { timeout: 15000 }),
+      page.locator("form").getByRole("button", { name: /^sign in$/i }).click(),
     ]);
 
     await context.storageState({ path: "tests/.auth/user.json" });

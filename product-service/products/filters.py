@@ -3,6 +3,10 @@ from django_filters import rest_framework as filters
 from .models import Product
 
 
+class NumberInFilter(filters.BaseInFilter, filters.NumberFilter):
+    pass
+
+
 class ProductFilter(filters.FilterSet):
     name = filters.CharFilter(lookup_expr="icontains")
     min_price = filters.NumberFilter(field_name="price", lookup_expr="gte")
@@ -18,6 +22,7 @@ class ProductFilter(filters.FilterSet):
     brand = filters.CharFilter(lookup_expr="icontains")
     color = filters.CharFilter(lookup_expr="icontains")
     id = filters.NumberFilter(field_name="id")
+    ids = NumberInFilter(field_name="id")  # ?ids=1,2,3: one request instead of one per product
 
     class Meta:
         model = Product

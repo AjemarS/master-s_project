@@ -35,8 +35,8 @@ def _post(url, json_data, headers):
     return requests.post(url, json=json_data, timeout=10, headers=headers)
 
 
-def _get(url, headers):
-    return requests.get(url, timeout=10, headers=headers)
+def _get(url, headers, params=None):
+    return requests.get(url, timeout=10, headers=headers, params=params)
 
 
 def _parse_response(resp):
@@ -108,13 +108,32 @@ def release_stock(product_id, warehouse_id, quantity, reference_type, reference_
         return None, str(e)
 
 
+def return_stock(product_id, warehouse_id, quantity, reference_type, reference_id, idempotency_key, request=None):
+    """Put returned units back into a warehouse."""
+    url = inventory_url("stock/return_to_stock/")
+    headers = _build_headers(request, idempotency_key)
+    payload = {
+        "product_id": product_id,
+        "warehouse_id": warehouse_id,
+        "quantity": quantity,
+        "reference_type": reference_type,
+        "reference_id": reference_id,
+        "idempotency_key": idempotency_key,
+    }
+    try:
+        return _parse_response(_post(url, payload, headers))
+    except requests.RequestException as e:
+        logger.error("return_stock failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
 def check_availability(product_id, warehouse_id, quantity, request=None):
     """Pre-check if stock is available before order creation."""
     url = inventory_url("stock/")
     headers = _build_headers(request)
     params = {"product_id": product_id, "warehouse_id": warehouse_id}
     try:
-        resp = _get(url, headers)
+        resp = _get(url, headers, params)
         data, error = _parse_response(resp)
         if error:
             return False, error
@@ -133,4 +152,13 @@ def check_availability(product_id, warehouse_id, quantity, request=None):
         return False, f"No stock record for product {product_id} at warehouse {warehouse_id}"
     except requests.RequestException as e:
         logger.error("check_availability failed: product=%s error=%s", product_id, e)
+        return None, str(e)
+
+
+def get_stock_valuation(request=None):
+    """On-hand stock value at weighted-average cost. Returns (data, error)."""
+    try:
+        return _parse_response(_get(inventory_url("stock/valuation/"), _build_headers(request)))
+    except requests.RequestException as e:
+        logger.error("get_stock_valuation failed: %s", e)
         return None, str(e)
