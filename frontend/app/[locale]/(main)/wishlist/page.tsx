@@ -32,7 +32,7 @@ export default function WishlistPage() {
   return (
     <div className="flex min-h-dvh flex-col">
       <FadeIn direction="up">
-        <section className="py-16 md:py-24">
+        <section className="py-8 md:py-10">
           <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-8 flex items-center gap-3">
               <Heart className="h-6 w-6 text-primary" />

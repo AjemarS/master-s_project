@@ -10,6 +10,7 @@ from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 
 from products.models import Category, Product
+from products.spec_translations import specs_to_en
 
 
 class Command(BaseCommand):
@@ -133,6 +134,7 @@ class Command(BaseCommand):
                     "stock": p_data["stock"],
                     "features": p_data.get("features", []),
                     "specs": p_data.get("specs", {}),
+                    "specs_en": specs_to_en(p_data.get("specs", {})),
                     "brand": p_data.get("brand", ""),
                     "color": p_data.get("color", ""),
                 },
@@ -144,6 +146,7 @@ class Command(BaseCommand):
                 product.price = Decimal(str(p_data["price"]))
                 product.original_price = Decimal(str(p_data["original_price"]))
                 product.stock = p_data["stock"]
+                product.specs_en = specs_to_en(product.specs)
                 product.description_en = f"{name_en} — reliable home appliance. High quality, energy efficiency and modern design."
                 product.save()
             self._set_placeholder_image(product, name_en, cat_name)
@@ -254,11 +257,12 @@ REGULAR_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 def _draw_fitted(draw, text, center, width, fill, max_size, max_lines=3):
     """Draw text centred, wrapped to at most max_lines and shrunk until every line fits width."""
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     try:
         for size in range(max_size, 13, -2):
             font = ImageFont.truetype(BOLD_FONT, size)
             avg = draw.textlength("x" * 10, font=font) / 10
-            lines = textwrap.wrap(text, width=max(1, int(width / avg)))
+            lines = textwrap.wrap(text, width=max(1, int(width / avg)), break_long_words=False)
             if len(lines) <= max_lines and all(draw.textlength(line, font=font) <= width for line in lines):
                 break
         lines = lines[:max_lines]
@@ -268,6 +272,7 @@ def _draw_fitted(draw, text, center, width, fill, max_size, max_lines=3):
 
 
 def _draw_small(draw, text, center, fill):
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     try:
         font = ImageFont.truetype(REGULAR_FONT, 14)
     except OSError:
