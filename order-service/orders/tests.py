@@ -824,8 +824,10 @@ class CatalogPricingTest(APITestCase):
     def setUp(self):
         self.client.force_authenticate(user=_create_admin_user())
 
+    # Stock is checked against the live inventory otherwise, and the test then depends on its data
+    @mock.patch("orders.serializers.check_availability", return_value=(True, None))
     @mock.patch("orders.order_service.deduct_stock_batch", return_value=({"unit_costs": {"1": "120.50"}}, None))
-    def test_pos_uses_catalog_price_and_stores_cost_on_deduct(self, _deduct):
+    def test_pos_uses_catalog_price_and_stores_cost_on_deduct(self, _deduct, _available):
         response = self.client.post("/api/orders/pos/", {
             "warehouse_id": 1, "customer_name": "POS", "customer_phone": "380671234567",
             "items": [{"product_id": 1, "quantity": 2, "price": "0.01", "cost_price": "999.00"}],
