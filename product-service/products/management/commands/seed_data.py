@@ -15,7 +15,19 @@ from products.models import Category, Product
 class Command(BaseCommand):
     help = "Seed database with household appliances data"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--images-only", action="store_true", help="Redraw the placeholder images of existing data and stop"
+        )
+
     def handle(self, *args, **options):
+        if options["images_only"]:
+            for cat in Category.objects.all():
+                self._set_category_placeholder(cat, cat.name_en or cat.name)
+            for product in Product.objects.select_related("category"):
+                self._set_placeholder_image(product, product.name_en or product.name, product.category.name)
+            self.stdout.write(self.style.SUCCESS("Placeholder images redrawn"))
+            return
         self._create_categories()
         self._create_products()
         self.stdout.write(self.style.SUCCESS("Seed data created successfully"))
@@ -200,17 +212,8 @@ class Command(BaseCommand):
 
         img = Image.new("RGB", (400, 400), bg)
         draw = ImageDraw.Draw(img)
-        label = name_en.replace("&", "and")
-        short = textwrap.shorten(label, width=24, placeholder="")
-
-        try:
-            font_lg = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 56)
-            font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-            draw.text((200, 140), short, fill=fg, font=font_lg, anchor="mm")
-            draw.text((200, 260), "TechHub placeholder", fill=fg, font=font_sm, anchor="mm")
-        except OSError:
-            font = ImageFont.load_default()
-            draw.text((10, 10), short, fill=fg, font=font)
+        _draw_fitted(draw, name_en.replace("&", "and"), center=(200, 180), width=340, fill=fg, max_size=48)
+        _draw_small(draw, "TechHub placeholder", (200, 330), fg)
 
         buf = io.BytesIO()
         img.save(buf, format="PNG")
@@ -235,20 +238,38 @@ class Command(BaseCommand):
 
         img = Image.new("RGB", (400, 300), bg)
         draw = ImageDraw.Draw(img)
-        label = name_en.replace("&", "and")
-        short = textwrap.shorten(label, width=20, placeholder="")
-
-        try:
-            font_lg = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-            font_sm = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-            draw.text((200, 110), short, fill=fg, font=font_lg, anchor="mm")
-            draw.text((200, 210), "TechHub category", fill=fg, font=font_sm, anchor="mm")
-        except OSError:
-            font = ImageFont.load_default()
-            draw.text((10, 10), short, fill=fg, font=font)
+        _draw_fitted(draw, name_en.replace("&", "and"), center=(200, 130), width=340, fill=fg, max_size=44)
+        _draw_small(draw, "TechHub category", (200, 250), fg)
 
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         filename = f"category_{cat.pk}.png"
         cat.image.save(filename, ContentFile(buf.getvalue()), save=False)
         cat.save(update_fields=["image"])
+
+
+BOLD_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+REGULAR_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+
+def _draw_fitted(draw, text, center, width, fill, max_size, max_lines=3):
+    """Draw text centred, wrapped to at most max_lines and shrunk until every line fits width."""
+    try:
+        for size in range(max_size, 13, -2):
+            font = ImageFont.truetype(BOLD_FONT, size)
+            avg = draw.textlength("x" * 10, font=font) / 10
+            lines = textwrap.wrap(text, width=max(1, int(width / avg)))
+            if len(lines) <= max_lines and all(draw.textlength(line, font=font) <= width for line in lines):
+                break
+        lines = lines[:max_lines]
+    except OSError:
+        font, lines = ImageFont.load_default(), textwrap.wrap(text, width=40)[:max_lines]
+    draw.multiline_text(center, "\n".join(lines), fill=fill, font=font, anchor="mm", align="center", spacing=8)
+
+
+def _draw_small(draw, text, center, fill):
+    try:
+        font = ImageFont.truetype(REGULAR_FONT, 14)
+    except OSError:
+        font = ImageFont.load_default()
+    draw.text(center, text, fill=fill, font=font, anchor="mm")

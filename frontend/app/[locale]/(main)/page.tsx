@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowRight, Clock, ShoppingBag, Star, Truck } from "lucide-react";
 import Image from "next/image";
 import { Link } from "~/i18n/navigation";
@@ -15,10 +15,10 @@ import { WaveDivider } from "~/ui/components/wave-divider";
 import { Category, Product } from "../../lib/types";
 
 // null = the catalog could not be reached (shown to the visitor), [] = it is simply empty
-async function getCategories(): Promise<Category[] | null> {
+async function getCategories(lang: string): Promise<Category[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
-    const response = await fetch(`${apiUrl}/categories/`, { next: { revalidate: 60 } });
+    const response = await fetch(`${apiUrl}/categories/`, { headers: { "Accept-Language": lang }, next: { revalidate: 60 } });
     if (!response.ok) return null;
     const data = await response.json();
     return data.results || data;
@@ -27,12 +27,12 @@ async function getCategories(): Promise<Category[] | null> {
   }
 }
 
-async function getLatestProducts(): Promise<Product[] | null> {
+async function getLatestProducts(lang: string): Promise<Product[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(
       `${apiUrl}/products/?ordering=-created_at&page_size=8`,
-      { next: { revalidate: 60 } }
+      { headers: { "Accept-Language": lang }, next: { revalidate: 60 } }
     );
     if (!response.ok) return null;
     const data = await response.json();
@@ -43,7 +43,8 @@ async function getLatestProducts(): Promise<Product[] | null> {
 }
 
 export default async function HomePage() {
-  const [loadedCategories, loadedProducts] = await Promise.all([getCategories(), getLatestProducts()]);
+  const lang = (await getLocale()) === "en" ? "en" : "uk";
+  const [loadedCategories, loadedProducts] = await Promise.all([getCategories(lang), getLatestProducts(lang)]);
   const catalogDown = loadedCategories === null || loadedProducts === null;
   const categories = loadedCategories ?? [];
   const latestProducts = loadedProducts ?? [];

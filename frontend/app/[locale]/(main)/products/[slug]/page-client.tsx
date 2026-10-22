@@ -101,7 +101,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
     <div className="flex flex-col">
       <div className="flex-1 py-10">
         <div className="container px-4 md:px-6">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
             <ProductGallery
               imageUrl={product.image_url}
               productId={product.id}

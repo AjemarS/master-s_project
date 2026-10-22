@@ -312,6 +312,8 @@
     "addedToCart": "{name} додано в кошик",
     "backToProducts": "← Назад до товарів",
     "addToCartSr": "Додати в кошик",
+    "inCart": "У кошику",
+    "inCartAddMore": "{name} у кошику. Додати ще один",
     "onSale": "Зі знижкою",
     "searchCategory": "Пошук категорій...",
     "brand": "Бренд",

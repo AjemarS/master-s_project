@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ShoppingCart, Star } from "lucide-react";
+import { Check, Heart, ShoppingCart, Star } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "~/i18n/navigation";
 import { cn } from "~/lib/cn";
 import { useWishlist } from "~/lib/hooks/use-wishlist";
+import { useCart } from "~/lib/hooks/use-cart";
 import { Product } from "~/lib/types";
 import { Badge } from "~/ui/primitives/badge";
 import { Button } from "~/ui/primitives/button";
@@ -37,6 +38,10 @@ export const ProductCard = React.memo(function ProductCard({
 }: ProductCardProps) {
   const t = useTranslations("products");
   const { isInWishlist, toggleItem } = useWishlist();
+  const { items: cartItems } = useCart();
+  const inCart = cartItems.some((i) => i.id === String(product.id));
+  // Bumped on every successful add so the check mark replays its pop
+  const [addedTick, setAddedTick] = React.useState(0);
 
   const price = Number(product.price);
   const originalPrice = product.original_price ? Number(product.original_price) : 0;
@@ -47,7 +52,10 @@ export const ProductCard = React.memo(function ProductCard({
 
   const addToCart = async () => {
     const ok = await onAddToCart?.(product.id);
-    if (ok === true) toast.success(t("addedToCart", { name: product.name }));
+    if (ok === true) {
+      setAddedTick((n) => n + 1);
+      toast.success(t("addedToCart", { name: product.name }));
+    }
     else if (ok === false) toast.error(t("addToCartFailed"));
   };
 
@@ -140,10 +148,12 @@ export const ProductCard = React.memo(function ProductCard({
 
           {variant === "default" && (
             <>
-              {/* No stars without reviews: an empty rating is not a bad one */}
-              {!!product.review_count && <div className="mt-1.5">{stars}</div>}
-              <div className="mt-2 flex items-center gap-1.5">
-                <span className="font-medium text-foreground">{formatCurrency(price)}</span>
+              {/* No reviews is said in words: empty stars would read as a bad rating */}
+              <div className="mt-1.5 min-h-5">
+                {product.review_count ? stars : <span className="text-xs text-muted-foreground">{t("noReviewsYet")}</span>}
+              </div>
+              <div className="mt-3 flex flex-wrap items-baseline gap-x-2">
+                <span className="text-lg font-semibold text-foreground">{formatCurrency(price)}</span>
                 {discount > 0 && (
                   <span className="text-sm text-muted-foreground line-through">{formatCurrency(originalPrice)}</span>
                 )}
@@ -154,9 +164,23 @@ export const ProductCard = React.memo(function ProductCard({
 
         {variant === "default" && (
           <CardFooter className="relative z-10 p-4 pt-0">
-            <Button className="w-full gap-2" disabled={!canBuy} onClick={addToCart}>
-              <ShoppingCart className="h-4 w-4" aria-hidden />
-              {product.in_stock ? t("addToCart") : t("outOfStock")}
+            <Button
+              className="w-full gap-2"
+              variant={inCart ? "outline" : "default"}
+              disabled={!canBuy}
+              onClick={addToCart}
+              aria-label={inCart ? t("inCartAddMore", { name: product.name }) : undefined}
+            >
+              {inCart ? (
+                <Check
+                  key={addedTick}
+                  className="h-4 w-4 text-primary motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:spin-in-45 motion-safe:duration-300"
+                  aria-hidden
+                />
+              ) : (
+                <ShoppingCart className="h-4 w-4" aria-hidden />
+              )}
+              {!product.in_stock ? t("outOfStock") : inCart ? t("inCart") : t("addToCart")}
             </Button>
           </CardFooter>
         )}
@@ -178,7 +202,11 @@ export const ProductCard = React.memo(function ProductCard({
                 variant="ghost"
                 aria-label={t("addToCartSr")}
               >
-                <ShoppingCart className="h-4 w-4" aria-hidden />
+                {inCart ? (
+                  <Check key={addedTick} className="h-4 w-4 text-primary motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300" aria-hidden />
+                ) : (
+                  <ShoppingCart className="h-4 w-4" aria-hidden />
+                )}
               </Button>
             </div>
           </CardFooter>

@@ -312,6 +312,8 @@
     "addedToCart": "{name} added to cart",
     "backToProducts": "← Back to Products",
     "addToCartSr": "Add to cart",
+    "inCart": "In the cart",
+    "inCartAddMore": "{name} is in the cart. Add one more",
     "onSale": "On Sale",
     "searchCategory": "Search categories...",
     "brand": "Brand",

@@ -27,9 +27,9 @@ async function apiCall<T>(url: string, options: RequestInit = {}): Promise<ApiRe
       ...(options.headers as Record<string, string>),
     };
 
-    // Auto-attach locale for bilingual content
-    const locale = typeof window !== "undefined" ? localStorage.getItem("techhub_locale") || "ua" : "ua";
-    headers["Accept-Language"] = locale;
+    // Bilingual content follows the page language (/en/... or /ua/...)
+    const onEnglishPage = typeof window !== "undefined" && window.location.pathname.split("/")[1] === "en";
+    headers["Accept-Language"] = onEnglishPage ? "en" : "uk";
 
     // Auto-attach session_id for cart persistence (stored in cookie)
     headers["X-Session-Id"] = getSessionId();
