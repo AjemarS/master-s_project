@@ -134,6 +134,7 @@ export function WarehousesClient() {
 
       {/* Create Dialog */}
       <WarehouseDialog
+        key={showCreate ? "create-open" : "create-closed"}
         open={showCreate}
         onOpenChange={setShowCreate}
         mode="create"
@@ -142,7 +143,9 @@ export function WarehousesClient() {
       />
 
       {/* Edit Dialog */}
+      {/* Keyed per warehouse: the form reads its fields once, when it mounts */}
       <WarehouseDialog
+        key={editWarehouse?.id ?? "none"}
         open={!!editWarehouse}
         onOpenChange={(open) => { if (!open) setEditWarehouse(null); }}
         mode="edit"

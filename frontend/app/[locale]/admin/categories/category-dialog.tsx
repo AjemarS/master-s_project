@@ -66,7 +66,8 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
         name_uk: formNameUk.trim() || undefined,
         name_en: formNameEn.trim() || undefined,
       };
-      if (formParent) payload.parent = parseInt(formParent, 10);
+      // null takes an edited category back to the top level
+      payload.parent = formParent ? parseInt(formParent, 10) : null;
 
       const res =
         mode === "create"
@@ -152,12 +153,12 @@ export function CategoryDialog({ open, onOpenChange, mode, category, categories,
               <GitBranch className="h-3.5 w-3.5" />
               {t("parent")}
             </Label>
-            <Select value={formParent} onValueChange={setFormParent}>
+            <Select value={formParent || "none"} onValueChange={(v) => setFormParent(v === "none" ? "" : v)}>
               <SelectTrigger id="cat-parent" className="mt-2">
                 <SelectValue placeholder={t("noParent")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t("noParent")}</SelectItem>
+                <SelectItem value="none">{t("noParent")}</SelectItem>
                 {categories.filter((c) => c.id !== category?.id).map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
                     {c.name}

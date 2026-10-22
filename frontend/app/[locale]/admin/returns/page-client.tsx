@@ -23,7 +23,7 @@ import { returnsApi } from "~/lib/api/admin-api";
 import { formatCurrency } from "~/lib/utils/format";
 import type { ReturnRequest, ReturnResolution, ReturnStatus } from "~/lib/types";
 
-const FILTERS: (ReturnStatus | "all")[] = ["submitted", "approved", "received", "resolved", "rejected", "all"];
+const FILTERS: (ReturnStatus | "all")[] = ["all", "submitted", "approved", "received", "resolved", "rejected"];
 
 // Same table as ReturnRequest.STATUS_TRANSITIONS in order-service
 const NEXT: Record<ReturnStatus, ReturnStatus[]> = {
@@ -40,7 +40,7 @@ export function ReturnsClient() {
   const t = useTranslations("returns");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const [filter, setFilter] = useState<ReturnStatus | "all">("submitted");
+  const [filter, setFilter] = useState<ReturnStatus | "all">("all");
   const { data, error, isLoading, mutate } = useApiGet(`/returns?status=${filter}`, () =>
     returnsApi.list(filter === "all" ? undefined : { status: filter })
   );
@@ -93,9 +93,9 @@ export function ReturnsClient() {
       <div className="max-w-7xl mx-auto">
         <AdminPageHeader title={t("adminTitle")} subtitle={t("adminSubtitle")} icon={RotateCcw} backLabel={tc("back")} />
 
-        <div className="flex flex-wrap gap-1 mb-4" role="group" aria-label={t("filterByStatus")}>
+        <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label={t("filterByStatus")}>
           {FILTERS.map((f) => (
-            <Button key={f} size="sm" variant={f === filter ? "secondary" : "ghost"} aria-pressed={f === filter} onClick={() => setFilter(f)}>
+            <Button key={f} size="sm" variant={f === filter ? "default" : "outline"} aria-pressed={f === filter} onClick={() => setFilter(f)}>
               {f === "all" ? t("all") : t(`status_${f}`)}
             </Button>
           ))}

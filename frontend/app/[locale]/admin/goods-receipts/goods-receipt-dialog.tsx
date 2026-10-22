@@ -1,5 +1,6 @@
 "use client";
 
+import { useProductNames } from "~/lib/hooks/use-product-names";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { apiErrorText } from "~/lib/utils/error-handler";
@@ -59,7 +60,6 @@ export function GoodsReceiptDialog({
   const tc = useTranslations("common");
   const tAct = useTranslations("activity");
 
-  const refCounterRef = useRef(0);
   // Initial rows use keys 1..n (see initialItems); new rows continue after them
   const itemKeyCounterRef = useRef((purchaseOrder?.items.length ?? 0) + 1);
   const fetchedKeysRef = useRef<Set<string>>(new Set());
@@ -80,6 +80,7 @@ export function GoodsReceiptDialog({
   const [items, setItems] = useState<GrnFormItem[]>(() => initialItems(purchaseOrder));
 
   const activeItemCount = items.filter((item) => item.product_id.trim() !== "").length;
+  const nameOf = useProductNames(items.map((item) => Number(item.product_id)));
 
   const resetAndClose = useCallback(() => {
     onOpenChange(false);
@@ -134,14 +135,6 @@ export function GoodsReceiptDialog({
     return () => { cancelled = true; };
   }, [items, warehouse]);
 
-  // Auto-generate reference number on dialog open
-  useEffect(() => {
-    if (open) {
-      refCounterRef.current += 1;
-      const today = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      setRef(`GRN-${today}-${String(refCounterRef.current).padStart(3, "0")}`);
-    }
-  }, [open]);
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (!open) resetAndClose();
@@ -283,14 +276,17 @@ export function GoodsReceiptDialog({
 
               {/* Reference */}
               <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Label htmlFor="grn-ref" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Hash className="h-3.5 w-3.5" />
                   {t("refNumber")}
                 </Label>
+                {/* The supplier's document number; left empty, the server numbers the receipt */}
                 <Input
+                  id="grn-ref"
                   value={ref}
-                  disabled
-                  placeholder={t("refPlaceholder")}
+                  onChange={(e) => setRef(e.target.value)}
+                  maxLength={100}
+                  placeholder={t("refAuto")}
                   className="h-9"
                 />
               </div>
@@ -347,6 +343,7 @@ export function GoodsReceiptDialog({
                         placeholder={t("productId")}
                         className="h-8 text-sm"
                       />
+                      {!isEmpty && <p className="truncate text-xs text-muted-foreground" title={nameOf(Number(item.product_id))}>{nameOf(Number(item.product_id))}</p>}
                     </div>
 
                     {/* Quantity */}

@@ -46,7 +46,8 @@ function AccordionTrigger({
         {...props}
       >
         {children}
-        {trailing}
+        {/* Status marks sit next to the chevron, not in the middle of the row */}
+        {trailing && <span className="ml-auto">{trailing}</span>}
         <ChevronDownIcon className="pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200" />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>

@@ -120,3 +120,15 @@ class ProductSerializerTest(TestCase):
         inst = ProductSerializer()
         result = inst.validate_image(image)
         self.assertEqual(result, image)
+
+
+class SpecsEnglishTest(TestCase):
+    def test_english_request_gets_translated_specs(self):
+        from products.spec_translations import specs_to_en
+
+        specs = {"Об'єм": "385 л", "Колір": "Білий", "Невідоме": "x"}
+        product = _create_product(specs=specs, specs_en=specs_to_en(specs))
+        en = self.client.get(f"/api/products/{product.pk}/", HTTP_ACCEPT_LANGUAGE="en").json()
+        uk = self.client.get(f"/api/products/{product.pk}/", HTTP_ACCEPT_LANGUAGE="uk").json()
+        self.assertEqual(en["specs"], {"Capacity": "385 L", "Colour": "White", "Невідоме": "x"})
+        self.assertEqual(uk["specs"], specs)

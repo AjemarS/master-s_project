@@ -5,7 +5,7 @@ export default function ProductDetailLoading() {
     <div className="flex min-h-dvh flex-col">
       <div className="flex-1 py-10">
         <div className="container px-4 md:px-6">
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
             {/* Image skeleton */}
             <div className="relative aspect-square overflow-hidden rounded-xl">
               <Skeleton className="h-full w-full" />

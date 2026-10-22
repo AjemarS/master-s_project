@@ -69,10 +69,10 @@ export function ProductFilters({
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">{t("category")}</Label>
-              <Select value={filterCategory} onValueChange={(v) => onFilterChange("filterCategory", v)}>
+              <Select value={filterCategory || "all"} onValueChange={(v) => onFilterChange("filterCategory", v === "all" ? "" : v)}>
                 <SelectTrigger className="w-44"><SelectValue placeholder={t("allCategories")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t("allCategories")}</SelectItem>
+                  <SelectItem value="all">{t("allCategories")}</SelectItem>
                   {categories.map((cat) => <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -92,7 +92,7 @@ export function ProductFilters({
                     className={`w-28 ${priceRangeError ? "border-red-500" : ""}`} />
                 </div>
               </div>
-              {priceRangeError && <p className="text-xs text-red-500">Min price cannot exceed max price</p>}
+              {priceRangeError && <p className="text-xs text-destructive">{t("priceRangeError")}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-end gap-4">
@@ -109,7 +109,7 @@ export function ProductFilters({
                     className={`w-24 ${stockRangeError ? "border-red-500" : ""}`} />
                 </div>
               </div>
-              {stockRangeError && <p className="text-xs text-red-500">Min stock cannot exceed max stock</p>}
+              {stockRangeError && <p className="text-xs text-destructive">{t("stockRangeError")}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-end gap-4">
@@ -124,7 +124,7 @@ export function ProductFilters({
                     className={`w-36 ${dateRangeError ? "border-red-500" : ""}`} />
                 </div>
               </div>
-              {dateRangeError && <p className="text-xs text-red-500">Date from cannot be after date to</p>}
+              {dateRangeError && <p className="text-xs text-destructive">{t("dateRangeError")}</p>}
             </div>
             <div className="flex items-center gap-2 pb-1">
               <Checkbox id="inStock" checked={filterInStock === true}
@@ -132,7 +132,7 @@ export function ProductFilters({
               <Label htmlFor="inStock" className="text-xs text-muted-foreground cursor-pointer">{t("onlyInStock")}</Label>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={onApplyFilters}>
+              <Button size="sm" onClick={onApplyFilters} disabled={!!(priceRangeError || stockRangeError || dateRangeError)}>
                 {tc("apply")}
               </Button>
               <Button size="sm" variant="outline" onClick={onClearFilters}>

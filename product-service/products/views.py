@@ -261,6 +261,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        # Products and subcategories cascade on delete: refuse instead of wiping them out
+        if instance.products.exists() or instance.children.exists():
+            raise ValidationError({"error": "category_not_empty"})
         logger.warning(
             "Category deleted | id=%s name=%r user=%s",
             instance.pk,

@@ -132,21 +132,22 @@ export default function ComparePage() {
           {error ? t("loadFailed") : t("gone")}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border dark:border-border">
-          <table className="w-full min-w-[40rem] text-sm">
+        <div className="relative overflow-x-auto rounded-lg border dark:border-border" tabIndex={0} role="region" aria-label={t("title")}>
+          {/* Equal product columns; the field names stay pinned while the products scroll sideways */}
+          <table className="w-full table-fixed text-sm">
             <caption className="sr-only">{t("title")}</caption>
             <thead>
               <tr className="border-b dark:border-border align-top">
-                <th scope="col" className="w-48 p-3 text-left font-medium text-muted-foreground">
+                <th scope="col" className="sticky left-0 z-10 w-28 bg-background p-3 text-left font-medium text-muted-foreground sm:w-48">
                   {t("selected", { count: products.length })}
                 </th>
                 {products.map((p) => (
-                  <th key={p.id} scope="col" className="p-3 text-left font-normal">
+                  <th key={p.id} scope="col" className="w-44 p-3 text-left font-normal sm:w-auto">
                     <div className="space-y-2">
-                      <div className="relative aspect-square w-28 overflow-hidden rounded-md bg-muted">
+                      <div className="relative aspect-square w-20 overflow-hidden rounded-md bg-muted sm:w-28">
                         <ProductImage fill imageUrl={p.image_url} productId={p.id} productName={p.name} sizes="7rem" />
                       </div>
-                      <Link href={`/products/${p.slug || p.id}`} className="block font-medium hover:underline underline-offset-4 line-clamp-2">
+                      <Link href={`/products/${p.slug || p.id}`} title={p.name} className="block font-medium hover:underline underline-offset-4 line-clamp-2">
                         {p.name}
                       </Link>
                       <div className="flex gap-1">
@@ -174,7 +175,7 @@ export default function ComparePage() {
             <tbody>
               {visible.map((r) => (
                 <tr key={r.key} className={cn("border-b last:border-0 dark:border-border", differs(r) && "bg-primary/5")}>
-                  <th scope="row" className="p-3 text-left font-medium text-muted-foreground">{r.label}</th>
+                  <th scope="row" className="sticky left-0 z-10 bg-background p-3 text-left font-medium text-muted-foreground">{r.label}</th>
                   {r.values.map((v, i) => (
                     <td key={products[i].id} className="p-3">{v ?? <span className="text-muted-foreground">—</span>}</td>
                   ))}

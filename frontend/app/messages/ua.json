@@ -312,6 +312,8 @@
     "addedToCart": "{name} додано в кошик",
     "backToProducts": "← Назад до товарів",
     "addToCartSr": "Додати в кошик",
+    "inCart": "У кошику",
+    "inCartAddMore": "{name} у кошику. Додати ще один",
     "onSale": "Зі знижкою",
     "searchCategory": "Пошук категорій...",
     "brand": "Бренд",
@@ -338,7 +340,10 @@
     "stockUpdateFailed": "Не вдалося оновити залишок",
     "eventStockAdjusted": "Залишок «{name}»: {from} → {to}",
     "addedToWishlist": "Додано до обраного",
-    "removedFromWishlist": "Прибрано з обраного"
+    "removedFromWishlist": "Прибрано з обраного",
+    "priceRangeError": "Мінімальна ціна більша за максимальну",
+    "stockRangeError": "Мінімальний залишок більший за максимальний",
+    "dateRangeError": "Дата «від» пізніша за дату «до»"
   },
   "orders": {
     "title": "Керування замовленнями",
@@ -443,7 +448,9 @@
     "confirmSaleDesc": "Перевірте чек перед завершенням продажу.",
     "confirmSale": "Підтвердити продаж",
     "hintSelectWarehouse": "Оберіть склад, щоб провести продаж",
-    "hintAddItems": "Додайте товари в чек"
+    "hintAddItems": "Додайте товари в чек",
+    "hintCustomer": "Вкажіть ім'я та телефон покупця",
+    "saleActivity": "Продаж на касі: {name}"
   },
   "cart": {
     "title": "Кошик",
@@ -458,7 +465,9 @@
     "continueShopping": "Продовжити покупки",
     "clearCart": "Очистити кошик",
     "shoppingCart": "Кошик",
-    "clearConfirm": "Очистити кошик? Усі товари буде видалено."
+    "clearConfirm": "Очистити кошик? Усі товари буде видалено.",
+    "clearYes": "Очистити",
+    "removeConfirm": "Прибрати з кошика?"
   },
   "checkout": {
     "title": "Оформлення замовлення",
@@ -473,7 +482,7 @@
     "nameLabel": "Ім'я",
     "emailLabel": "Email",
     "phoneLabel": "Телефон",
-    "phonePlaceholder": "+380 __ ___ __ __",
+    "phonePlaceholder": "67 123 45 67",
     "delivery": "Доставка",
     "deliveryMethod": "Спосіб доставки",
     "pickup": "Самовивіз з магазину",
@@ -490,7 +499,7 @@
     "receiverName": "Ім'я отримувача",
     "receiverNamePlaceholder": "Введіть ім'я отримувача",
     "receiverPhone": "Телефон отримувача",
-    "receiverPhonePlaceholder": "+380 __ ___ __ __",
+    "receiverPhonePlaceholder": "67 123 45 67",
     "callToConfirm": "Зателефонувати мені для підтвердження",
     "comment": "Коментар",
     "commentPlaceholder": "Додаткові побажання або коментар...",
@@ -542,6 +551,7 @@
     "statusFilled": "Заповнено",
     "statusError": "Помилка",
     "promoLabel": "Промокод",
+    "promoHave": "Маю промокод",
     "promoApply": "Застосувати",
     "promoRemove": "Прибрати промокод",
     "promoInvalid": "Промокод не підходить",
@@ -609,7 +619,8 @@
     "createdSuccess": "Категорію створено",
     "createdDesc": "Категорію \"{name}\" створено.",
     "editNamed": "Редагувати «{name}»",
-    "deleteNamed": "Видалити «{name}»"
+    "deleteNamed": "Видалити «{name}»",
+    "notEmpty": "У категорії є товари або підкатегорії: перенесіть або видаліть їх спершу."
   },
   "warehouses": {
     "title": "Склади та залишки",
@@ -722,7 +733,8 @@
     "deleteConfirmDesc": "Ви впевнені, що хочете видалити цю накладну? Кількість товару на складі буде скориговано. Цю дію не можна скасувати.",
     "grnUpdated": "Прибуткову накладну успішно оновлено",
     "grnDeleted": "Прибуткову накладну успішно видалено",
-    "deleteError": "Не вдалося видалити прибуткову накладну"
+    "deleteError": "Не вдалося видалити прибуткову накладну",
+    "refAuto": "Присвоїться автоматично"
   },
   "stockMovements": {
     "title": "Журнал руху товарів",
@@ -936,7 +948,8 @@
     "errEmail": "Вкажіть email.",
     "errEmailInvalid": "Некоректна email-адреса.",
     "errPassword": "Вкажіть пароль.",
-    "errPasswordShort": "Пароль має містити щонайменше 8 символів."
+    "errPasswordShort": "Пароль має містити щонайменше 8 символів.",
+    "password": "Пароль"
   },
   "home": {
     "heroTitle": "Побутова техніка для",
@@ -963,7 +976,8 @@
     "ctaTitle": "Готуєтеся до оновлення?",
     "ctaSubtitle": "Приєднуйтесь до тисяч задоволених клієнтів. Зареєструйтеся сьогодні та отримуйте ексклюзивні пропозиції.",
     "ctaSignUp": "Зареєструватися",
-    "ctaCatalog": "Каталог"
+    "ctaCatalog": "Каталог",
+    "shopLink": "Купити"
   },
   "footer": {
     "tagline": "Надійна побутова техніка для вашого дому. Кращі ціни та сервіс в Україні.",

@@ -691,3 +691,25 @@ class PurchasingTest(APITestCase):
         self.client.force_authenticate(user=None)
         row = self.client.get(f"/api/stock/?product_id=1").data[0]
         self.assertNotIn("reorder_point", row)
+
+
+class GoodsReceiptAuthorAndNumberTest(APITestCase):
+    def test_receipt_records_the_author_name_and_gets_a_unique_number(self):
+        from .models import GoodsReceiptNote
+
+        supplier, wh = _create_supplier(), _create_warehouse()
+        headers = {
+            "HTTP_X_GATEWAY_USER_ID": "w1", "HTTP_X_GATEWAY_USER_ROLE": "warehouse_worker",
+            "HTTP_X_GATEWAY_USER_NAME": "Олена",
+        }
+        body = {
+            "supplier": supplier.pk, "warehouse": wh.pk, "receipt_date": "2026-10-22",
+            "created_by": "spoofed",
+            "items": [{"product_id": 1, "quantity": 2, "cost_price": "10.00"}],
+        }
+        for _ in range(2):
+            res = self.client.post("/api/goods-receipts/", body, format="json", **headers)
+            self.assertEqual(res.status_code, 201, res.content)
+        notes = list(GoodsReceiptNote.objects.order_by("pk"))
+        self.assertEqual({n.created_by for n in notes}, {"Олена"})
+        self.assertEqual(len({n.reference_number for n in notes}), 2)

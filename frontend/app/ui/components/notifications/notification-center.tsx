@@ -18,6 +18,7 @@ import {
 } from "~/ui/primitives/dropdown-menu";
 
 import { Notifications } from "./notifications";
+import { useConfirm } from "~/ui/components/confirm-dialog";
 
 export interface Notification {
   description: string;
@@ -49,6 +50,7 @@ export function NotificationCenter({
   onMarkAsRead,
   ...props
 }: NotificationCenterProps) {
+  const [confirm, confirmDialog] = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations("notifications");
   // Use prop if provided, otherwise compute from loaded notifications
@@ -57,12 +59,13 @@ export function NotificationCenter({
   const handleMarkAsRead = (id: string) => onMarkAsRead?.(id);
   const handleMarkAllAsRead = () => onMarkAllAsRead?.();
   const handleDismiss = (id: string) => onDismiss?.(id);
-  const handleClearAll = () => {
-    if (window.confirm(t("clearAllConfirm"))) onClearAll?.();
+  const handleClearAll = async () => {
+    if (await confirm(t("clearAllConfirm"))) onClearAll?.();
   };
 
   return (
     <div className={cn("relative", className)} {...props}>
+      {confirmDialog}
       <DropdownMenu onOpenChange={setIsOpen} open={isOpen}>
         <DropdownMenuTrigger asChild>
           <Button

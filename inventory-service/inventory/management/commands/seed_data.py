@@ -1,7 +1,7 @@
 import logging
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from random import randint, choice, sample, uniform
+from random import Random, choice, choices, randint, sample, uniform
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -45,6 +45,18 @@ WRITE_OFF_REASONS = [
     "Втрачено на складі",
     "Повернення від клієнта з пошкодженням",
 ]
+
+
+def base_cost(product_id):
+    """A stable purchase cost per product, so receipts and average costs look like one product's prices."""
+    return Decimal(str(round(Random(product_id).uniform(2500, 30000), 2)))
+
+
+# Reorder point and batch per warehouse type: without them purchasing never suggests anything
+REORDER_DEFAULTS = {
+    Warehouse.WAREHOUSE: {"reorder_point": 3, "reorder_quantity": 15},
+    Warehouse.SHOWROOM: {"reorder_point": 1, "reorder_quantity": 3},
+}
 
 
 class Command(BaseCommand):
@@ -106,7 +118,10 @@ class Command(BaseCommand):
                 Stock.objects.get_or_create(
                     product_id=product_id,
                     warehouse=wh,
-                    defaults={"quantity": base_qty, "reserved": 0},
+                    defaults={
+                        "quantity": base_qty, "reserved": 0, "average_cost": base_cost(product_id),
+                        **REORDER_DEFAULTS[wh.type],
+                    },
                 )
         self.stdout.write("  Initial stock levels created for 50 products across 5 warehouses")
 
@@ -119,7 +134,8 @@ class Command(BaseCommand):
             num_products = randint(2, 4)
             product_ids = sample(range(1, 32), num_products)
             qtys = [randint(5, 15) for _ in range(num_products)]
-            costs = [Decimal(str(round(uniform(3000, 25000), 2))) for _ in range(num_products)]
+            costs = [(base_cost(pid) * Decimal(str(round(uniform(0.95, 1.08), 3)))).quantize(Decimal("0.01"))
+                     for pid in product_ids]
             events.append({
                 "type": "grn",
                 "days_ago": days_ago,
@@ -154,14 +170,19 @@ class Command(BaseCommand):
                 "reason": WRITE_OFF_REASONS[i],
             })
 
-        # 50 sales — prefer central and showrooms for realistic order fulfillment
-        for _ in range(50):
+        # 300 sales over 60 days — prefer central and showrooms; a few bestsellers sell far more,
+        # so some stock runs low and the reports have something to flag
+        popular = [1, 6, 13, 15, 21]
+        weights = [8 if pid in popular else 1 for pid in range(1, 31)]
+        for _ in range(300):
+            pid = choices(range(1, 31), weights=weights, k=1)[0]
             events.append({
                 "type": "sale",
-                "days_ago": randint(1, 50),
-                "warehouse": choice(warehouses[:3]),  # central, showroom Kyiv, Kharkiv
-                "product_id": randint(1, 25),
-                "qty": randint(1, 2),
+                "days_ago": randint(1, 60),
+                # bestsellers go out of every warehouse, the rest mostly from central and the showrooms
+                "warehouse": choice(warehouses if pid in popular else warehouses[:3]),
+                "product_id": pid,
+                "qty": randint(1, 3) if pid in popular else randint(1, 2),
             })
 
         # Oldest first
@@ -239,10 +260,13 @@ class Command(BaseCommand):
                 quantity=qty,
                 cost_price=cost,
             )
-            Stock.objects.filter(product_id=pid, warehouse=wh).update(
-                quantity=F("quantity") + qty
-            )
-            StockMovement.objects.create(
+            # Same weighted average as a real receipt (views.GoodsReceiptNoteViewSet.perform_create)
+            stock = Stock.objects.get(product_id=pid, warehouse=wh)
+            total = stock.quantity + qty
+            stock.average_cost = (stock.quantity * stock.average_cost + qty * cost) / total
+            stock.quantity = total
+            stock.save(update_fields=["quantity", "average_cost"])
+            movement = StockMovement.objects.create(
                 product_id=pid,
                 to_warehouse=wh,
                 quantity=qty,
@@ -252,6 +276,9 @@ class Command(BaseCommand):
                 notes=f"GRN #{grn.pk}: {qty} units @ {cost}",
                 created_by="seed",
             )
+            # created_at is auto_now_add: date the movement when the delivery happened
+            StockMovement.objects.filter(pk=movement.pk).update(created_at=event_dt)
+        GoodsReceiptNote.objects.filter(pk=grn.pk).update(created_at=event_dt)
 
         items_desc = ", ".join(
             f"#{pid} x{qty}" for pid, qty in zip(event["product_ids"], event["qtys"])
@@ -309,6 +336,8 @@ class Command(BaseCommand):
                 created_by="seed",
             )
 
+        StockMovement.objects.filter(pk=movement.pk).update(created_at=event_dt)
+
         self._create_activity_event(
             event_type="info",
             message=f"Переміщено товар #{pid} x{qty} з «{from_wh.name}» на «{to_wh.name}»",
@@ -348,6 +377,8 @@ class Command(BaseCommand):
             created_by="seed",
         )
 
+        StockMovement.objects.filter(pk=movement.pk).update(created_at=event_dt)
+
         self._create_activity_event(
             event_type="delete",
             message=f"Списано товар #{pid} x{qty} на «{wh.name}»: {reason}",
@@ -385,6 +416,8 @@ class Command(BaseCommand):
             notes=f"Продаж {qty} од. товару #{pid}",
             created_by="seed",
         )
+
+        StockMovement.objects.filter(pk=movement.pk).update(created_at=event_dt)
 
         self._create_activity_event(
             event_type="info",

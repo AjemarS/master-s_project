@@ -42,6 +42,8 @@ interface UserTableProps {
   searchTerm: string;
   roleFilter: string;
   statusFilter: string;
+  onApplyFilters: () => void;
+  onResetFilters: () => void;
   onSearchChange: (value: string) => void;
   onRoleFilterChange: (value: string) => void;
   onStatusFilterChange: (value: string) => void;
@@ -62,6 +64,8 @@ export function UserTable({
   searchTerm,
   roleFilter,
   statusFilter,
+  onApplyFilters,
+  onResetFilters,
   onSearchChange,
   onRoleFilterChange,
   onStatusFilterChange,
@@ -302,8 +306,8 @@ export function UserTable({
                   </Select>
                 </div>
                 <div className="flex gap-2 pb-px">
-                  <Button size="sm" onClick={() => onPageChange(1)}>{tc("apply")}</Button>
-                  <Button size="sm" variant="outline" onClick={() => { onRoleFilterChange(""); onStatusFilterChange(""); }}>
+                  <Button size="sm" onClick={onApplyFilters}>{tc("apply")}</Button>
+                  <Button size="sm" variant="outline" onClick={onResetFilters}>
                     {tc("reset")}
                   </Button>
                 </div>

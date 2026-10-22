@@ -127,8 +127,8 @@ export function POSClient() {
     try {
       const res = await posService.createOrder({
         warehouse_id: selectedWarehouse,
-        customer_name: customerName || undefined,
-        customer_phone: customerPhone || undefined,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone,
         items: receipt.map((item) => ({
           product_id: item.product_id,
           quantity: item.quantity,
@@ -137,7 +137,7 @@ export function POSClient() {
       });
       if (res.error) throw new Error(res.error.message);
       toast.success(t("saleComplete"));
-      pushEvent({ type: "create", message: `POS sale completed${customerName ? ` for ${customerName}` : ""}`, entityType: "order" });
+      pushEvent({ type: "create", message: t("saleActivity", { name: customerName.trim() }), entityType: "order" });
       setReceipt([]);
       setCustomerName("");
       setCustomerPhone("");

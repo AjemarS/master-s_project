@@ -10,6 +10,8 @@ import { ShoppingCart, Minus, Plus, Trash2, Loader2 } from "lucide-react";
 import { formatCurrency } from "~/lib/utils/format";
 import type { Warehouse } from "~/lib/types";
 import type { ReceiptItem } from "./actions";
+import { PhoneInput } from "~/ui/components/phone-input";
+import { isValidPhone } from "~/lib/utils/phone";
 
 interface POSReceiptPanelProps {
   warehouses: Warehouse[];
@@ -45,6 +47,15 @@ export function POSReceiptPanel({
   const t = useTranslations("pos");
   const ta = useTranslations("a11y");
 
+  // Why the sale cannot go through yet, or null when it can
+  const readyHint = !selectedWarehouse
+    ? t("hintSelectWarehouse")
+    : receipt.length === 0
+      ? t("hintAddItems")
+      : !customerName.trim() || !isValidPhone(customerPhone)
+        ? t("hintCustomer")
+        : null;
+
   return (
     <div className="space-y-4">
       <Card className="dark:bg-card dark:border-border">
@@ -78,11 +89,12 @@ export function POSReceiptPanel({
 
           <div>
             <Label htmlFor="pos-customer-name" className="text-xs text-muted-foreground mb-1 block">
-              {t("customerName")}
+              {t("customerName")} *
             </Label>
             <Input
               id="pos-customer-name"
               autoComplete="off"
+              required
               placeholder={t("customerName")}
               value={customerName}
               onChange={(e) => onCustomerNameChange(e.target.value)}
@@ -91,16 +103,15 @@ export function POSReceiptPanel({
 
           <div>
             <Label htmlFor="pos-customer-phone" className="text-xs text-muted-foreground mb-1 block">
-              {t("customerPhone")}
+              {t("customerPhone")} *
             </Label>
-            <Input
+            <PhoneInput
               id="pos-customer-phone"
-              type="tel"
-              inputMode="tel"
               autoComplete="off"
-              placeholder={t("customerPhone")}
+              required
+              placeholder="67 123 45 67"
               value={customerPhone}
-              onChange={(e) => onCustomerPhoneChange(e.target.value)}
+              onChange={onCustomerPhoneChange}
             />
           </div>
 
@@ -163,17 +174,17 @@ export function POSReceiptPanel({
             <Button
               className="w-full mt-4"
               size="lg"
-              disabled={receipt.length === 0 || !selectedWarehouse || submitting}
-              aria-describedby={!selectedWarehouse || receipt.length === 0 ? "pos-submit-hint" : undefined}
+              disabled={!!readyHint || submitting}
+              aria-describedby={readyHint ? "pos-submit-hint" : undefined}
               onClick={onSubmit}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {t("submitSale")}
             </Button>
             {/* Say why the button is off instead of leaving the cashier guessing */}
-            {(!selectedWarehouse || receipt.length === 0) && (
+            {readyHint && (
               <p id="pos-submit-hint" className="mt-2 text-center text-xs text-muted-foreground">
-                {!selectedWarehouse ? t("hintSelectWarehouse") : t("hintAddItems")}
+                {readyHint}
               </p>
             )}
           </div>

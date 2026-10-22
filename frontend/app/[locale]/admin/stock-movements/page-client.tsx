@@ -7,6 +7,7 @@ import { Button } from "~/ui/primitives/button";
 import { ArrowRightLeft, Filter, RefreshCw, X, Pencil } from "lucide-react";
 import { AdminPageHeader, LastUpdated } from "../components";
 import { useStockMovements, useWarehouses } from "~/lib/hooks/use-api-data";
+import { useDraftFilters } from "~/lib/hooks/use-draft-filters";
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
 import { StockMovementFilters } from "./stock-movement-filters";
@@ -40,12 +41,12 @@ export function StockMovementsClient() {
 
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [filterType, setFilterType] = useState("");
-  const [filterProductId, setFilterProductId] = useState("");
-  const [filterFromWarehouse, setFilterFromWarehouse] = useState("");
-  const [filterToWarehouse, setFilterToWarehouse] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const filters = useDraftFilters({
+    filterType: "", filterProductId: "", filterFromWarehouse: "", filterToWarehouse: "", filterDateFrom: "", filterDateTo: "",
+  });
+  // The query reads what was applied; the panel edits filters.draft
+  const { filterType, filterProductId, filterFromWarehouse, filterToWarehouse, filterDateFrom, filterDateTo } = filters.applied;
+  const draft = filters.draft;
 
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [viewingMovement, setViewingMovement] = useState<StockMovement | null>(null);
@@ -69,17 +70,15 @@ export function StockMovementsClient() {
   // Moves on with every fetch instead of freezing at first render
   const lastUpdated = useMemo(() => (movementsData ? new Date() : undefined), [movementsData]);
 
-  const dateRangeError = !!(filterDateFrom && filterDateTo && filterDateFrom > filterDateTo);
+  const dateRangeError = !!(draft.filterDateFrom && draft.filterDateTo && draft.filterDateFrom > draft.filterDateTo);
 
-  const handleApplyFilters = () => setPage(1);
+  const handleApplyFilters = () => {
+    filters.apply();
+    setPage(1);
+  };
 
   const handleResetFilters = () => {
-    setFilterType("");
-    setFilterProductId("");
-    setFilterFromWarehouse("");
-    setFilterToWarehouse("");
-    setFilterDateFrom("");
-    setFilterDateTo("");
+    filters.reset();
     setPage(1);
   };
 
@@ -125,21 +124,21 @@ export function StockMovementsClient() {
           <CardContent>
             <StockMovementFilters
               showFilters={showFilters}
-              filterType={filterType}
-              filterProductId={filterProductId}
-              filterFromWarehouse={filterFromWarehouse}
-              filterToWarehouse={filterToWarehouse}
-              filterDateFrom={filterDateFrom}
-              filterDateTo={filterDateTo}
+              filterType={draft.filterType}
+              filterProductId={draft.filterProductId}
+              filterFromWarehouse={draft.filterFromWarehouse}
+              filterToWarehouse={draft.filterToWarehouse}
+              filterDateFrom={draft.filterDateFrom}
+              filterDateTo={draft.filterDateTo}
               warehouses={warehouses}
               movementTypes={MOVEMENT_TYPES}
               dateRangeError={dateRangeError}
-              onFilterTypeChange={setFilterType}
-              onFilterProductIdChange={setFilterProductId}
-              onFilterFromWarehouseChange={setFilterFromWarehouse}
-              onFilterToWarehouseChange={setFilterToWarehouse}
-              onFilterDateFromChange={setFilterDateFrom}
-              onFilterDateToChange={setFilterDateTo}
+              onFilterTypeChange={(v) => filters.set("filterType", v)}
+              onFilterProductIdChange={(v) => filters.set("filterProductId", v)}
+              onFilterFromWarehouseChange={(v) => filters.set("filterFromWarehouse", v)}
+              onFilterToWarehouseChange={(v) => filters.set("filterToWarehouse", v)}
+              onFilterDateFromChange={(v) => filters.set("filterDateFrom", v)}
+              onFilterDateToChange={(v) => filters.set("filterDateTo", v)}
               onApply={handleApplyFilters}
               onReset={handleResetFilters}
             />

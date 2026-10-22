@@ -81,11 +81,11 @@ export function WarehouseTable({ warehouses, isLoading, isAdmin, onEdit, onDelet
                     {isAdmin && (
                       <TableCell>
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => onEdit(wh)}>
-                            <Pencil className="h-4 w-4" />
+                          <Button size="sm" variant="outline" onClick={() => onEdit(wh)} aria-label={`${tc("edit")}: ${wh.name}`} title={tc("edit")}>
+                            <Pencil className="h-4 w-4" aria-hidden />
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => onDelete(wh.id)}>
-                            <Trash2 className="h-4 w-4" />
+                          <Button size="sm" variant="destructive" onClick={() => onDelete(wh.id)} aria-label={`${tc("delete")}: ${wh.name}`} title={tc("delete")}>
+                            <Trash2 className="h-4 w-4" aria-hidden />
                           </Button>
                         </div>
                       </TableCell>

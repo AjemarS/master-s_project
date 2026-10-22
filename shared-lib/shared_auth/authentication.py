@@ -22,7 +22,8 @@ class GatewayAuthentication(BaseAuthentication):
 
         role = request.META.get(self.GATEWAY_USER_ROLE_HEADER, "user")
         email = request.META.get(self.GATEWAY_USER_EMAIL_HEADER, f"{user_id}@gateway.local")
-        name = request.META.get(self.GATEWAY_USER_NAME_HEADER, user_id)
+        # Display name for authors and activity entries; kept in step with the account
+        name = (request.META.get(self.GATEWAY_USER_NAME_HEADER) or "")[:30]
 
         username = f"gw_{user_id}"
 
@@ -31,7 +32,7 @@ class GatewayAuthentication(BaseAuthentication):
                 username=username,
                 defaults={
                     "email": email,
-                    "first_name": name[:30],
+                    "first_name": name,
                     "is_staff": role == "admin",
                     "is_superuser": role == "admin",
                 },
@@ -41,6 +42,9 @@ class GatewayAuthentication(BaseAuthentication):
                 changed = False
                 if user.email != email:
                     user.email = email
+                    changed = True
+                if name and user.first_name != name:
+                    user.first_name = name
                     changed = True
                 expected_staff = role == "admin"
                 if user.is_staff != expected_staff:

@@ -12,7 +12,7 @@ export async function StaticPage({ name }: { name: string }) {
   return (
     <div className="flex min-h-dvh flex-col bg-gradient-warm">
       <FadeIn direction="up">
-        <section className="py-16 md:py-24">
+        <section className="py-8 md:py-10">
           <div className="container mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <h1 className="mb-10 text-4xl font-bold tracking-tight text-foreground">{t("title")}</h1>
             <div className="space-y-8">

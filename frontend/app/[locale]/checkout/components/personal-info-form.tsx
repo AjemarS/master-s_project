@@ -2,6 +2,7 @@
 
 import { Label } from "~/ui/primitives/label";
 import { Input } from "~/ui/primitives/input";
+import { PhoneInput } from "~/ui/components/phone-input";
 
 interface PersonalInfoFormProps {
   name: string;
@@ -63,18 +64,16 @@ export function PersonalInfoForm({
       </div>
       <div>
         <Label htmlFor="co-phone">{tChk("phoneLabel")}</Label>
-        <Input
+        <PhoneInput
           id="co-phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
+          autoComplete="tel-national"
           aria-invalid={!!errors.phone}
           aria-describedby={errors.phone ? "co-phone-error" : undefined}
           value={phone}
-          onChange={(e) => onPhoneChange(e.target.value)}
+          onChange={onPhoneChange}
           onBlur={() => onBlur("phone")}
           placeholder={tChk("phonePlaceholder")}
-          className={`mt-1.5 ${errors.phone ? "border-destructive" : ""}`}
+          className="mt-1.5"
         />
         {errors.phone && (
           <p id="co-phone-error" role="alert" className="mt-1 text-xs text-destructive">{errors.phone}</p>

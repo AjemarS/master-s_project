@@ -93,6 +93,7 @@ class Product(models.Model):
     )
     review_count = models.PositiveIntegerField(default=0, verbose_name="Кількість відгуків")
     specs = models.JSONField(default=dict, verbose_name="Специфікації")
+    specs_en = models.JSONField(default=dict, blank=True, verbose_name="Специфікації (англ)")
     # Seller's warranty; order-service snapshots it per sale for warranty claims
     warranty_months = models.PositiveSmallIntegerField(
         default=12, validators=[MaxValueValidator(120)], verbose_name="Гарантія, міс."

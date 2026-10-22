@@ -155,9 +155,10 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
 
             {mode === "create" && (
               <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="ud-password" className="flex items-center gap-1.5 pt-1.5 text-xs font-medium text-muted-foreground">
+                {/* h-9 = the input's height, so the label lines up with the field, not with the meter below */}
+                <Label htmlFor="ud-password" className="flex h-9 items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Lock className="h-3.5 w-3.5" />
-                  Password *
+                  {t("password")} *
                 </Label>
                 <div className="col-span-3 space-y-1.5">
                   <div className="relative">
@@ -182,9 +183,9 @@ export function UserDialog({ open, onOpenChange, mode, user, onSuccess }: UserDi
                     <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${
-                          password.length < 6
+                          password.length < 8
                             ? "bg-red-500 w-1/3"
-                            : password.length < 10
+                            : password.length < 12
                               ? "bg-yellow-500 w-2/3"
                               : "bg-green-500 w-full"
                         }`}

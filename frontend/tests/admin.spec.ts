@@ -11,7 +11,8 @@ test.describe("Admin Summary", () => {
   });
 
   test("renders dashboard heading and stat cards", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: /огляд системи/i })).toBeVisible();
+    // First admin page of the run: the session check can take longer than 5 s on a busy dev server
+    await expect(page.getByRole("heading", { name: /огляд системи/i })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/вартість запасів/i)).toBeVisible();
   });
 });
@@ -136,6 +137,7 @@ test.describe("Admin Sidebar Navigation", () => {
 
   test("sidebar contains all nav items", async ({ page }) => {
     await page.goto("/admin/summary");
+    await expect(page.getByRole("link", { name: "Огляд", exact: true })).toBeVisible({ timeout: 15_000 });
     for (const name of ["Огляд", "Повернення", "Промокоди", "Звіти", "Користувачі"]) {
       await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
     }

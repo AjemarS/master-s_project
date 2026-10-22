@@ -26,6 +26,8 @@ export function PromoCode({ subtotal, applied, onChange }: PromoCodeProps) {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  // Collapsed until asked for: most buyers have no code
+  const [open, setOpen] = useState(false);
 
   const check = async (value: string) => {
     setChecking(true);
@@ -61,6 +63,15 @@ export function PromoCode({ subtotal, applied, onChange }: PromoCodeProps) {
     );
   }
 
+  if (!open) {
+    return (
+      <Button type="button" variant="link" className="h-auto px-0 has-[>svg]:px-0 text-sm" onClick={() => setOpen(true)} aria-expanded={false}>
+        <Tag className="h-4 w-4" aria-hidden />
+        {t("promoHave")}
+      </Button>
+    );
+  }
+
   return (
     <form
       className="space-y-1.5"
@@ -73,6 +84,7 @@ export function PromoCode({ subtotal, applied, onChange }: PromoCodeProps) {
           value={code}
           onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(null); }}
           autoComplete="off"
+          autoFocus
           maxLength={40}
           aria-invalid={!!error}
           aria-describedby={error ? "promo-error" : undefined}

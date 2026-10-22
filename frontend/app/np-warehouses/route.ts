@@ -47,10 +47,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "NP_CITY_REF_REQUIRED" }, { status: 400 });
   }
 
-  const apiKey = process.env.NOVA_POST_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "NP_API_KEY_MISSING" }, { status: 503 });
-  }
+  // Address directories are public: the key is optional (it only lifts rate limits)
+  const apiKey = process.env.NOVA_POST_API_KEY ?? "";
 
   let response: Response;
   try {

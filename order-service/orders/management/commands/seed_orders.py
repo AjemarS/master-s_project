@@ -3,7 +3,7 @@ from decimal import Decimal
 from random import choice, choices, randint, random, sample
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from orders.models import Order, OrderItem
+from orders.models import Order, OrderItem, OrderStatusHistory, PromoCode
 
 PRODUCTS = [
     {"id": 1, "name": "Холодильник Samsung RB38T602DSA", "price": 29999, "cost": 21000},
@@ -96,26 +96,32 @@ def _pick_hour() -> int:
     return choice([8, 9, 14, 15, 16, 20, 21])
 
 
-def _order_status(hours_ago: float) -> str:
-    """Status reflects time elapsed. 8% random cancellations."""
-    if random() < 0.08:
-        return "cancelled"
-    if hours_ago < 1:
-        return choice(["unpaid", "paid"])
-    if hours_ago < 24:
-        return choice(["paid", "delivering"])
-    if hours_ago < 72:
-        return choice(["delivering", "delivered"])
-    return choice(["delivered", "completed"])
+# How long each online step takes, in hours (min, max)
+STEP_HOURS = {"paid": (0.1, 2), "delivering": (4, 30), "delivered": (24, 96), "completed": (48, 240)}
+ONLINE_STEPS = ["unpaid", "paid", "delivering", "delivered", "completed"]
 
 
-def _payment_status(order_status: str) -> str:
-    if order_status == "unpaid":
-        return "unpaid"
-    if order_status == "cancelled":
-        # 37.5% of cancelled = unpaid -> ~3% of all orders
-        return "unpaid" if random() < 0.375 else "refunded"
-    return "paid"
+def _online_path(created, now):
+    """
+    The steps an online order has gone through by now, each with its time, so the status, the
+    status history and the time-between-stages report agree. About 8% are cancelled on the way.
+    """
+    cancel_after = choice(["unpaid", "paid", "delivering"]) if random() < 0.08 else None
+    path = [("unpaid", created)]
+    at = created
+    for step in ONLINE_STEPS[1:]:
+        if path[-1][0] == cancel_after:
+            break
+        lo, hi = STEP_HOURS[step]
+        at = at + timedelta(hours=lo + random() * (hi - lo))
+        if at > now:
+            break
+        path.append((step, at))
+    if path[-1][0] == cancel_after:
+        cancelled_at = path[-1][1] + timedelta(hours=1 + random() * 20)
+        if cancelled_at <= now:
+            path.append(("cancelled", cancelled_at))
+    return path
 
 
 def _pick_customer() -> dict:
@@ -130,6 +136,7 @@ class Command(BaseCommand):
         self.stdout.write("Clearing existing orders...")
         OrderItem.objects.all().delete()
         Order.objects.all().delete()
+        self._create_promo_codes()
 
         self.stdout.write("Seeding orders...")
         now = timezone.now()
@@ -162,9 +169,6 @@ class Command(BaseCommand):
         if base_time > now:
             base_time = now - timedelta(minutes=randint(5, 60))
 
-        hours_ago = (now - base_time).total_seconds() / 3600
-        status = _order_status(hours_ago)
-        payment_status = _payment_status(status)
 
         # --- Order number ---
         order_number = f"ORD-{base_time.strftime('%Y%m%d')}-{randint(100, 999)}"
@@ -208,6 +212,21 @@ class Command(BaseCommand):
             shipping_address = ""
             created_by = "cashier@techhub.local"
 
+        # --- Status path: a till sale is paid and handed over at once ---
+        if channel == "online":
+            path = _online_path(base_time, now)
+        else:
+            path = [("unpaid", base_time), ("completed", base_time)]
+        status = path[-1][0]
+        reached = {step for step, _ in path}
+        if status == "cancelled":
+            payment_status = "refunded" if "paid" in reached else "unpaid"
+        else:
+            payment_status = "paid" if "paid" in reached or channel == "offline" else "unpaid"
+        times = dict(path)
+        paid_at = times.get("paid") or (base_time if channel == "offline" else None)
+        delivered_at = times.get("delivered") or (base_time if channel == "offline" else None)
+
         # --- Build order items and total ---
         items_data = []
         total = Decimal("0")
@@ -230,15 +249,20 @@ class Command(BaseCommand):
             customer_email=customer["email"],
             total_amount=total,
             payment_status=payment_status,
+            paid_at=paid_at,
+            delivered_at=delivered_at,
             created_by=created_by,
         )
 
         # --- Backdate timestamps ---
-        updated_at = min(base_time + timedelta(hours=randint(1, 24)), now)
-        Order.objects.filter(pk=order.pk).update(
-            created_at=base_time,
-            updated_at=updated_at,
-        )
+        Order.objects.filter(pk=order.pk).update(created_at=base_time, updated_at=path[-1][1])
+
+        # --- Status history, dated like the steps (changed_at is auto_now_add, so set it after) ---
+        for (from_status, _), (to_status, at) in zip(path, path[1:]):
+            entry = OrderStatusHistory.objects.create(
+                order=order, from_status=from_status, to_status=to_status, changed_by=created_by
+            )
+            OrderStatusHistory.objects.filter(pk=entry.pk).update(changed_at=at)
 
         # --- Create order items ---
         for p, qty in items_data:
@@ -249,4 +273,15 @@ class Command(BaseCommand):
                 quantity=qty,
                 price=Decimal(str(p["price"])),
                 cost_price=Decimal(str(p["cost"])),
+            )
+
+    def _create_promo_codes(self):
+        """Codes to try at checkout; kept between runs, only their settings are reset."""
+        for code, kind, value, min_amount in (
+            ("WELCOME10", PromoCode.PERCENT, Decimal("10"), Decimal("0")),
+            ("MINUS500", PromoCode.FIXED, Decimal("500"), Decimal("5000")),
+        ):
+            PromoCode.objects.update_or_create(
+                code=code,
+                defaults={"kind": kind, "value": value, "min_order_amount": min_amount, "is_active": True},
             )

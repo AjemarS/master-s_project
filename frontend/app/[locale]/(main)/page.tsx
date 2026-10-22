@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowRight, Clock, ShoppingBag, Star, Truck } from "lucide-react";
 import Image from "next/image";
 import { Link } from "~/i18n/navigation";
@@ -15,10 +15,10 @@ import { WaveDivider } from "~/ui/components/wave-divider";
 import { Category, Product } from "../../lib/types";
 
 // null = the catalog could not be reached (shown to the visitor), [] = it is simply empty
-async function getCategories(): Promise<Category[] | null> {
+async function getCategories(lang: string): Promise<Category[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
-    const response = await fetch(`${apiUrl}/categories/`, { next: { revalidate: 60 } });
+    const response = await fetch(`${apiUrl}/categories/`, { headers: { "Accept-Language": lang }, next: { revalidate: 60 } });
     if (!response.ok) return null;
     const data = await response.json();
     return data.results || data;
@@ -27,12 +27,12 @@ async function getCategories(): Promise<Category[] | null> {
   }
 }
 
-async function getLatestProducts(): Promise<Product[] | null> {
+async function getLatestProducts(lang: string): Promise<Product[] | null> {
   try {
     const apiUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
     const response = await fetch(
       `${apiUrl}/products/?ordering=-created_at&page_size=8`,
-      { next: { revalidate: 60 } }
+      { headers: { "Accept-Language": lang }, next: { revalidate: 60 } }
     );
     if (!response.ok) return null;
     const data = await response.json();
@@ -42,10 +42,29 @@ async function getLatestProducts(): Promise<Product[] | null> {
   }
 }
 
+/** Title and subtitle on the left, a "shop" text link on the right */
+function SectionHeading({ title, subtitle, linkText, href }: { title: string; subtitle: string; linkText: string; href: string }) {
+  return (
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div>
+        <h2 className="text-3xl leading-tight font-bold tracking-tight md:text-4xl">{title}</h2>
+        <div className="mt-2 h-1 w-12 rounded-full bg-primary shadow-xs shadow-primary/50" />
+        <p className="mt-4 max-w-2xl text-muted-foreground">{subtitle}</p>
+      </div>
+      <Link href={href} className="group inline-flex items-center gap-1 font-medium text-primary hover:underline underline-offset-4">
+        {linkText}
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden />
+      </Link>
+    </div>
+  );
+}
+
 export default async function HomePage() {
-  const [loadedCategories, loadedProducts] = await Promise.all([getCategories(), getLatestProducts()]);
+  const lang = (await getLocale()) === "en" ? "en" : "uk";
+  const [loadedCategories, loadedProducts] = await Promise.all([getCategories(lang), getLatestProducts(lang)]);
   const catalogDown = loadedCategories === null || loadedProducts === null;
-  const categories = loadedCategories ?? [];
+  // Subcategories are reached from their parent, not shown next to it
+  const categories = (loadedCategories ?? []).filter((c) => !c.parent);
   const latestProducts = loadedProducts ?? [];
   const t = await getTranslations("home");
   const tErr = await getTranslations("errors");
@@ -77,10 +96,11 @@ export default async function HomePage() {
     <div className="flex min-h-dvh flex-col bg-gradient-warm">
       {/* Hero */}
       <FadeIn direction="none" duration={0.6}>
-      <section className="relative overflow-hidden py-24 md:py-32">
+      <section className="relative overflow-hidden pt-24 pb-4 md:pt-32 md:pb-6">
         {/* Decorative blobs */}
         <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent-electric/5 blur-3xl" />
+        {/* Kept off the bottom edge: clipped there, the blur drew a hard line above the wave */}
+        <div className="absolute top-1/3 -left-40 h-80 w-80 rounded-full bg-accent-electric/5 blur-3xl" />
         {/* Scaled circles on hero */}
         <div className="absolute inset-0 bg-circles-pattern" />
         
@@ -154,13 +174,7 @@ export default async function HomePage() {
       <FadeIn direction="up">
       <section className="py-12 md:py-16">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-8 flex flex-col items-center text-center">
-            <h2 className=" text-3xl leading-tight font-bold tracking-tight md:text-4xl">{t("categoriesTitle")}</h2>
-          <div className="mt-2 h-1 w-12 rounded-full bg-primary shadow-xs shadow-primary/50" />
-          <p className="mt-4 max-w-2xl text-center text-muted-foreground">
-              {t("categoriesSubtitle")}
-            </p>
-          </div>
+          <SectionHeading title={t("categoriesTitle")} subtitle={t("categoriesSubtitle")} linkText={t("shopLink")} href="/products" />
           {catalogDown && (
             <p role="alert" className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-center text-sm text-destructive">
               {tErr("catalogDown")}
@@ -205,15 +219,7 @@ export default async function HomePage() {
           <FadeIn direction="up">
           <section className="py-12 md:py-16">
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="mb-8 flex flex-col items-center text-center">
-                <h2 className=" text-3xl leading-tight font-bold tracking-tight md:text-4xl">
-                  {t("newArrivalsTitle")}
-                </h2>
-                <div className="mt-2 h-1 w-12 rounded-full bg-primary shadow-xs shadow-primary/50" />
-                <p className="mt-4 max-w-2xl text-center text-muted-foreground">
-                  {t("newArrivalsSubtitle")}
-                </p>
-              </div>
+              <SectionHeading title={t("newArrivalsTitle")} subtitle={t("newArrivalsSubtitle")} linkText={t("shopLink")} href="/products" />
               <NewArrivalsCartWrapper products={latestProducts} />
             </div>
           </section>

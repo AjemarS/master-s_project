@@ -19,6 +19,7 @@ import { formatCurrency, formatDate } from "~/lib/utils/format";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
 import { getAllowedTransitions } from "~/lib/utils/order-status";
 import type { Order } from "~/lib/types";
+import { useConfirm } from "~/ui/components/confirm-dialog";
 
 const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 
@@ -65,6 +66,7 @@ function OrderDetailSection({ orderId, totalAmount }: { orderId: number; totalAm
 }
 
 export function MyOrdersClient() {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations("orders");
   const { data: myOrdersData, isLoading, error } = useMyOrders();
   const { trigger: cancelOrder } = useCancelOrder();
@@ -93,7 +95,7 @@ export function MyOrdersClient() {
   };
 
   const handleCancel = async (orderId: number) => {
-    if (!window.confirm(t("cancelConfirm"))) return;
+    if (!(await confirm(t("cancelConfirm")))) return;
     const prevStatus = orders.find((o) => o.id === orderId)?.status;
     setCancellingId(orderId);
     try {
@@ -253,6 +255,7 @@ export function MyOrdersClient() {
 
   return (
     <div className="mt-6 space-y-4">
+      {confirmDialog}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="all">{tabLabels.all}</TabsTrigger>

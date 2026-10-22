@@ -88,14 +88,14 @@ export function StockHealth() {
         <TableBody>
           {list.map((r) => (
             <TableRow key={r.product_id}>
-              <TableCell className="font-medium max-w-xs truncate" title={nameOf(r.product_id)}>
+              <TableCell className="font-medium max-w-[16rem] truncate" title={nameOf(r.product_id)}>
                 {nameOf(r.product_id)}
               </TableCell>
               <TableCell className="text-right tabular-nums">{r.on_hand.toLocaleString(numberLocale)}</TableCell>
               {kind === "dead" ? (
                 <>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(r.stock_value)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{fmtDate(r.last_sale_at)}</TableCell>
+                  <TableCell className="text-right tabular-nums whitespace-nowrap">{formatCurrency(r.stock_value)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground whitespace-nowrap">{fmtDate(r.last_sale_at)}</TableCell>
                 </>
               ) : (
                 <>
@@ -167,7 +167,8 @@ export function StockHealth() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      {/* One under the other: side by side, each table lost its last columns to scrolling */}
+      <div className="grid grid-cols-1 gap-6">
         <Card className="dark:bg-card dark:border-border">
           <CardHeader>
             <CardTitle className="text-foreground flex items-center gap-2">

@@ -16,6 +16,7 @@ import { UserDialog } from "./user-dialog";
 import { UserTable } from "./user-table";
 import type { UserWithRole } from "better-auth/plugins/admin";
 import { useUsers, useBanUser, useUnbanUser, useDeleteUser } from "~/lib/hooks/use-api-data";
+import { useDraftFilters } from "~/lib/hooks/use-draft-filters";
 import { authClient } from "~/lib/auth-client";
 import { useActivityFeed } from "../components/activity-feed";
 
@@ -28,8 +29,8 @@ export default function UsersPageClient() {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filterRole, setFilterRole] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const filters = useDraftFilters({ role: "", status: "" });
+  const { role: filterRole, status: filterStatus } = filters.applied;
 
   const { users, total: totalCount, error, isLoading, mutate } = useUsers(
     debouncedSearchTerm, filterRole, filterStatus, currentPage, PAGE_SIZE
@@ -165,11 +166,13 @@ export default function UsersPageClient() {
           currentPage={currentPage}
           pageSize={PAGE_SIZE}
           searchTerm={searchTerm}
-          roleFilter={filterRole}
-          statusFilter={filterStatus}
+          roleFilter={filters.draft.role}
+          statusFilter={filters.draft.status}
           onSearchChange={setSearchTerm}
-          onRoleFilterChange={setFilterRole}
-          onStatusFilterChange={setFilterStatus}
+          onRoleFilterChange={(v) => filters.set("role", v)}
+          onStatusFilterChange={(v) => filters.set("status", v)}
+          onApplyFilters={() => { filters.apply(); setCurrentPage(1); }}
+          onResetFilters={() => { filters.reset(); setCurrentPage(1); }}
           onPageChange={(page) => { setCurrentPage(page); mutate(); }}
           onEdit={(user) => {
             setUserDialogMode("edit");

@@ -1,12 +1,14 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 import ProductDetailClient from "./page-client"
 import { ProductDetail } from "~/lib/types";
 
 const API_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost/api";
 
-async function getProduct(slug: string): Promise<ProductDetail | null> {
+async function getProduct(slug: string, lang: string): Promise<ProductDetail | null> {
   try {
     const response = await fetch(`${API_URL}/products/${slug}/`, {
+      headers: { "Accept-Language": lang },
       next: { revalidate: 30 },
     });
     if (!response.ok) return null;
@@ -19,32 +21,21 @@ async function getProduct(slug: string): Promise<ProductDetail | null> {
       features: data.features ?? [],
       specs: data.specs ?? {},
       image: data.image ?? "",
-      category: data.category || { name: "" },
+      // The API sends the category id plus its (localised) name
+      category: { id: data.category, name: data.category_name ?? "", image: "", product_count: 0 },
     } as ProductDetail;
   } catch {
     return null;
   }
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const product = await getProduct(slug);
-
-  if (!product) {
-    return (
-      <div className="flex min-h-dvh flex-col">
-        <div className="flex-1 py-10">
-          <div className="container px-4 md:px-6">
-            <h1 className=" text-3xl font-bold">Product Not Found</h1>
-            <p className="mt-4">The product you&apos;re looking for doesn&apos;t exist.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+export default async function ProductPage({ params }: { params: Promise<{ slug: string; locale: string }> }) {
+  const { slug, locale } = await params;
+  const product = await getProduct(slug, locale === "en" ? "en" : "uk");
+  if (!product) notFound();
 
   return (
-    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center"><p className="text-muted-foreground">Loading product...</p></div>}>
+    <Suspense fallback={null}>
       <ProductDetailClient product={product} />
     </Suspense>
   );

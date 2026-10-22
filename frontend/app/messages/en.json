@@ -312,6 +312,8 @@
     "addedToCart": "{name} added to cart",
     "backToProducts": "← Back to Products",
     "addToCartSr": "Add to cart",
+    "inCart": "In the cart",
+    "inCartAddMore": "{name} is in the cart. Add one more",
     "onSale": "On Sale",
     "searchCategory": "Search categories...",
     "brand": "Brand",
@@ -338,7 +340,10 @@
     "stockUpdateFailed": "Could not update the stock",
     "eventStockAdjusted": "Stock of “{name}”: {from} → {to}",
     "addedToWishlist": "Added to wishlist",
-    "removedFromWishlist": "Removed from wishlist"
+    "removedFromWishlist": "Removed from wishlist",
+    "priceRangeError": "Min price is above max price",
+    "stockRangeError": "Min stock is above max stock",
+    "dateRangeError": "“From” date is after the “to” date"
   },
   "orders": {
     "title": "Orders",
@@ -443,7 +448,9 @@
     "confirmSaleDesc": "Review the receipt before finalizing the sale.",
     "confirmSale": "Confirm Sale",
     "hintSelectWarehouse": "Choose a warehouse to make the sale",
-    "hintAddItems": "Add items to the receipt"
+    "hintAddItems": "Add items to the receipt",
+    "hintCustomer": "Enter the buyer's name and phone",
+    "saleActivity": "Till sale: {name}"
   },
   "cart": {
     "title": "Your Cart",
@@ -458,7 +465,9 @@
     "continueShopping": "Continue Shopping",
     "clearCart": "Clear Cart",
     "shoppingCart": "Shopping Cart",
-    "clearConfirm": "Clear the cart? All items will be removed."
+    "clearConfirm": "Clear the cart? All items will be removed.",
+    "clearYes": "Clear",
+    "removeConfirm": "Remove from the cart?"
   },
   "checkout": {
     "title": "Checkout",
@@ -473,7 +482,7 @@
     "nameLabel": "Name",
     "emailLabel": "Email",
     "phoneLabel": "Phone",
-    "phonePlaceholder": "+380 __ ___ __ __",
+    "phonePlaceholder": "67 123 45 67",
     "delivery": "Delivery",
     "deliveryMethod": "Delivery Method",
     "pickup": "Pickup from store",
@@ -490,7 +499,7 @@
     "receiverName": "Receiver's name",
     "receiverNamePlaceholder": "Enter receiver's name",
     "receiverPhone": "Receiver's phone",
-    "receiverPhonePlaceholder": "+380 __ ___ __ __",
+    "receiverPhonePlaceholder": "67 123 45 67",
     "callToConfirm": "Call me to confirm the order",
     "comment": "Comment",
     "commentPlaceholder": "Additional wishes or comments...",
@@ -542,6 +551,7 @@
     "statusFilled": "Filled",
     "statusError": "Has errors",
     "promoLabel": "Promo code",
+    "promoHave": "I have a promo code",
     "promoApply": "Apply",
     "promoRemove": "Remove promo code",
     "promoInvalid": "This promo code does not apply",
@@ -609,7 +619,8 @@
     "createdSuccess": "Category created",
     "createdDesc": "Category \"{name}\" created.",
     "editNamed": "Edit “{name}”",
-    "deleteNamed": "Delete “{name}”"
+    "deleteNamed": "Delete “{name}”",
+    "notEmpty": "The category still has products or subcategories: move or delete them first."
   },
   "warehouses": {
     "title": "Warehouses & Stock",
@@ -722,7 +733,8 @@
     "deleteConfirmDesc": "Are you sure you want to delete this receipt? Stock quantities will be adjusted. This action cannot be undone.",
     "grnUpdated": "Goods receipt updated successfully",
     "grnDeleted": "Goods receipt deleted successfully",
-    "deleteError": "Failed to delete goods receipt"
+    "deleteError": "Failed to delete goods receipt",
+    "refAuto": "Assigned automatically"
   },
   "stockMovements": {
     "title": "Stock Movements",
@@ -936,7 +948,8 @@
     "errEmail": "Enter an email.",
     "errEmailInvalid": "Invalid email address.",
     "errPassword": "Enter a password.",
-    "errPasswordShort": "The password needs at least 8 characters."
+    "errPasswordShort": "The password needs at least 8 characters.",
+    "password": "Password"
   },
   "home": {
     "heroTitle": "Home Appliances for",
@@ -963,7 +976,8 @@
     "ctaTitle": "Ready for an upgrade?",
     "ctaSubtitle": "Join thousands of satisfied customers. Sign up today and get exclusive offers.",
     "ctaSignUp": "Sign Up",
-    "ctaCatalog": "Catalog"
+    "ctaCatalog": "Catalog",
+    "shopLink": "Shop"
   },
   "footer": {
     "tagline": "Reliable home appliances for your home. Best prices and service in Ukraine.",
