@@ -55,7 +55,7 @@ export default function MyOrderDetailPage() {
 function OrderNotFoundAlert() {
   const t = useTranslations("orderDetail");
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-4xl sm:px-4 py-4 sm:py-8">
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>{t("notFound")}</AlertTitle>
@@ -108,7 +108,7 @@ function MyOrderDetailContent({ id }: { id: number }) {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto max-w-4xl px-4 py-8 space-y-6">
+      <div className="container mx-auto max-w-4xl sm:px-4 py-4 sm:py-8 space-y-6">
         <Skeleton className="h-6 w-32" />
         <Skeleton className="h-10 w-64" />
         <div className="grid gap-6 md:grid-cols-2">
@@ -148,7 +148,7 @@ function MyOrderDetailContent({ id }: { id: number }) {
     d.toLocaleDateString(locale === "en" ? "en-US" : "uk-UA", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-4xl sm:px-4 py-4 sm:py-8">
       <Link
         href="/my/orders"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
@@ -220,28 +220,30 @@ function MyOrderDetailContent({ id }: { id: number }) {
           <CardTitle className="text-lg">{t("items")}</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Wide on phones: scrolls sideways inside the card, reachable by keyboard */}
+          <div className="relative overflow-x-auto" tabIndex={0} role="region" aria-label={t("items")}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b dark:border-slate-700 text-muted-foreground">
                 <th className="text-left py-3 font-medium">{t("product")}</th>
-                <th className="text-right py-3 font-medium">{t("qty")}</th>
-                <th className="text-right py-3 font-medium">{t("price")}</th>
-                <th className="text-right py-3 font-medium">{t("total")}</th>
-                {handedOver && <th className="text-right py-3 font-medium">{tr("warrantyUntil")}</th>}
+                <th className="text-right py-3 pl-3 font-medium whitespace-nowrap">{t("qty")}</th>
+                <th className="text-right py-3 pl-3 font-medium whitespace-nowrap">{t("price")}</th>
+                <th className="text-right py-3 pl-3 font-medium whitespace-nowrap">{t("total")}</th>
+                {handedOver && <th className="text-right py-3 pl-3 font-medium whitespace-nowrap">{tr("warrantyUntil")}</th>}
                 {handedOver && <th className="py-3"><span className="sr-only">{tr("actions")}</span></th>}
               </tr>
             </thead>
             <tbody>
               {order.items.map((item) => (
                 <tr key={item.id} className="border-b dark:border-slate-700/50">
-                  <td className="py-3 text-foreground">{item.product_name}</td>
-                  <td className="py-3 text-right text-muted-foreground">{item.quantity}</td>
-                  <td className="py-3 text-right text-foreground">{formatCurrency(item.price)}</td>
-                  <td className="py-3 text-right text-foreground font-medium">
+                  <td className="py-3 text-foreground min-w-40">{item.product_name}</td>
+                  <td className="py-3 pl-3 text-right text-muted-foreground">{item.quantity}</td>
+                  <td className="py-3 pl-3 text-right text-foreground whitespace-nowrap">{formatCurrency(item.price)}</td>
+                  <td className="py-3 pl-3 text-right text-foreground font-medium whitespace-nowrap">
                     {formatCurrency(item.price * item.quantity)}
                   </td>
                   {handedOver && (
-                    <td className="py-3 text-right text-muted-foreground whitespace-nowrap">{fmtDate(warrantyUntil(item))}</td>
+                    <td className="py-3 pl-3 text-right text-muted-foreground whitespace-nowrap">{fmtDate(warrantyUntil(item))}</td>
                   )}
                   {handedOver && (
                     <td className="py-3 pl-3 text-right">
@@ -257,6 +259,7 @@ function MyOrderDetailContent({ id }: { id: number }) {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="flex justify-between mt-4 pt-4 border-t dark:border-slate-700">
             <span className="font-semibold text-foreground">{t("total")}</span>
             <span className="font-semibold text-lg text-foreground">{formatCurrency(order.total_amount)}</span>

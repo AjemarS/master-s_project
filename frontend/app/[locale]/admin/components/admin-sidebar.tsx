@@ -2,7 +2,7 @@
 
 import { Link, usePathname } from "~/i18n/navigation";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Users, Package, LayoutDashboard, LogOut, Store, Warehouse,
   ShoppingCart, BarChart3,
@@ -66,13 +66,15 @@ const navigationGroups: NavGroup[] = [
 const labelCls = (pinned: boolean) =>
   cn(
     "whitespace-nowrap transition-opacity duration-300 ease-in-out",
+    // Phones get an icon rail: the label stays for screen readers
     pinned
-      ? "opacity-100"
+      ? "max-md:sr-only"
       : "opacity-0 group-hover:opacity-100",
   );
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const locale = useLocale();
   const router = useRouter();
   const tNav = useTranslations("nav");
   const { user } = useCurrentUser();
@@ -109,14 +111,14 @@ export function AdminSidebar() {
     <aside
       className={cn(
         "group relative flex min-h-dvh flex-col border-r bg-card transition-all duration-300 ease-in-out",
-        pinned ? "w-64" : "w-14 hover:w-64",
+        pinned ? "w-14 md:w-64" : "w-14 hover:w-64",
       )}
     >
       {/* Pin button */}
       <button
         onClick={() => setPinned(!pinned)}
         className={cn(
-          "absolute -right-3 top-6 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted transition-opacity duration-300 ease-in-out",
+          "absolute -right-3 top-6 z-10 flex max-md:hidden h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted transition-opacity duration-300 ease-in-out",
           pinned ? "opacity-100" : "opacity-0 group-hover:opacity-100",
         )}
         title={pinned ? tNav("unpin") : tNav("pin")}
@@ -174,7 +176,7 @@ export function AdminSidebar() {
                     "h-4 w-4 shrink-0 transition-all duration-300 ease-in-out",
                     isOpen && "rotate-180",
                     pinned
-                      ? "opacity-100"
+                      ? "max-md:hidden"
                       : "opacity-0 group-hover:opacity-100",
                   )}
                 />
@@ -195,9 +197,12 @@ export function AdminSidebar() {
                         )}
                         title={tNav(child.key)}
                       >
-                        {!pinned && (
-                          <div className="h-1.5 w-1.5 rounded-full bg-current shrink-0 group-hover:hidden" />
-                        )}
+                        <div
+                          className={cn(
+                            "h-1.5 w-1.5 rounded-full bg-current shrink-0",
+                            pinned ? "md:hidden" : "group-hover:hidden",
+                          )}
+                        />
                         <span className={labelCls(pinned)}>{tNav(child.key)}</span>
                       </Link>
                     );
@@ -213,7 +218,7 @@ export function AdminSidebar() {
       <div className="mt-auto space-y-1 border-t px-1 pt-4">
         {/* Locale switcher */}
         <div className={cn(
-          "flex items-center gap-1 px-1 py-1 transition-opacity duration-300 ease-in-out",
+          "flex max-md:flex-col items-center gap-1 px-1 py-1 transition-opacity duration-300 ease-in-out",
           pinned
             ? "opacity-100"
             : "opacity-0 group-hover:opacity-100",
@@ -226,8 +231,8 @@ export function AdminSidebar() {
               key={lang.code}
               onClick={() => { window.location.href = `/${lang.code}${pathname}`; }}
               className={cn(
-                "px-2 py-0.5 text-xs rounded font-medium transition-colors",
-                lang.code === "ua"
+                "min-h-6 px-2 py-1 text-xs rounded font-medium transition-colors",
+                lang.code === locale
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}

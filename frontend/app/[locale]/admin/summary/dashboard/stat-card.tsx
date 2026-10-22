@@ -57,8 +57,6 @@ function usePrefersReducedMotion(): boolean {
 function useAnimatedValue(target: string | number, duration = 1200): string {
   const prefersReducedMotion = usePrefersReducedMotion();
   const rafRef = useRef<number | null>(null);
-  const prevTarget = useRef(target);
-  const isFirstRender = useRef(true);
 
   const [displayValue, setDisplayValue] = useState(() => {
     // Non-numeric or reduced-motion: show immediately without animation
@@ -88,11 +86,6 @@ function useAnimatedValue(target: string | number, duration = 1200): string {
 
     // Non-numeric values — display immediately, no animation
     if (isNaN(numTarget)) return;
-
-    // Skip re-animation if value hasn't changed (after first render)
-    if (!isFirstRender.current && target === prevTarget.current) return;
-    isFirstRender.current = false;
-    prevTarget.current = target;
 
     const startTime = performance.now();
     const startValue = 0;

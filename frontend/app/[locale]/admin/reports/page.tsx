@@ -27,7 +27,7 @@ export default async function ReportsPage() {
 
   return (
     <SWRConfig value={{ fallback }}>
-      <Suspense fallback={<div className="p-8 space-y-4"><div className="h-8 w-48 bg-muted animate-pulse rounded" /><div className="h-64 bg-muted animate-pulse rounded" /></div>}>
+      <Suspense fallback={<div className="p-4 sm:p-8 space-y-4"><div className="h-8 w-48 bg-muted animate-pulse rounded" /><div className="h-64 bg-muted animate-pulse rounded" /></div>}>
         <ReportsClient />
       </Suspense>
     </SWRConfig>

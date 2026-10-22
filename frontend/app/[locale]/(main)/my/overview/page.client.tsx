@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   Package,
   TrendingUp,
-  MapPin,
   HeadphonesIcon,
   ArrowRight,
   Loader2,
@@ -21,7 +20,6 @@ import { useCurrentUserOrRedirect } from "~/lib/auth-client";
 import { useMyOrders } from "~/lib/hooks/use-api-data";
 import { formatCurrency } from "~/lib/utils/format";
 import { OrderStatusBadge } from "~/ui/components/order-status-badge";
-import { toast } from "sonner";
 
 function formatDate(dateStr: string | null | undefined, locale: string): string {
   if (!dateStr) return "—";
@@ -116,20 +114,6 @@ export function OverviewClient() {
   const filledCount = 4 - missingCount;
   const percent = Math.round((filledCount / 4) * 100);
 
-  const handleContactSupport = () => {
-    toast.info(t("contactSupport"), {
-      description: "support@techhub.com",
-    });
-  };
-
-  const handleFindStore = () => {
-    window.open(
-      "https://www.google.com/maps/search/tech+store+near+me",
-      "_blank",
-      "noopener,noreferrer",
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Welcome Card */}
@@ -184,7 +168,7 @@ export function OverviewClient() {
 
             <div className="space-y-1.5">
               {isFirstNameMissing && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-x-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
                     <span className="text-sm text-amber-700 dark:text-amber-300">{t("addFirstName")}</span>
@@ -197,7 +181,7 @@ export function OverviewClient() {
                 </div>
               )}
               {isLastNameMissing && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-x-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
                     <span className="text-sm text-amber-700 dark:text-amber-300">{t("addLastName")}</span>
@@ -210,7 +194,7 @@ export function OverviewClient() {
                 </div>
               )}
               {isPhoneMissing && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-x-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
                     <span className="text-sm text-amber-700 dark:text-amber-300">{t("addPhone")}</span>
@@ -223,7 +207,7 @@ export function OverviewClient() {
                 </div>
               )}
               {!isEmailVerified && (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-x-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
                     <span className="text-sm text-amber-700 dark:text-amber-300">{t("verifyEmail")}</span>
@@ -367,43 +351,32 @@ export function OverviewClient() {
           <h3 className="text-lg font-semibold tracking-tight">{t("quickActions")}</h3>
           <Card className="h-full">
             <CardContent className="p-4 grid grid-cols-1 gap-2">
-              <Link href="/products">
-                <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
+              <Button asChild variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
+                <Link href="/products">
                   <ShoppingBag className="h-5 w-5 text-primary shrink-0" />
                   <span>{t("browseProducts")}</span>
-                </Button>
-              </Link>
-
-              <Link href="/my/orders">
-                <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
-                  <Package className="h-5 w-5 text-primary shrink-0" />
-                  <span>{t("viewAllOrders")}</span>
-                </Button>
-              </Link>
-
-              <Link href="/my/settings">
-                <Button variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
-                  <ShoppingBag className="h-5 w-5 text-amber-500 shrink-0" />
-                  <span>{t("editProfile")}</span>
-                </Button>
-              </Link>
-
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-auto py-3 px-4"
-                onClick={handleFindStore}
-              >
-                <MapPin className="h-5 w-5 text-primary shrink-0" />
-                <span>{t("findStore")}</span>
+                </Link>
               </Button>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-auto py-3 px-4"
-                onClick={handleContactSupport}
-              >
-                <HeadphonesIcon className="h-5 w-5 text-accent-electric shrink-0" />
-                <span>{t("contactSupport")}</span>
+              <Button asChild variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
+                <Link href="/my/orders">
+                  <Package className="h-5 w-5 text-primary shrink-0" />
+                  <span>{t("viewAllOrders")}</span>
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
+                <Link href="/my/settings">
+                  <ShoppingBag className="h-5 w-5 text-amber-500 shrink-0" />
+                  <span>{t("editProfile")}</span>
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full justify-start gap-3 h-auto py-3 px-4">
+                <Link href="/contacts">
+                  <HeadphonesIcon className="h-5 w-5 text-accent-electric shrink-0" />
+                  <span>{t("contactSupport")}</span>
+                </Link>
               </Button>
             </CardContent>
           </Card>

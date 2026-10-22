@@ -71,9 +71,9 @@ export function UserSidebar() {
   };
 
   return (
-    <aside className="sticky top-16 h-[calc(100vh-4rem)] flex flex-col border-r w-64">
+    <aside className="sticky top-16 h-[calc(100vh-4rem)] flex flex-col border-r w-14 md:w-64">
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 pt-6">
+      <nav className="flex-1 space-y-1 px-1 md:px-3 pt-6">
         {navTop.map((item) => {
           const active = isChildActive(item.href, pathname, currentTab);
           return (
@@ -89,7 +89,7 @@ export function UserSidebar() {
               title={tNav(item.key)}
             >
               <item.icon className="h-5 w-5 shrink-0" />
-              <span>{tNav(item.key)}</span>
+              <span className="max-md:sr-only">{tNav(item.key)}</span>
             </Link>
           );
         })}
@@ -106,10 +106,10 @@ export function UserSidebar() {
             )}
           >
             <Settings className="h-5 w-5 shrink-0" />
-            <span>{tNav("settings")}</span>
+            <span className="max-md:sr-only">{tNav("settings")}</span>
             <ChevronDown
               className={cn(
-                "ml-auto h-4 w-4 transition-transform duration-200",
+                "ml-auto h-4 w-4 transition-transform duration-200 max-md:hidden",
                 settingsOpen && "rotate-180",
               )}
             />
@@ -122,7 +122,7 @@ export function UserSidebar() {
                 key={item.key}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 justify-start rounded-md py-2 text-sm font-medium transition-colors duration-200 pl-10",
+                  "flex items-center gap-3 px-3 justify-start rounded-md py-2 text-sm font-medium transition-colors duration-200 md:pl-10",
                   active
                     ? "bg-accent-electric/10 text-accent-electric"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -130,7 +130,7 @@ export function UserSidebar() {
                 title={tNav(item.key)}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                <span>{tNav(item.key)}</span>
+                <span className="max-md:sr-only">{tNav(item.key)}</span>
               </Link>
             );
           })}
@@ -138,14 +138,14 @@ export function UserSidebar() {
       </nav>
 
       {/* Bottom links */}
-      <div className="mt-auto space-y-1 border-t px-3 pt-4 pb-6">
+      <div className="mt-auto space-y-1 border-t px-1 md:px-3 pt-4 pb-6">
         <Link
           href="/"
           className="flex items-center gap-3 px-3 justify-start rounded-md py-2 text-sm font-medium transition-colors duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
           title={tNav("toStore")}
         >
           <ExternalLink className="h-5 w-5 shrink-0" />
-          <span>{tNav("toStore")}</span>
+          <span className="max-md:sr-only">{tNav("toStore")}</span>
         </Link>
 
         <Button
@@ -155,7 +155,7 @@ export function UserSidebar() {
           title={tNav("signOut")}
         >
           <LogOut className="h-5 w-5 shrink-0" />
-          <span>{tNav("signOut")}</span>
+          <span className="max-md:sr-only">{tNav("signOut")}</span>
         </Button>
       </div>
     </aside>
