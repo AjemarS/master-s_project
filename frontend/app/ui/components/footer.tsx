@@ -16,7 +16,7 @@ async function getFooterCategories(locale: string): Promise<Category[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.results ?? data).slice(0, 4);
+    return (data.results ?? data).filter((c: Category) => !c.parent).slice(0, 4);
   } catch {
     return [];
   }

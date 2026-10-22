@@ -292,7 +292,7 @@ export default function ProductsPageContent() {
           )}
 
           {!showInitialLoading && totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center">
+            <div className="mt-2 flex items-center justify-center">
               <Pagination
                 currentPage={page}
                 onPageChange={handlePageChange}

@@ -263,6 +263,7 @@ class POSAPITest(APITestCase):
             {
                 "warehouse_id": 1,
                 "customer_name": "POS Customer",
+                "customer_phone": "+380 67 123 45 67",
                 "items": [
                     {"product_id": 1, "quantity": 1, "price": "199.99"}
                 ],
@@ -274,6 +275,15 @@ class POSAPITest(APITestCase):
         self.assertEqual(response.data["status"], Order.COMPLETED)
         self.assertEqual(response.data["payment_status"], Order.PAYMENT_PAID)
         deduct.assert_called_once()
+
+    def test_pos_requires_name_and_ukrainian_phone(self):
+        self._auth_admin()
+        base = {"warehouse_id": 1, "items": [{"product_id": 1, "quantity": 1, "price": "199.99"}]}
+        for extra in ({}, {"customer_name": " ", "customer_phone": "0671234567"},
+                      {"customer_name": "Ann", "customer_phone": "12345"}):
+            response = self.client.post("/api/orders/pos/", {**base, **extra}, format="json")
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, extra)
+        self.assertFalse(Order.objects.exists())
 
     def test_pos_order_without_warehouse_fails(self):
         self._auth_admin()
@@ -744,7 +754,7 @@ class DeductCompensationTest(APITestCase):
         inventory = _FakeInventory({1: {"quantity": 5, "reserved": 2}, 2: {"quantity": 0, "reserved": 0}})
         with mock.patch("orders.inventory_client._post", side_effect=inventory.post):
             response = self.client.post("/api/orders/pos/", {
-                "warehouse_id": 1, "customer_name": "POS",
+                "warehouse_id": 1, "customer_name": "POS", "customer_phone": "0671234567",
                 "items": [{"product_id": 1, "quantity": 1, "price": "10.00"},
                           {"product_id": 2, "quantity": 1, "price": "10.00"}],
             }, format="json")
@@ -817,7 +827,7 @@ class CatalogPricingTest(APITestCase):
     @mock.patch("orders.order_service.deduct_stock_batch", return_value=({"unit_costs": {"1": "120.50"}}, None))
     def test_pos_uses_catalog_price_and_stores_cost_on_deduct(self, _deduct):
         response = self.client.post("/api/orders/pos/", {
-            "warehouse_id": 1,
+            "warehouse_id": 1, "customer_name": "POS", "customer_phone": "380671234567",
             "items": [{"product_id": 1, "quantity": 2, "price": "0.01", "cost_price": "999.00"}],
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

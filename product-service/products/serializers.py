@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db.models import Q
 from rest_framework import serializers
 
 from .currency import uah_to_usd
@@ -58,7 +59,8 @@ class CategorySerializer(serializers.ModelSerializer):
         }
 
     def get_product_count(self, obj):
-        return obj.products.count()
+        # shortcut: one level of subcategories; collect descendant ids if categories nest deeper
+        return Product.objects.filter(Q(category=obj) | Q(category__parent=obj)).count()
 
     def get_children(self, obj):
         depth = self.context.get("category_depth", 0)

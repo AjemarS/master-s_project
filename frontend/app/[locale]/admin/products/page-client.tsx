@@ -23,6 +23,7 @@ import { useProducts, useCategories, useDeleteProduct } from "~/lib/hooks/use-ap
 import { ErrorAlert } from "~/ui/components/error-alert";
 import { Pagination } from "~/ui/components/pagination";
 import { ProductStatsCards } from "./product-stats";
+import { useDraftFilters } from "~/lib/hooks/use-draft-filters";
 import { ProductFilters } from "./product-filters";
 import { ProductTable } from "./product-table";
 
@@ -39,14 +40,21 @@ export function AdminProductsClient({
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [showFilters, setShowFilters] = useState(false);
-  const [filterMinPrice, setFilterMinPrice] = useState("");
-  const [filterMaxPrice, setFilterMaxPrice] = useState("");
-  const [filterMinStock, setFilterMinStock] = useState("");
-  const [filterMaxStock, setFilterMaxStock] = useState("");
-  const [filterInStock, setFilterInStock] = useState<boolean | undefined>(undefined);
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const filters = useDraftFilters({
+    filterMinPrice: "",
+    filterMaxPrice: "",
+    filterMinStock: "",
+    filterMaxStock: "",
+    filterInStock: undefined as boolean | undefined,
+    filterCategory: "",
+    filterDateFrom: "",
+    filterDateTo: "",
+  });
+  // The query uses what was applied; the panel edits filters.draft
+  const {
+    filterMinPrice, filterMaxPrice, filterMinStock, filterMaxStock,
+    filterInStock, filterCategory, filterDateFrom, filterDateTo,
+  } = filters.applied;
   const [sortField, setSortField] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -194,35 +202,19 @@ export function AdminProductsClient({
   };
 
   const handleFilterChange = (key: string, value: string | boolean | undefined) => {
-    switch (key) {
-      case "filterMinPrice": setFilterMinPrice(value as string); break;
-      case "filterMaxPrice": setFilterMaxPrice(value as string); break;
-      case "filterMinStock": setFilterMinStock(value as string); break;
-      case "filterMaxStock": setFilterMaxStock(value as string); break;
-      case "filterInStock": setFilterInStock(value === true ? true : undefined); break;
-      case "filterCategory": setFilterCategory(value as string); break;
-      case "filterDateFrom": setFilterDateFrom(value as string); break;
-      case "filterDateTo": setFilterDateTo(value as string); break;
-    }
+    filters.set(key as keyof typeof filters.draft, value as never);
   };
 
   const handleClearFilters = () => {
-    setFilterMinPrice("");
-    setFilterMaxPrice("");
-    setFilterMinStock("");
-    setFilterMaxStock("");
-    setFilterInStock(undefined);
-    setFilterCategory("");
-    setFilterDateFrom("");
-    setFilterDateTo("");
+    filters.reset();
     setSortField("");
     setSortDir("desc");
     setCurrentPage(1);
   };
 
   const handleApplyFilters = () => {
+    filters.apply();
     setCurrentPage(1);
-    mutate();
   };
 
   const handleToggleFilters = () => {
@@ -294,14 +286,14 @@ export function AdminProductsClient({
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             showFilters={showFilters}
-            filterMinPrice={filterMinPrice}
-            filterMaxPrice={filterMaxPrice}
-            filterMinStock={filterMinStock}
-            filterMaxStock={filterMaxStock}
-            filterInStock={filterInStock}
-            filterCategory={filterCategory}
-            filterDateFrom={filterDateFrom}
-            filterDateTo={filterDateTo}
+            filterMinPrice={filters.draft.filterMinPrice}
+            filterMaxPrice={filters.draft.filterMaxPrice}
+            filterMinStock={filters.draft.filterMinStock}
+            filterMaxStock={filters.draft.filterMaxStock}
+            filterInStock={filters.draft.filterInStock}
+            filterCategory={filters.draft.filterCategory}
+            filterDateFrom={filters.draft.filterDateFrom}
+            filterDateTo={filters.draft.filterDateTo}
             categories={categories}
             onFilterChange={handleFilterChange}
             onClearFilters={handleClearFilters}
@@ -335,7 +327,9 @@ export function AdminProductsClient({
           onSuccess={() => mutate()}
         />
 
+        {/* Keyed per product: the form reads its fields once, when it mounts */}
         <ProductFormDialog
+          key={`${formDialogMode}-${formDialogProduct?.id ?? "new"}`}
           open={showFormDialog}
           onOpenChange={setShowFormDialog}
           mode={formDialogMode}

@@ -63,7 +63,8 @@ export default async function HomePage() {
   const lang = (await getLocale()) === "en" ? "en" : "uk";
   const [loadedCategories, loadedProducts] = await Promise.all([getCategories(lang), getLatestProducts(lang)]);
   const catalogDown = loadedCategories === null || loadedProducts === null;
-  const categories = loadedCategories ?? [];
+  // Subcategories are reached from their parent, not shown next to it
+  const categories = (loadedCategories ?? []).filter((c) => !c.parent);
   const latestProducts = loadedProducts ?? [];
   const t = await getTranslations("home");
   const tErr = await getTranslations("errors");

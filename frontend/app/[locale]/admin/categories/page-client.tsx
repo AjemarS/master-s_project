@@ -55,7 +55,8 @@ export function CategoriesClient() {
     try {
       const res = await categoryService.remove(deleteDialog.id);
       if (res.error) {
-        toast.error(tc("error"), { description: res.error.message });
+        const notEmpty = (res.error.details as { error?: string } | undefined)?.error === "category_not_empty";
+        toast.error(tc("error"), { description: notEmpty ? t("notEmpty") : res.error.message });
       } else {
         toast.success(tc("delete"));
         pushEvent({ type: "delete", message: tAct("deletedCategory", { name: deleteDialog.name }), entityType: "category" });

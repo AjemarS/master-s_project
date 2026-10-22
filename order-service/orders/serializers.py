@@ -1,4 +1,5 @@
 import logging
+import re
 
 from decimal import Decimal
 
@@ -195,12 +196,27 @@ class POSOrderSerializer(serializers.Serializer):
     shipping_city = serializers.CharField(required=False, allow_blank=True, default="")
     shipping_address = serializers.CharField(required=False, allow_blank=True, default="")
     shipping_cost = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, default="0.00")
-    customer_name = serializers.CharField(required=False, allow_blank=True, default="")
-    customer_phone = serializers.CharField(required=False, allow_blank=True, default="")
+    # The till records who bought: a warranty or return claim needs a name and a phone to reach them
+    customer_name = serializers.CharField(max_length=255)
+    customer_phone = serializers.CharField(max_length=32)
     customer_email = serializers.EmailField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     promo_code = serializers.CharField(required=False, allow_blank=True, default="", max_length=40)
     items = OrderCreateItemSerializer(many=True)
+
+    def validate_customer_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Customer name is required.")
+        return value.strip()
+
+    def validate_customer_phone(self, value):
+        """Stored as 380XXXXXXXXX, the form online checkout sends; +380…, 380… and 0… are accepted."""
+        digits = re.sub(r"\D", "", value)
+        if digits.startswith("0"):
+            digits = "38" + digits
+        if not re.fullmatch(r"380\d{9}", digits):
+            raise serializers.ValidationError("Enter a Ukrainian phone number: +380 and 9 digits.")
+        return digits
 
     def validate_items(self, value):
         if not value:

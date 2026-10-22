@@ -208,9 +208,9 @@ function Orders({ reloadKey }: { reloadKey: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-1" role="group" aria-label={t("filterByStatus")}>
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t("filterByStatus")}>
         {FILTERS.map((f) => (
-          <Button key={f} size="sm" variant={f === filter ? "secondary" : "ghost"} aria-pressed={f === filter} onClick={() => setFilter(f)}>
+          <Button key={f} size="sm" variant={f === filter ? "default" : "outline"} aria-pressed={f === filter} onClick={() => setFilter(f)}>
             {f === "all" ? t("all") : t(`status_${f}`)}
           </Button>
         ))}

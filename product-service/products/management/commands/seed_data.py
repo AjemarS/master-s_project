@@ -26,11 +26,13 @@ class Command(BaseCommand):
             for cat in Category.objects.all():
                 self._set_category_placeholder(cat, cat.name_en or cat.name)
             for product in Product.objects.select_related("category"):
-                self._set_placeholder_image(product, product.name_en or product.name, product.category.name)
+                top = product.category.parent or product.category
+                self._set_placeholder_image(product, product.name_en or product.name, top.name)
             self.stdout.write(self.style.SUCCESS("Placeholder images redrawn"))
             return
         self._create_categories()
         self._create_products()
+        self._create_subcategories()
         self.stdout.write(self.style.SUCCESS("Seed data created successfully"))
 
     def _create_categories(self):
@@ -54,6 +56,14 @@ class Command(BaseCommand):
             self._set_category_placeholder(cat, name_en)
             if created:
                 self.stdout.write(f"  Created category: {cat.name}")
+
+    def _create_subcategories(self):
+        """A few subcategories, so the catalog and the admin show a category tree."""
+        for name, name_en, parent_name, product_names in SUBCATEGORIES:
+            parent = Category.objects.get(name=parent_name)
+            sub, _ = Category.objects.update_or_create(name=name, defaults={"name_en": name_en, "parent": parent})
+            self._set_category_placeholder(sub, name_en)
+            Product.objects.filter(name__in=product_names).update(category=sub)
 
     def _create_products(self):
         products_data = [
@@ -250,6 +260,18 @@ class Command(BaseCommand):
         cat.image.save(filename, ContentFile(buf.getvalue()), save=False)
         cat.save(update_fields=["image"])
 
+
+SUBCATEGORIES = [
+    ("Кухонна техніка", "Kitchen Appliances", "Дрібна техніка", [
+        "Мультиварка Xiaomi Mi Smart", "Блендер Bosch MMBH6P6B", "Аерогриль Philips HD9270/90",
+        "М'ясорубка Bosch MFW68660", "Електрочайник Xiaomi Mi Smart Kettle Pro",
+    ]),
+    ("Догляд за собою", "Personal Care", "Дрібна техніка", ["Праска Philips GC5035/80", "Фен Dyson Supersonic HD08"]),
+    ("Кондиціонери", "Air Conditioners", "Кліматична техніка", ["Кондиціонер Samsung AR12TXHQBWKNER", "Кондиціонер LG S12WAN"]),
+    ("Обігрівачі та зволожувачі", "Heaters and Humidifiers", "Кліматична техніка", [
+        "Обігрівач Electrolux EFH/C-3215", "Зволожувач повітря Xiaomi Smart Humidifier 2",
+    ]),
+]
 
 BOLD_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 REGULAR_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"

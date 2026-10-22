@@ -93,3 +93,34 @@ class ProductModelTest(TestCase):
             cat.products.all(),
             Product.objects.filter(category=cat),
         )
+
+
+class SubcategoryTest(TestCase):
+    def setUp(self):
+        self.parent = _create_category("Дрібна техніка")
+        self.child = Category.objects.create(name="Кухонна техніка", parent=self.parent)
+        self.own = _create_product(category=self.parent, name="Праска")
+        self.nested = _create_product(category=self.child, name="Блендер")
+
+    def test_parent_lists_its_subcategories_products(self):
+        def listed(cat):
+            res = self.client.get(f"/api/products/?category={cat.pk}").json()
+            return {p["id"] for p in res["results"]}
+
+        self.assertEqual(listed(self.parent), {self.own.pk, self.nested.pk})
+        self.assertEqual(listed(self.child), {self.nested.pk})
+
+    def test_parent_count_includes_subcategories(self):
+        parent = self.client.get(f"/api/categories/{self.parent.pk}/").json()
+        self.assertEqual(parent["product_count"], 2)
+
+    def test_category_with_products_or_subcategories_is_not_deleted(self):
+        admin = {"HTTP_X_GATEWAY_USER_ID": "adm", "HTTP_X_GATEWAY_USER_ROLE": "admin"}
+        for cat in (self.parent, self.child):
+            res = self.client.delete(f"/api/categories/{cat.pk}/", **admin)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.json()["error"], "category_not_empty")
+        self.assertEqual(Product.objects.count(), 2)
+        empty = Category.objects.create(name="Порожня")
+        res = self.client.delete(f"/api/categories/{empty.pk}/", **admin)
+        self.assertEqual(res.status_code, 204)

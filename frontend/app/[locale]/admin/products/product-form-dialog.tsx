@@ -412,8 +412,8 @@ export function ProductFormDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-price" className="text-right">{tf("price")} *</Label>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="pd-price" className="flex min-h-9 items-center justify-end text-right leading-tight">{tf("price")} *</Label>
                 <div className="col-span-3">
                   <Input id="pd-price" type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)}
                     onBlur={() => {
@@ -429,8 +429,8 @@ export function ProductFormDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="pd-original-price" className="text-right">{tf("originalPrice")} *</Label>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="pd-original-price" className="flex min-h-9 items-center justify-end text-right leading-tight">{tf("originalPrice")} *</Label>
                 <div className="col-span-3">
                   <Input id="pd-original-price" type="number" step="0.01" min="0" value={originalPrice} onChange={(e) => setOriginalPrice(e.target.value)}
                     onBlur={() => {

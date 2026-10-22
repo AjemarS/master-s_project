@@ -12,7 +12,7 @@ export function Pagination({ currentPage, totalPages, loading, onPageChange }: P
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="mt-6 flex items-center justify-center gap-2">
       <Button
         variant="outline"
         size="sm"

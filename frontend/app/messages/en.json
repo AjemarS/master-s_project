@@ -340,7 +340,10 @@
     "stockUpdateFailed": "Could not update the stock",
     "eventStockAdjusted": "Stock of “{name}”: {from} → {to}",
     "addedToWishlist": "Added to wishlist",
-    "removedFromWishlist": "Removed from wishlist"
+    "removedFromWishlist": "Removed from wishlist",
+    "priceRangeError": "Min price is above max price",
+    "stockRangeError": "Min stock is above max stock",
+    "dateRangeError": "“From” date is after the “to” date"
   },
   "orders": {
     "title": "Orders",
@@ -445,7 +448,9 @@
     "confirmSaleDesc": "Review the receipt before finalizing the sale.",
     "confirmSale": "Confirm Sale",
     "hintSelectWarehouse": "Choose a warehouse to make the sale",
-    "hintAddItems": "Add items to the receipt"
+    "hintAddItems": "Add items to the receipt",
+    "hintCustomer": "Enter the buyer's name and phone",
+    "saleActivity": "Till sale: {name}"
   },
   "cart": {
     "title": "Your Cart",
@@ -614,7 +619,8 @@
     "createdSuccess": "Category created",
     "createdDesc": "Category \"{name}\" created.",
     "editNamed": "Edit “{name}”",
-    "deleteNamed": "Delete “{name}”"
+    "deleteNamed": "Delete “{name}”",
+    "notEmpty": "The category still has products or subcategories: move or delete them first."
   },
   "warehouses": {
     "title": "Warehouses & Stock",
@@ -941,7 +947,8 @@
     "errEmail": "Enter an email.",
     "errEmailInvalid": "Invalid email address.",
     "errPassword": "Enter a password.",
-    "errPasswordShort": "The password needs at least 8 characters."
+    "errPasswordShort": "The password needs at least 8 characters.",
+    "password": "Password"
   },
   "home": {
     "heroTitle": "Home Appliances for",
