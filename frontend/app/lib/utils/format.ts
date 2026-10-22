@@ -1,10 +1,12 @@
-export function formatCurrency(amount: number | string, locale = "ua"): string {
+/** `whole`: drop ",00" when the amount has no kopecks (catalog cards, where width is tight) */
+export function formatCurrency(amount: number | string, locale = "ua", whole = false): string {
   const num = Number(amount);
   if (isNaN(num)) return "—";
   if (locale === "en") {
     return num.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  return `${num.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
+  const digits = whole && Number.isInteger(num) ? 0 : 2;
+  return `${num.toLocaleString("uk-UA", { minimumFractionDigits: digits, maximumFractionDigits: digits })} ₴`;
 }
 
 export function formatPrice(product: { price: number; original_price: number; price_usd?: number; original_price_usd?: number }, locale = "ua") {

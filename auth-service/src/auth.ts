@@ -136,5 +136,10 @@ export const auth = betterAuth({
     enabled: true,
     window: 60,
     max: 100,
+    // Pages read the session on every navigation and tab focus; staff behind one office IP shared
+    // 100/min with sign-in and saw empty admin pages. Sign-in and sign-up keep the strict limit.
+    customRules: {
+      "/get-session": { window: 60, max: 1000 },
+    },
   },
 });
