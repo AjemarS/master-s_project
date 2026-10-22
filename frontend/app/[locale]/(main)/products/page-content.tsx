@@ -243,7 +243,7 @@ export default function ProductsPageContent() {
 
         <div className="flex-1 lg:min-w-[70vw]">
           {/* Top bar: page heading + sort */}
-          <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 mb-6">
             <h1 className="text-2xl font-bold tracking-tight">{t("catalog")}</h1>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground whitespace-nowrap">{t("sortBy")}</span>

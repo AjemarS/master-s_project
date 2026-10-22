@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { User } from "~/lib/auth-client";
 import { Button } from "~/ui/primitives/button";
 import { Menu, X } from "lucide-react";
+import { ThemeToggle } from "../theme-toggle";
 
 interface MobileMenuButtonProps {
   isOpen: boolean;
@@ -149,6 +150,11 @@ export function MobileMenu({ showAuth, user, onClose }: MobileMenuProps) {
             </Link>
           ))}
         </div>
+      </div>
+
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <p className="px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("theme")}</p>
+        <ThemeToggle />
       </div>
     </div>
   );

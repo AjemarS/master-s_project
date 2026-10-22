@@ -103,7 +103,8 @@ export function Header({ showAuth = true }: HeaderProps) {
           lg:px-8
         `}
       >
-        <div className="grid h-16 grid-cols-[33fr_34fr_33fr] items-center gap-4">
+        {/* Phones: the search column is hidden, so the icons take all space after the logo */}
+        <div className="grid h-16 grid-cols-[auto_1fr] md:grid-cols-[33fr_34fr_33fr] items-center gap-2 md:gap-4">
           {/* Left */}
           <div className="flex items-center">
             <Logo />
@@ -114,11 +115,11 @@ export function Header({ showAuth = true }: HeaderProps) {
             <SearchBar />
           </div>
 
-          <div className="flex items-center justify-end gap-2 sm:gap-4">
+          <div className="flex items-center justify-end gap-1 sm:gap-4">
             {/* Mobile search toggle */}
             <button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-              className="md:hidden flex items-center justify-center text-muted-foreground hover:text-foreground"
+              className="md:hidden flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
               aria-label={ta("search")}
               type="button"
             >
@@ -150,7 +151,7 @@ export function Header({ showAuth = true }: HeaderProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={ta("changeLanguage")}>
+                <Button variant="ghost" size="icon" className="max-md:hidden text-muted-foreground hover:text-foreground" aria-label={ta("changeLanguage")}>
                   <Globe className="h-4 w-4" aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
@@ -172,7 +173,8 @@ export function Header({ showAuth = true }: HeaderProps) {
 
             {showAuth && <AuthSection user={user} whereAmI={whereAmI} />}
 
-            <ThemeToggle />
+            {/* Phones switch language and theme in the mobile menu: the header has no room for them */}
+            <ThemeToggle className="max-md:hidden" />
 
             <MobileMenuButton
               isOpen={mobileMenuOpen}
