@@ -25,5 +25,6 @@
   - order-service: `docker compose exec order-service python manage.py test`
   - auth-service: `docker compose exec auth-service npm run test`
   - frontend: from `frontend/` on the host, `PLAYWRIGHT_BASE_URL=http://localhost npx playwright test` (the image has no
-    browsers; visual baselines are Linux-only, regenerate them in `mcr.microsoft.com/playwright:v1.61.0-noble`)
+    browsers; visual baselines are Linux-only, regenerate them in `mcr.microsoft.com/playwright:v1.61.0-noble`
+    with its own dev server and no backend, as CI runs them: no `PLAYWRIGHT_BASE_URL`, no `--network host`)
 
