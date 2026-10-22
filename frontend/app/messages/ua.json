@@ -458,7 +458,9 @@
     "continueShopping": "Продовжити покупки",
     "clearCart": "Очистити кошик",
     "shoppingCart": "Кошик",
-    "clearConfirm": "Очистити кошик? Усі товари буде видалено."
+    "clearConfirm": "Очистити кошик? Усі товари буде видалено.",
+    "clearYes": "Очистити",
+    "removeConfirm": "Прибрати з кошика?"
   },
   "checkout": {
     "title": "Оформлення замовлення",
@@ -473,7 +475,7 @@
     "nameLabel": "Ім'я",
     "emailLabel": "Email",
     "phoneLabel": "Телефон",
-    "phonePlaceholder": "+380 __ ___ __ __",
+    "phonePlaceholder": "67 123 45 67",
     "delivery": "Доставка",
     "deliveryMethod": "Спосіб доставки",
     "pickup": "Самовивіз з магазину",
@@ -490,7 +492,7 @@
     "receiverName": "Ім'я отримувача",
     "receiverNamePlaceholder": "Введіть ім'я отримувача",
     "receiverPhone": "Телефон отримувача",
-    "receiverPhonePlaceholder": "+380 __ ___ __ __",
+    "receiverPhonePlaceholder": "67 123 45 67",
     "callToConfirm": "Зателефонувати мені для підтвердження",
     "comment": "Коментар",
     "commentPlaceholder": "Додаткові побажання або коментар...",
@@ -542,6 +544,7 @@
     "statusFilled": "Заповнено",
     "statusError": "Помилка",
     "promoLabel": "Промокод",
+    "promoHave": "Маю промокод",
     "promoApply": "Застосувати",
     "promoRemove": "Прибрати промокод",
     "promoInvalid": "Промокод не підходить",

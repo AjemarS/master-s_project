@@ -56,6 +56,7 @@ import {
   DialogTrigger,
 } from "~/ui/primitives/dialog";
 import QRCode from "react-qr-code";
+import { useConfirm } from "~/ui/components/confirm-dialog";
 
 const ORDER_PREF_TYPES = [
   "order_confirmed",
@@ -65,6 +66,7 @@ const ORDER_PREF_TYPES = [
 ] as const;
 
 export function SettingsClient() {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations("settings");
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
@@ -332,7 +334,7 @@ export function SettingsClient() {
       toast.error(tProfile("passwordRequired"));
       return;
     }
-    if (!window.confirm(tProfile("disable2faConfirm"))) return;
+    if (!(await confirm(tProfile("disable2faConfirm")))) return;
     setDisabling2FA(true);
     try {
       await twoFactor.disable({ password: twoFactorPassword });
@@ -349,7 +351,7 @@ export function SettingsClient() {
 
   // ── Sessions ───────────────────────────────────────────────────
   const handleRevokeSessions = async () => {
-    if (!window.confirm(t("revokeSessionsConfirm"))) return;
+    if (!(await confirm(t("revokeSessionsConfirm")))) return;
     setRevokingSessions(true);
     try {
       await authClient.revokeOtherSessions();
@@ -421,6 +423,7 @@ export function SettingsClient() {
   // ── Render ─────────────────────────────────────────────────────
   return (
     <Tabs className="space-y-6" value={tabFromUrl && ["profile", "security", "notifications"].includes(tabFromUrl) ? tabFromUrl : "profile"} onValueChange={(v) => router.replace(`/my/settings?tab=${v}`)}>
+      {confirmDialog}
       <TabsList>
         <TabsTrigger className="flex items-center gap-2" value="profile">
           <User className="h-4 w-4" />

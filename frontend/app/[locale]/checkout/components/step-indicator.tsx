@@ -22,7 +22,7 @@ export function StepIndicator({
   ariaLabel,
 }: StepIndicatorProps) {
   return (
-    <ol aria-label={ariaLabel} className="flex items-center gap-2 text-sm text-muted-foreground">
+    <ol aria-label={ariaLabel} className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
       {sections.map((section, idx) => {
         const isExpanded = expandedSections.includes(section);
         const text = `${labelOf(section)}: ${statusLabel(statuses[section])}`;

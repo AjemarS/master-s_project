@@ -2,6 +2,7 @@
 
 import { Label } from "~/ui/primitives/label";
 import { Input } from "~/ui/primitives/input";
+import { PhoneInput } from "~/ui/components/phone-input";
 import { RadioGroup, RadioGroupItem } from "~/ui/primitives/radio-group";
 
 interface ReceiverFormProps {
@@ -70,13 +71,11 @@ export function ReceiverForm({
           </div>
           <div>
             <Label htmlFor="co-receiver-phone">{tChk("receiverPhone")}</Label>
-            <Input
+            <PhoneInput
               id="co-receiver-phone"
-              type="tel"
-              inputMode="tel"
               autoComplete="off"
               value={receiverPhone}
-              onChange={(e) => onPhoneChange(e.target.value)}
+              onChange={onPhoneChange}
               onBlur={onPhoneBlur}
               placeholder={tChk("receiverPhonePlaceholder")}
               className="mt-1.5"

@@ -531,7 +531,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 {/* 1. City section */}
                 <AccordionItem value="city">
                   <AccordionTrigger
-                    className="hover:no-underline"
+                    className="hover:no-underline pr-3"
                     headerClassName="sticky top-0 z-10 bg-background/95 backdrop-blur"
                     trailing={<StatusDot status={sectionStatuses["city"]} label={statusLabel(sectionStatuses["city"])} />}
                   >
@@ -559,7 +559,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 {/* 2. Personal info section */}
                 <AccordionItem value="info">
                   <AccordionTrigger
-                    className="hover:no-underline"
+                    className="hover:no-underline pr-3"
                     trailing={<StatusDot status={sectionStatuses["info"]} label={statusLabel(sectionStatuses["info"])} />}
                   >
                     <span className="flex items-center gap-2 font-semibold text-base">
@@ -603,7 +603,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 {/* 3. Delivery section */}
                 <AccordionItem value="delivery">
                   <AccordionTrigger
-                    className="hover:no-underline"
+                    className="hover:no-underline pr-3"
                     trailing={<StatusDot status={sectionStatuses["delivery"]} label={statusLabel(sectionStatuses["delivery"])} />}
                   >
                     <span className="flex items-center gap-2 font-semibold text-base">
@@ -644,7 +644,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 {/* 4. Receiver section */}
                 <AccordionItem value="receiver">
                   <AccordionTrigger
-                    className="hover:no-underline"
+                    className="hover:no-underline pr-3"
                     trailing={<StatusDot status={sectionStatuses["receiver"]} label={statusLabel(sectionStatuses["receiver"])} />}
                   >
                     <span className="flex items-center gap-2 font-semibold text-base">
@@ -673,7 +673,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 {/* 5. Confirmation section */}
                 <AccordionItem value="confirmation">
                   <AccordionTrigger
-                    className="hover:no-underline"
+                    className="hover:no-underline pr-3"
                     trailing={<StatusDot status={sectionStatuses["confirmation"]} label={statusLabel(sectionStatuses["confirmation"])} />}
                   >
                     <span className="flex items-center gap-2 font-semibold text-base">
@@ -697,7 +697,7 @@ function CheckoutContent({ user }: { user: AuthUser | null }) {
                 {/* 6. Comment section */}
                 <AccordionItem value="comment">
                   <AccordionTrigger
-                    className="hover:no-underline"
+                    className="hover:no-underline pr-3"
                     trailing={<StatusDot status={sectionStatuses["comment"]} label={statusLabel(sectionStatuses["comment"])} />}
                   >
                     <span className="flex items-center gap-2 font-semibold text-base">

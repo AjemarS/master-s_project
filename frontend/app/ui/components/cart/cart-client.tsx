@@ -45,6 +45,9 @@ export function CartClient({ className }: CartProps) {
     removeItem,
     clearCart,
   } = useCart();
+  const tc = useTranslations("common");
+  const [confirmingClear, setConfirmingClear] = React.useState(false);
+  const [confirmingRemove, setConfirmingRemove] = React.useState<string | null>(null);
 
   const router = useRouter();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -69,12 +72,10 @@ export function CartClient({ className }: CartProps) {
     updateQuantity(id, newQuantity);
   };
 
+  // The cross asks in the row itself: a toast would sit under the open cart panel
   const handleRemoveItem = (id: string) => {
+    setConfirmingRemove(null);
     removeItem(id);
-  };
-
-  const handleClearCart = () => {
-    if (window.confirm(t("clearConfirm"))) clearCart();
   };
 
   const CartTrigger = (
@@ -178,7 +179,8 @@ export function CartClient({ className }: CartProps) {
                               text-muted-foreground transition-colors
                               hover:bg-muted hover:text-destructive
                             `}
-                            onClick={() => handleRemoveItem(item.id)}
+                            onClick={() => setConfirmingRemove(item.id)}
+                            aria-expanded={confirmingRemove === item.id}
                             type="button"
                           >
                             <X className="h-4 w-4" />
@@ -189,6 +191,19 @@ export function CartClient({ className }: CartProps) {
                           {item.category}
                         </p>
                       </div>
+                      {confirmingRemove === item.id ? (
+                        <div role="alert" className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <span>{t("removeConfirm")}</span>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" onClick={() => setConfirmingRemove(null)} autoFocus>
+                              {tc("no")}
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleRemoveItem(item.id)}>
+                              {tc("yes")}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
                       <div className="mt-2 flex items-center justify-between">
                         <div className="flex items-center rounded-md border">
                           <button
@@ -235,6 +250,7 @@ export function CartClient({ className }: CartProps) {
                           {formatCurrency(item.price * item.quantity)}
                         </div>
                       </div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -276,12 +292,26 @@ export function CartClient({ className }: CartProps) {
                 )}
                 <Button
                   className="ml-2"
-                  onClick={handleClearCart}
+                  onClick={() => setConfirmingClear(true)}
                   variant="outline"
+                  aria-expanded={confirmingClear}
                 >
                   {t("clearCart")}
                 </Button>
               </div>
+              {confirmingClear && (
+                <div role="alert" className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                  <p>{t("clearConfirm")}</p>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setConfirmingClear(false)} autoFocus>
+                      {tc("cancel")}
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => { setConfirmingClear(false); clearCart(); }}>
+                      {t("clearYes")}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

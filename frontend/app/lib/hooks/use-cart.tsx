@@ -95,27 +95,40 @@ export function CartProvider({ children }: React.PropsWithChildren) {
     return !res.error;
   }, [refreshCart]);
 
+  // Quantity, removal and clearing change the list at once; the server follows. Rapid +/- clicks
+  // on one line become a single request, and a failed request re-reads the cart from the server.
+  const pendingQty = React.useRef(new Map<number, ReturnType<typeof setTimeout>>());
+
   const removeItem = React.useCallback(async (idStr: string) => {
     const id = parseInt(idStr, 10);
     if (isNaN(id)) return;
-    await cartApi.removeItem(id);
-    refreshCart();
+    clearTimeout(pendingQty.current.get(id));
+    pendingQty.current.delete(id);
+    setItems((prev) => prev.filter((i) => i.id !== idStr));
+    const res = await cartApi.removeItem(id);
+    if (res.error) refreshCart();
   }, [refreshCart]);
 
   const updateQuantity = React.useCallback(async (idStr: string, qty: number) => {
     const id = parseInt(idStr, 10);
     if (isNaN(id)) return;
-    if (qty <= 0) {
-      await cartApi.removeItem(id);
-    } else {
-      await cartApi.updateItem(id, qty);
-    }
-    refreshCart();
-  }, [refreshCart]);
+    if (qty <= 0) return removeItem(idStr);
+    setItems((prev) => prev.map((i) => (i.id === idStr ? { ...i, quantity: qty } : i)));
+    clearTimeout(pendingQty.current.get(id));
+    pendingQty.current.set(id, setTimeout(async () => {
+      pendingQty.current.delete(id);
+      const res = await cartApi.updateItem(id, qty);
+      // The server may refuse or cap the quantity (stock); show what it kept unless the user moved on
+      if (res.error && !pendingQty.current.has(id)) refreshCart();
+    }, 400));
+  }, [refreshCart, removeItem]);
 
   const clearCart = React.useCallback(async () => {
-    await cartApi.clear();
-    refreshCart();
+    for (const timer of pendingQty.current.values()) clearTimeout(timer);
+    pendingQty.current.clear();
+    setItems([]);
+    const res = await cartApi.clear();
+    if (res.error) refreshCart();
   }, [refreshCart]);
 
   const itemCount = React.useMemo(

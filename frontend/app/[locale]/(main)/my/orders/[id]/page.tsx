@@ -19,6 +19,7 @@ import { returnsApi } from "~/lib/api/admin-api";
 import type { OrderDetail, OrderItem, ReturnKind, ReturnRequest } from "~/lib/types";
 import { ReturnDialog } from "./return-dialog";
 import { ReturnStatusBadge } from "~/ui/components/return-status-badge";
+import { useConfirm } from "~/ui/components/confirm-dialog";
 
 // Mirrors order-service returns.py; the server re-checks every claim
 const RETURN_DAYS = 14;
@@ -80,6 +81,7 @@ function OrderNotFoundAlert() {
 }
 
 function MyOrderDetailContent({ id }: { id: number }) {
+  const [confirm, confirmDialog] = useConfirm();
   const t = useTranslations("orderDetail");
   const to = useTranslations("orders");
   const { data: order, error, isLoading, mutate } = useOrder(id);
@@ -93,7 +95,7 @@ function MyOrderDetailContent({ id }: { id: number }) {
 
   const handleCancel = async () => {
     if (!order) return;
-    if (!window.confirm(to("cancelConfirm"))) return;
+    if (!(await confirm(to("cancelConfirm")))) return;
     setCancelling(true);
     try {
       await cancelOrder(id);
@@ -149,6 +151,7 @@ function MyOrderDetailContent({ id }: { id: number }) {
 
   return (
     <div className="container mx-auto max-w-4xl sm:px-4 py-4 sm:py-8">
+      {confirmDialog}
       <Link
         href="/my/orders"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"

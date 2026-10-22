@@ -458,7 +458,9 @@
     "continueShopping": "Continue Shopping",
     "clearCart": "Clear Cart",
     "shoppingCart": "Shopping Cart",
-    "clearConfirm": "Clear the cart? All items will be removed."
+    "clearConfirm": "Clear the cart? All items will be removed.",
+    "clearYes": "Clear",
+    "removeConfirm": "Remove from the cart?"
   },
   "checkout": {
     "title": "Checkout",
@@ -473,7 +475,7 @@
     "nameLabel": "Name",
     "emailLabel": "Email",
     "phoneLabel": "Phone",
-    "phonePlaceholder": "+380 __ ___ __ __",
+    "phonePlaceholder": "67 123 45 67",
     "delivery": "Delivery",
     "deliveryMethod": "Delivery Method",
     "pickup": "Pickup from store",
@@ -490,7 +492,7 @@
     "receiverName": "Receiver's name",
     "receiverNamePlaceholder": "Enter receiver's name",
     "receiverPhone": "Receiver's phone",
-    "receiverPhonePlaceholder": "+380 __ ___ __ __",
+    "receiverPhonePlaceholder": "67 123 45 67",
     "callToConfirm": "Call me to confirm the order",
     "comment": "Comment",
     "commentPlaceholder": "Additional wishes or comments...",
@@ -542,6 +544,7 @@
     "statusFilled": "Filled",
     "statusError": "Has errors",
     "promoLabel": "Promo code",
+    "promoHave": "I have a promo code",
     "promoApply": "Apply",
     "promoRemove": "Remove promo code",
     "promoInvalid": "This promo code does not apply",
