@@ -1,9 +1,11 @@
 import json
 from decimal import Decimal
+from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from uuid import uuid4
 
+from django.core.management import call_command
 from django.test import TestCase
 
 from ..eventbus import _handle_stock_changed, start_consumer
@@ -101,3 +103,25 @@ class GoodsReceiptRoutingTest(TestCase):
         self.assertEqual(product.stock, 60)
         self.assertEqual(channel.nacked, 0)
 
+
+class ReconcileStockTest(TestCase):
+    """A lost event no longer leaves Product.stock wrong for good (fix #30)."""
+
+    def test_distorted_stock_is_restored_from_inventory(self):
+        category = Category.objects.create(name="Kitchen")
+        drifted = Product.objects.create(name="Kettle", category=category, price=1, original_price=1, stock=3)
+        right = Product.objects.create(name="Toaster", category=category, price=1, original_price=1, stock=5)
+        untracked = Product.objects.create(name="Mixer", category=category, price=1, original_price=1, stock=9)
+        rows = [
+            {"product_id": drifted.pk, "quantity": 7}, {"product_id": drifted.pk, "quantity": 4},
+            {"product_id": right.pk, "quantity": 5},
+        ]
+        with mock.patch("products.management.commands.reconcile_stock.requests.get") as get:
+            get.return_value.json.return_value = rows
+            out = StringIO()
+            call_command("reconcile_stock", stdout=out)
+
+        for product, stock in ((drifted, 11), (right, 5), (untracked, 9)):
+            product.refresh_from_db()
+            self.assertEqual(product.stock, stock)
+        self.assertIn("stock_reconcile_fixed 1", out.getvalue())
