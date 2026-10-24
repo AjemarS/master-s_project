@@ -1,8 +1,12 @@
+import json
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest import mock
+from uuid import uuid4
 
 from django.test import TestCase
 
-from ..eventbus import _handle_goods_received, _handle_stock_changed
+from ..eventbus import _handle_stock_changed, start_consumer
 from ..models import Category, Product
 
 
@@ -50,29 +54,50 @@ class EventbusHandlerTest(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock, 50)
 
-    def test_handle_goods_received_increments_stock(self):
-        _handle_goods_received({
-            "product_id": self.product.pk,
-            "quantity": 15,
-            "cost_price": "8500.00",
-        })
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock, 65)
-        self.assertTrue(self.product.in_stock)
 
-    def test_handle_goods_received_sets_in_stock_false(self):
-        self.product.stock = 5
-        self.product.save()
-        _handle_goods_received({
-            "product_id": self.product.pk,
-            "quantity": -5,
-            "cost_price": "0",
-        })
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock, 0)
-        self.assertFalse(self.product.in_stock)
+class FakeChannel:
+    """In-memory broker: records bindings and consumers, delivers by routing key."""
 
-    def test_handle_goods_received_missing_product_id(self):
-        _handle_goods_received({"quantity": 10, "cost_price": "1000"})
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock, 50)
+    def __init__(self):
+        self.bindings, self.consumers, self.nacked = {}, {}, 0
+
+    def queue_bind(self, queue, exchange, routing_key):
+        self.bindings.setdefault(routing_key, []).append(queue)
+
+    def basic_consume(self, queue, on_message_callback):
+        self.consumers[queue] = on_message_callback
+
+    def basic_nack(self, delivery_tag, requeue):
+        self.nacked += 1
+
+    def __getattr__(self, name):
+        return lambda *a, **kw: None
+
+    def publish(self, routing_key, event):
+        for queue in self.bindings.get(routing_key, []):
+            self.consumers[queue](
+                self, SimpleNamespace(routing_key=routing_key, delivery_tag=1),
+                SimpleNamespace(message_id=None), json.dumps(event).encode(),
+            )
+
+
+class GoodsReceiptRoutingTest(TestCase):
+    """A GRN publishes stock.changed and goods_received; the catalog must count it once (fix #25)."""
+
+    def test_receipt_of_10_adds_10(self):
+        product = Product.objects.create(
+            name="Kettle", category=Category.objects.create(name="Kitchen"), price=Decimal("10"), original_price=Decimal("10"), stock=50,
+        )
+        channel = FakeChannel()
+        conn = mock.Mock(channel=lambda: channel)
+        with mock.patch("products.eventbus.get_connection", return_value=conn), \
+                mock.patch("shared_eventbus.consumer.get_connection", return_value=conn):
+            start_consumer()
+
+        channel.publish("inventory.stock.changed", {"event_id": str(uuid4()), "product_id": product.pk, "change": 10})
+        channel.publish("inventory.goods_received", {"event_id": str(uuid4()), "product_id": product.pk, "quantity": 10})
+
+        product.refresh_from_db()
+        self.assertEqual(product.stock, 60)
+        self.assertEqual(channel.nacked, 0)
+
