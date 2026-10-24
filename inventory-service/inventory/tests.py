@@ -2,6 +2,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -280,6 +281,29 @@ class StockAPITest(APITestCase):
             },
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_adjust_publishes_delta_for_catalog(self):
+        """The catalog follows a stock count like any other change (fix #26)."""
+        self.client.force_authenticate(user=_create_admin_user())
+        with mock.patch("inventory.views.publish_event") as publish, self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                "/api/stock/adjust/", {"product_id": 1, "warehouse_id": self.warehouse.pk, "new_quantity": 93},
+            )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        publish.assert_called_once()
+        name, payload = publish.call_args.args
+        self.assertEqual((name, payload["change"], payload["quantity"]), ("inventory.stock.changed", -7, 93))
+
+    def test_adjust_below_reserved_rejected(self):
+        self.stock.reserved = 30
+        self.stock.save()
+        self.client.force_authenticate(user=_create_admin_user())
+        response = self.client.post(
+            "/api/stock/adjust/", {"product_id": 1, "warehouse_id": self.warehouse.pk, "new_quantity": 29},
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.stock.refresh_from_db()
+        self.assertEqual(self.stock.quantity, 100)
 
 
 class GoodsReceiptAPITest(APITestCase):
