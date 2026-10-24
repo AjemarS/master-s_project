@@ -7,6 +7,7 @@ import time
 import logging
 from decimal import Decimal
 
+import stripe
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -124,6 +125,16 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
         }
 
     old_status = order.status
+
+    # Money goes back before the order is cancelled: a failed refund leaves it as it was
+    if new_status == Order.CANCELLED and order.payment_status == Order.PAYMENT_PAID and order.stripe_payment_intent_id:
+        try:
+            # No amount: Stripe refunds whatever a return has not refunded already
+            stripe.Refund.create(payment_intent=order.stripe_payment_intent_id, idempotency_key=f"cancel-{order.id}")
+        except stripe.error.StripeError as e:
+            logger.error("Stripe refund failed | order=%s error=%s", order.order_number, e)
+            return order, {"error": "Refund failed", "detail": str(e)}
+        order.payment_status = Order.PAYMENT_REFUNDED
 
     with transaction.atomic():
         order.status = new_status

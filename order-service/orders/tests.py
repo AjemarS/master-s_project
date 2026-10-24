@@ -1138,3 +1138,24 @@ class CancelSideEffectsTest(TestCase):
             svc.update_order_status(self._order(waiting), Order.CANCELLED)
             release.assert_called_once()
         ret.assert_not_called()
+
+    @mock.patch("orders.order_service.stripe.Refund.create", return_value=mock.Mock(id="re_1"))
+    def test_cancel_paid_order_refunds_it(self, refund, release, ret):
+        """Cancelling a paid order gives the money back (fix #28)."""
+        order = self._order(Order.PAID, payment_status=Order.PAYMENT_PAID, stripe_payment_intent_id="pi_1")
+        _, error = svc.update_order_status(order, Order.CANCELLED)
+        self.assertIsNone(error)
+        refund.assert_called_once_with(payment_intent="pi_1", idempotency_key=f"cancel-{order.id}")
+        order.refresh_from_db()
+        self.assertEqual((order.status, order.payment_status), (Order.CANCELLED, Order.PAYMENT_REFUNDED))
+
+    @mock.patch("orders.order_service.stripe.Refund.create")
+    def test_failed_refund_keeps_order_paid(self, refund, release, ret):
+        import stripe
+        refund.side_effect = stripe.error.StripeError("card gone")
+        order = self._order(Order.PAID, payment_status=Order.PAYMENT_PAID, stripe_payment_intent_id="pi_1")
+        _, error = svc.update_order_status(order, Order.CANCELLED)
+        self.assertEqual(error["error"], "Refund failed")
+        order.refresh_from_db()
+        self.assertEqual((order.status, order.payment_status), (Order.PAID, Order.PAYMENT_PAID))
+        release.assert_not_called()
