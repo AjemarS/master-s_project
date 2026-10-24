@@ -53,7 +53,7 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           # check out first, then run: a script must not be rewritten while it runs
           ssh -i ~/.ssh/id_deploy "$TARGET" \
-            "cd /opt/techhub-$DEPLOY_ENV && git fetch -q origin $TAG && git checkout -q --detach FETCH_HEAD && sh deploy/deploy.sh $DEPLOY_ENV $TAG"
+            "cd /opt/techhub-$DEPLOY_ENV && git fetch -q origin $TAG && git checkout -q --detach FETCH_HEAD && sh deploy/deploy.sh $DEPLOY_ENV $TAG ${REGISTRY,,}"
 
       - name: Check health
         run: curl -fsS --retry 20 --retry-delay 6 --retry-all-errors "${{ vars.PUBLIC_URL }}/health"
