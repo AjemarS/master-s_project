@@ -2,7 +2,7 @@
 
 ## Stack
 - **Runtime:** Python 3.13 (slim in Docker)
-- **Framework:** Django 5.2 + DRF 3.16
+- **Framework:** Django 5.2 + DRF 3.18
 - **Database:** PostgreSQL 15 (`orders_db`, port 5435)
 - **Auth:** `GatewayAuthentication` — reads `X-Gateway-User-*` headers, syncs local Django User
 - **Message Broker:** RabbitMQ (publisher)
