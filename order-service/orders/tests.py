@@ -1110,3 +1110,31 @@ class CompleteOldPosSalesMigrationTest(TestCase):
         cancelled_pos.refresh_from_db()
         self.assertEqual(online.status, Order.UNPAID)
         self.assertEqual(cancelled_pos.status, Order.CANCELLED)
+
+
+@mock.patch("orders.order_service.return_stock", return_value=INVENTORY_OK)
+@mock.patch("orders.order_service.release_stock", return_value=INVENTORY_OK)
+class CancelSideEffectsTest(TestCase):
+    def _order(self, status, **fields):
+        order = Order.objects.create(
+            order_number=f"ORD-{Order.objects.count() + 1}", status=status, warehouse_id=1,
+            total_amount=Decimal("200.00"), **fields,
+        )
+        OrderItem.objects.create(order=order, product_id=7, quantity=2, price=Decimal("100.00"))
+        return order
+
+    def test_cancel_after_shipping_returns_goods_instead_of_releasing_others_reserve(self, release, ret):
+        """The shipped reserve is already written off; releasing it would free another order's units (fix #27)."""
+        for shipped in (Order.DELIVERING, Order.DELIVERED):
+            release.reset_mock(), ret.reset_mock()
+            _, error = svc.update_order_status(self._order(shipped), Order.CANCELLED)
+            self.assertIsNone(error)
+            release.assert_not_called()
+            self.assertEqual(ret.call_args.kwargs["quantity"], 2)
+
+    def test_cancel_before_shipping_releases_reserve(self, release, ret):
+        for waiting in (Order.UNPAID, Order.PAID):
+            release.reset_mock()
+            svc.update_order_status(self._order(waiting), Order.CANCELLED)
+            release.assert_called_once()
+        ret.assert_not_called()

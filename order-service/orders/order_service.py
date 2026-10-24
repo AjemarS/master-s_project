@@ -14,7 +14,7 @@ from orders import metrics
 from orders import promo as promo_svc
 from orders.models import Order, OrderItem, OrderStatusHistory
 from orders.eventbus import publish_event
-from orders.inventory_client import reserve_stock, deduct_stock_batch, release_stock
+from orders.inventory_client import reserve_stock, deduct_stock_batch, release_stock, return_stock
 from orders.event_builder import build_order_event
 
 logger = logging.getLogger(__name__)
@@ -136,9 +136,12 @@ def update_order_status(order, new_status, request=None, release_reserved=True):
             transaction.on_commit(lambda: metrics.ORDERS_CANCELLED.labels(order.channel).inc())
             transaction.on_commit(lambda: publish_event("order.cancelled", build_order_event(order)))
 
-    # Release stock on cancellation
+    # Release stock on cancellation; once shipped the reserve is already written off and the parcel comes back
     if new_status == Order.CANCELLED and order.warehouse_id and release_reserved:
-        release_order_stock(order, request)
+        if old_status in (Order.UNPAID, Order.PAID):
+            release_order_stock(order, request)
+        else:
+            return_order_stock(order, request)
 
     # Deduct reserved stock on shipping — all items or none, revert status on failure
     if new_status == Order.DELIVERING and order.warehouse_id:
@@ -172,6 +175,25 @@ def release_order_stock(order, request=None):
         if error:
             logger.error(
                 "Stock release failed | order=%s product=%s error=%s",
+                order.order_number, item.product_id, error,
+            )
+
+
+def return_order_stock(order, request=None):
+    """Put a cancelled shipped order back on the shelf (its reserve was written off on shipping)."""
+    for item in order.items.all():
+        _, error = return_stock(
+            product_id=item.product_id,
+            warehouse_id=order.warehouse_id,
+            quantity=item.quantity,
+            reference_type="order",
+            reference_id=str(order.id),
+            idempotency_key=f"cancel-return-{order.id}-{item.product_id}",
+            request=request,
+        )
+        if error:
+            logger.error(
+                "Stock return failed | order=%s product=%s error=%s",
                 order.order_number, item.product_id, error,
             )
 
