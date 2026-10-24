@@ -355,9 +355,11 @@ class StockViewSet(viewsets.ReadOnlyModelViewSet):
             Stock.objects.filter(
                 product_id=product_id, warehouse_id=from_warehouse_id
             ).update(quantity=F("quantity") - quantity)
+            # Units carry their cost along: the destination's average is weighted by what arrives
+            dest_cost = (dest.quantity * dest.average_cost + quantity * source.average_cost) / (dest.quantity + quantity)
             Stock.objects.filter(
                 product_id=product_id, warehouse_id=to_warehouse_id
-            ).update(quantity=F("quantity") + quantity)
+            ).update(quantity=F("quantity") + quantity, average_cost=dest_cost)
 
             source.refresh_from_db()
             dest.refresh_from_db()

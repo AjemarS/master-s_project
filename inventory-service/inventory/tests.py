@@ -305,6 +305,28 @@ class StockAPITest(APITestCase):
         self.stock.refresh_from_db()
         self.assertEqual(self.stock.quantity, 100)
 
+    def test_transfer_carries_average_cost(self):
+        """Moved units keep their cost, so a showroom sale is not costed at 0 (fix #29)."""
+        Stock.objects.filter(pk=self.stock.pk).update(quantity=10, average_cost=Decimal("100.00"))
+        showroom = _create_warehouse("Showroom", "showroom")
+        self.client.force_authenticate(user=_create_admin_user())
+        response = self.client.post("/api/stock/transfer/", {
+            "product_id": 1, "from_warehouse_id": self.warehouse.pk, "to_warehouse_id": showroom.pk, "quantity": 4,
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dest = Stock.objects.get(product_id=1, warehouse=showroom)
+        self.assertEqual((dest.quantity, dest.average_cost), (4, Decimal("100.00")))
+
+    def test_transfer_blends_with_destination_cost(self):
+        Stock.objects.filter(pk=self.stock.pk).update(quantity=10, average_cost=Decimal("100.00"))
+        showroom = _create_warehouse("Showroom", "showroom")
+        Stock.objects.create(product_id=1, warehouse=showroom, quantity=4, average_cost=Decimal("40.00"))
+        self.client.force_authenticate(user=_create_admin_user())
+        self.client.post("/api/stock/transfer/", {
+            "product_id": 1, "from_warehouse_id": self.warehouse.pk, "to_warehouse_id": showroom.pk, "quantity": 4,
+        })
+        self.assertEqual(Stock.objects.get(product_id=1, warehouse=showroom).average_cost, Decimal("70.00"))
+
 
 class GoodsReceiptAPITest(APITestCase):
     def setUp(self):
