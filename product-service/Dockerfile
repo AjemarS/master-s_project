@@ -36,7 +36,9 @@ FROM python:3.13-slim AS prod
 
 ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus
 
+# Fonts for the seed's placeholder images: without them product names come out tiny
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin -c "App user" app
