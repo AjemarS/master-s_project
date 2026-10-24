@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { ShoppingCart, ArrowRightLeft, ClipboardList, AlertCircle, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { useOrders, useStockMovements, useGoodsReceipts } from "~/lib/hooks/use-api-data";
 import { formatCurrency, formatRelativeTime } from "~/lib/utils/format";
 

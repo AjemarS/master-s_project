@@ -5,7 +5,7 @@ import { useState, Suspense, useCallback, useEffect } from "react";
 import { useRouter } from "~/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import {
   ShoppingBag, Loader2, MapPin, User, MessageSquare,
   CheckCircle2,

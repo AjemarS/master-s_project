@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "~/ui/primitives/alert";
 import { Button } from "~/ui/primitives/button";
