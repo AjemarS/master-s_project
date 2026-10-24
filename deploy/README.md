@@ -30,8 +30,8 @@ sudo usermod -aG docker "$USER"   # log out and back in
 
 # one checkout per environment
 sudo install -d -o "$USER" /opt/techhub-staging /opt/techhub-prod
-git clone https://github.com/AjemarS/master-s_project.git /opt/techhub-staging
-git clone https://github.com/AjemarS/master-s_project.git /opt/techhub-prod
+git clone https://github.com/AjemarS/techhub.git /opt/techhub-staging
+git clone https://github.com/AjemarS/techhub.git /opt/techhub-prod
 ```
 
 In each checkout create `.env` from `.env.example`, with its own secrets, and also set:
@@ -71,7 +71,7 @@ After editing `.env`, recreate the two mail senders: `docker compose -p techhub-
 - Staging: merge a PR into `main`.
 - Prod: `git tag v1.0.0 && git push origin v1.0.0`, then approve the deployment in the Actions run.
 - Roll back: re-run the deploy job of an earlier tag, or on the host
-  `cd /opt/techhub-prod && git checkout --detach <sha> && sh deploy/deploy.sh prod <sha>`.
+  `cd /opt/techhub-prod && git checkout --detach <sha> && sh deploy/deploy.sh prod <sha> ghcr.io/ajemars/techhub`.
 
 ## Monitoring
 
