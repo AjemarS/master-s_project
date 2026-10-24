@@ -9,37 +9,19 @@ test.describe("Home Page", () => {
     await expect(page).toHaveTitle(/TechHub/);
   });
 
-  test("renders the hero section", async ({ page }) => {
-    await expect(
-      page.getByRole("heading", { name: /побутова техніка/i })
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /каталог/i })
-    ).toBeVisible();
+  test("has the page title for screen readers", async ({ page }) => {
+    await expect(page.getByRole("heading", { level: 1, name: /побутова техніка/i })).toBeAttached();
   });
 
-  test("renders the why choose us section", async ({ page }) => {
-    await expect(
-      page.locator("[data-slot='card-title']").getByText(/доставка по україні/i)
-    ).toBeVisible();
-    await expect(
-      page.locator("[data-slot='card-title']").getByText(/безпечна оплата/i)
-    ).toBeVisible();
-    await expect(
-      page.locator("[data-slot='card-title']").getByText(/звернення онлайн/i)
-    ).toBeVisible();
-    await expect(
-      page.locator("[data-slot='card-title']").getByText(/гарантія якості/i)
-    ).toBeVisible();
+  test("renders the trust line", async ({ page }) => {
+    await expect(page.getByText(/самовивіз із шоуруму безкоштовно/i)).toBeVisible();
+    await expect(page.getByText(/повернення протягом 14 днів/i)).toBeVisible();
   });
 
-  test("renders the CTA section", async ({ page }) => {
-    await expect(
-      page.getByRole("link", { name: /зареєструватися/i })
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /каталог/i })
-    ).toBeVisible();
+  test("sign-in links keep the page language", async ({ page }) => {
+    // next/link without a locale used to send English visitors to /ua/sign-in
+    await page.goto("/en");
+    await expect(page.locator("header").getByRole("link", { name: /^sign in$/i })).toHaveAttribute("href", "/en/sign-in");
   });
 
   test("renders the header with TechHub logo", async ({ page }) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Badge } from "~/ui/primitives/badge";

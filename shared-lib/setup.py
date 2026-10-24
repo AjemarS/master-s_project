@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "Django>=5.0",
-        "djangorestframework>=3.15",
+        "djangorestframework>=3.18.2",
         "pika>=1.3",
         "requests",
         "prometheus-client>=0.20",

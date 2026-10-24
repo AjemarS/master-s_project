@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { Button } from "~/ui/primitives/button";
 import { HeaderUserDropdown } from "./header-user";
 import { isInDashboardOrAdmin, NavigationSection } from "./header";
@@ -29,14 +29,12 @@ export function AuthSection({ user, whereAmI }: AuthSectionProps) {
 
   return (
     <div className="hidden md:flex items-center gap-2">
-      <Link href="/sign-in">
-        <Button size="sm" variant="ghost">
-          {t("signIn")}
-        </Button>
-      </Link>
-      <Link href="/sign-up">
-        <Button size="sm">{t("signUp")}</Button>
-      </Link>
+      <Button asChild size="sm" variant="ghost">
+        <Link href="/sign-in">{t("signIn")}</Link>
+      </Button>
+      <Button asChild size="sm">
+        <Link href="/sign-up">{t("signUp")}</Link>
+      </Button>
     </div>
   );
 }

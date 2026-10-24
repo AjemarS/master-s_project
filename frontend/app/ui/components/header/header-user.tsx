@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { BarChart, LogOut, Settings, Shield, UserIcon, CreditCard, Warehouse } from "lucide-react";
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 
 import { cn } from "~/lib/cn";
 import { Avatar, AvatarFallback, AvatarImage } from "~/ui/primitives/avatar";

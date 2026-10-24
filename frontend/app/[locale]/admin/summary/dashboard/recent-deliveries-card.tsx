@@ -2,7 +2,7 @@
 
 import { useLocale } from "next-intl";
 
-import Link from "next/link";
+import { Link } from "~/i18n/navigation";
 import { ClipboardList, Building2, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/ui/primitives/card";
 import { Button } from "~/ui/primitives/button";
