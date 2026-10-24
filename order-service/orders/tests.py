@@ -28,14 +28,18 @@ def _fake_catalog(product_ids):
 
 # The catalog is product-service: every order created over the API gets its price from this stub
 _catalog_patch = mock.patch("orders.serializers.get_catalog_items", side_effect=_fake_catalog)
+# The stock pre-check calls inventory too: unstubbed, the result hung on whatever the live stack held
+_availability_patch = mock.patch("orders.serializers.check_availability", return_value=(True, None))
 
 
 def setUpModule():
     _catalog_patch.start()
+    _availability_patch.start()
 
 
 def tearDownModule():
     _catalog_patch.stop()
+    _availability_patch.stop()
 
 
 def _create_admin_user():
